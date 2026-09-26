@@ -3,16 +3,11 @@ This GitHub project is for DSA5206 - Advanced Topics in Data Science. The code w
 
 # Installation
 
-For model construction, checkpoint inspection, and the portable CPU smoke test:
+First install a CUDA-enabled PyTorch build appropriate for
+your driver. Then run the following code. Alternatively, 
+the codebase runs on Google Colab:
 
 ```bash
 python -m pip install -r requirements.txt
 python smoke_test.py
-```
-
-For GPU training, first install a CUDA-enabled PyTorch build appropriate for
-your driver, then install the optimized scan extension:
-
-```bash
-python -m pip install --no-build-isolation -r requirements-gpu.txt
 ```
