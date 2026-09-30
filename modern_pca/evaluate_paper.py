@@ -596,6 +596,25 @@ def load_paper_model(path: Path, model_format: str, metadata: dict, tf: Any,
     result["format"] = detected
     return model, result
 
+def create_legacy_brightness_standardizer(staintools: Any) -> Any:
+    """Provide the legacy brightness operation across StainTools API versions."""
+    if hasattr(staintools, "BrightnessStandardizer"):
+        return staintools.BrightnessStandardizer()
+
+    if hasattr(staintools, "LuminosityStandardizer"):
+        luminosity = staintools.LuminosityStandardizer
+
+        class LuminosityStandardizerAdapter:
+            @staticmethod
+            def transform(image):
+                return luminosity.standardize(image)
+
+        return LuminosityStandardizerAdapter()
+
+    raise EvaluationError(
+        "Installed staintools provides neither "
+        "BrightnessStandardizer nor LuminosityStandardizer."
+    )
 
 def create_legacy_normalizer(reference: Path) -> tuple[Any, Any]:
     """Fit raw reference directly, exactly as legacy V:38-44; no brightness fit transform."""
@@ -605,7 +624,7 @@ def create_legacy_normalizer(reference: Path) -> tuple[Any, Any]:
         raise EvaluationError("Legacy preprocessing requires working staintools and its native dependencies; "
                               "install/configure a verified environment separately. No NumPy fallback.") from error
     target = staintools.read_image(str(reference))
-    standardizer = staintools.BrightnessStandardizer()
+    standardizer = create_legacy_brightness_standardizer(staintools)
     normalizer = staintools.StainNormalizer(method="macenko")
     normalizer.fit(target)
     return standardizer, normalizer
@@ -860,8 +879,14 @@ def implementation_identity() -> dict:
     # Full source hash deliberately conservative: even untracked edits are bound.
     # Normalize newlines so a Git CRLF checkout alone does not break CPU/WSL comparison.
     source = Path(__file__).read_text(encoding="utf-8").replace("\r\n", "\n")
-    preprocessing = "\n".join(inspect.getsource(function).replace("\r\n", "\n") for function in
-                              [create_legacy_normalizer, preprocess_legacy])
+    preprocessing = "\n".join(
+        inspect.getsource(function).replace("\r\n", "\n")
+        for function in [
+            create_legacy_brightness_standardizer,
+            create_legacy_normalizer,
+            preprocess_legacy,
+        ]
+    )
     return {"version": 2, "evaluator_source_sha256": hashlib.sha256(source.encode()).hexdigest(),
             "preprocessing_source_sha256": hashlib.sha256(preprocessing.encode()).hexdigest()}
 
@@ -876,11 +901,27 @@ def preprocessing_settings() -> dict:
         except importlib.metadata.PackageNotFoundError:
             files[package] = "unavailable"
             continue
-        sources = {str(path).replace("\\", "/"): sha256_file(Path(distribution.locate_file(path)))
-                   for path in distribution.files or [] if str(path).endswith(".py")}
+        sources = {}
+
+        for path in distribution.files or []:
+            if not str(path).endswith(".py"):
+                continue
+
+            located = Path(distribution.locate_file(path))
+
+            # Conda/PyPI metadata may contain entries that are not present
+            # in the installed runtime. Fingerprint only actual source files.
+            if not located.is_file():
+                continue
+
+            sources[str(path).replace("\\", "/")] = sha256_file(located)
+
         files[package] = fingerprint(sources)
     return {"source_decode": "PIL RGB; no EXIF transpose", "resize_before_normalization": True,
-            "brightness": "BrightnessStandardizer.transform; installed defaults",
+            "brightness": (
+                "legacy StainTools brightness/luminosity standardization; "
+                "95th-percentile default; API-compatible implementation"
+            ),
             "stain_method": "macenko", "stain_options": "installed defaults bound to backend source hashes",
             "reference_fit": "staintools.read_image; no brightness transform",
             "failure_policy": "abort", "backend_source_sha256": files}

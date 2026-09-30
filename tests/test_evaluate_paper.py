@@ -371,6 +371,52 @@ def test_missing_staintools_is_actionable(monkeypatch, tmp_path):
         ep.create_legacy_normalizer(tmp_path / "reference.png")
 
 
+def test_legacy_brightness_standardizer_prefers_original_api():
+    sentinel = object()
+    fake = SimpleNamespace(
+        BrightnessStandardizer=lambda: sentinel,
+        LuminosityStandardizer=object,
+    )
+
+    result = ep.create_legacy_brightness_standardizer(fake)
+
+    assert result is sentinel
+
+
+def test_legacy_brightness_standardizer_supports_luminosity_api():
+    calls = []
+
+    class LuminosityStandardizer:
+        @staticmethod
+        def standardize(image):
+            calls.append(image)
+            return image + 1
+
+    fake = SimpleNamespace(
+        LuminosityStandardizer=LuminosityStandardizer,
+    )
+
+    standardizer = ep.create_legacy_brightness_standardizer(fake)
+
+    image = np.array([1, 2, 3], dtype=np.uint8)
+    result = standardizer.transform(image)
+
+    np.testing.assert_array_equal(
+        result,
+        np.array([2, 3, 4], dtype=np.uint8),
+    )
+    assert calls == [image]
+
+
+def test_legacy_brightness_standardizer_rejects_unknown_api():
+    fake = SimpleNamespace()
+
+    with pytest.raises(
+        ep.EvaluationError,
+        match="neither BrightnessStandardizer nor LuminosityStandardizer",
+    ):
+        ep.create_legacy_brightness_standardizer(fake)
+
 def test_preprocessing_order_and_float_scaling(manifest):
     events = []
     class Brightness:
