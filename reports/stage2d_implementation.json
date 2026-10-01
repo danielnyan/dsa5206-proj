@@ -1,0 +1,2503 @@
+{
+  "VAL2_images_accessed": false,
+  "benchmark": {
+    "VAL2_images_accessed": false,
+    "complete": true,
+    "completed_at_utc": "2026-10-01T07:48:52.824325+00:00",
+    "config": {
+      "cache_sha256": "7acc053bac25750e38bd850e76dbe2ee348ffdf56bc20c19eb7ff95efd9db75e",
+      "class_counts": {
+        "benign": 200,
+        "tumour": 200
+      },
+      "labels_sha256": "75aed5d48af474e38c553f2b92b7cb4b5073b777cfe196bde974ad4119732de1",
+      "native_variants": 3,
+      "preprocessing_images_per_second": 4.38449972458489,
+      "preprocessing_seconds": 91.23047670800588,
+      "sample_ids": [
+        "VAL1:benign/norm/norm.82366.jpg",
+        "VAL1:tumour/tu/tum.21899.jpg",
+        "VAL1:benign/norm/norm.70072.jpg",
+        "VAL1:tumour/tu/tum.39092.jpg",
+        "VAL1:benign/norm/norm.28663.jpg",
+        "VAL1:tumour/tu/tum.15356.jpg",
+        "VAL1:benign/norm/norm.31941.jpg",
+        "VAL1:tumour/tu/tum.50752.jpg",
+        "VAL1:benign/norm/norm.9178.jpg",
+        "VAL1:tumour/tu/tum.44793.jpg",
+        "VAL1:benign/norm/norm.32251.jpg",
+        "VAL1:tumour/tu/tum.27797.jpg",
+        "VAL1:benign/norm/norm.28066.jpg",
+        "VAL1:tumour/tu/tum.19423.jpg",
+        "VAL1:benign/norm/norm.53475.jpg",
+        "VAL1:tumour/tu/tum.27269.jpg",
+        "VAL1:benign/norm/norm.13652.jpg",
+        "VAL1:tumour/tu/tum.45184.jpg",
+        "VAL1:benign/norm/norm.64929.jpg",
+        "VAL1:tumour/tu/tum.6217.jpg",
+        "VAL1:benign/norm/norm.63723.jpg",
+        "VAL1:tumour/tu/tum.7866.jpg",
+        "VAL1:benign/norm/norm.87642.jpg",
+        "VAL1:tumour/tu/tum.14472.jpg",
+        "VAL1:benign/norm/norm.70132.jpg",
+        "VAL1:tumour/tu/tum.19872.jpg",
+        "VAL1:benign/norm/norm.87798.jpg",
+        "VAL1:tumour/tu/tum.41152.jpg",
+        "VAL1:benign/norm/norm.83879.jpg",
+        "VAL1:tumour/tu/tum.32546.jpg",
+        "VAL1:benign/norm/norm.20654.jpg",
+        "VAL1:tumour/tu/tum.12767.jpg",
+        "VAL1:benign/norm/norm.86310.jpg",
+        "VAL1:tumour/tu/tum.25053.jpg",
+        "VAL1:benign/norm/norm.85578.jpg",
+        "VAL1:tumour/tu/tum.31783.jpg",
+        "VAL1:benign/norm/norm.63980.jpg",
+        "VAL1:tumour/tu/tum.49462.jpg",
+        "VAL1:benign/norm/norm.74632.jpg",
+        "VAL1:tumour/tu/tum.49144.jpg",
+        "VAL1:benign/norm/norm.77298.jpg",
+        "VAL1:tumour/tu/tum.23061.jpg",
+        "VAL1:benign/norm/norm.56981.jpg",
+        "VAL1:tumour/tu/tum.26787.jpg",
+        "VAL1:benign/norm/norm.4237.jpg",
+        "VAL1:tumour/tu/tum.19329.jpg",
+        "VAL1:benign/norm/norm.58949.jpg",
+        "VAL1:tumour/tu/tum.48997.jpg",
+        "VAL1:benign/norm/norm.71050.jpg",
+        "VAL1:tumour/tu/tum.37319.jpg",
+        "VAL1:benign/norm/norm.50670.jpg",
+        "VAL1:tumour/tu/tum.2095.jpg",
+        "VAL1:benign/norm/norm.64270.jpg",
+        "VAL1:tumour/tu/tum.28823.jpg",
+        "VAL1:benign/norm/norm.44372.jpg",
+        "VAL1:tumour/tu/tum.11730.jpg",
+        "VAL1:benign/norm/norm.32078.jpg",
+        "VAL1:tumour/tu/tum.37497.jpg",
+        "VAL1:benign/norm/norm.10522.jpg",
+        "VAL1:tumour/tu/tum.39331.jpg",
+        "VAL1:benign/norm/norm.39117.jpg",
+        "VAL1:tumour/tu/tum.44420.jpg",
+        "VAL1:benign/norm/norm.8464.jpg",
+        "VAL1:tumour/tu/tum.6926.jpg",
+        "VAL1:benign/norm/norm.188.jpg",
+        "VAL1:tumour/tu/tum.34832.jpg",
+        "VAL1:benign/norm/norm.18278.jpg",
+        "VAL1:tumour/tu/tum.10041.jpg",
+        "VAL1:benign/norm/norm.28981.jpg",
+        "VAL1:tumour/tu/tum.43002.jpg",
+        "VAL1:benign/norm/norm.5060.jpg",
+        "VAL1:tumour/tu/tum.2590.jpg",
+        "VAL1:benign/norm/norm.47565.jpg",
+        "VAL1:tumour/tu/tum.16928.jpg",
+        "VAL1:benign/norm/norm.88565.jpg",
+        "VAL1:tumour/tu/tum.37828.jpg",
+        "VAL1:benign/norm/norm.7199.jpg",
+        "VAL1:tumour/tu/tum.39976.jpg",
+        "VAL1:benign/norm/norm.9739.jpg",
+        "VAL1:tumour/tu/tum.52277.jpg",
+        "VAL1:benign/norm/norm.272.jpg",
+        "VAL1:tumour/tu/tum.30846.jpg",
+        "VAL1:benign/norm/norm.26771.jpg",
+        "VAL1:tumour/tu/tum.5133.jpg",
+        "VAL1:benign/norm/norm.38707.jpg",
+        "VAL1:tumour/tu/tum.1924.jpg",
+        "VAL1:benign/norm/norm.37669.jpg",
+        "VAL1:tumour/tu/tum.26704.jpg",
+        "VAL1:benign/norm/norm.41564.jpg",
+        "VAL1:tumour/tu/tum.37535.jpg",
+        "VAL1:benign/norm/norm.52261.jpg",
+        "VAL1:tumour/tu/tum.40483.jpg",
+        "VAL1:benign/norm/norm.64702.jpg",
+        "VAL1:tumour/tu/tum.45282.jpg",
+        "VAL1:benign/norm/norm.37872.jpg",
+        "VAL1:tumour/tu/tum.441.jpg",
+        "VAL1:benign/norm/norm.19755.jpg",
+        "VAL1:tumour/tu/tum.94.jpg",
+        "VAL1:benign/norm/norm.73800.jpg",
+        "VAL1:tumour/tu/tum.24789.jpg",
+        "VAL1:benign/norm/norm.59354.jpg",
+        "VAL1:tumour/tu/tum.13986.jpg",
+        "VAL1:benign/norm/norm.11223.jpg",
+        "VAL1:tumour/tu/tum.23376.jpg",
+        "VAL1:benign/norm/norm.35062.jpg",
+        "VAL1:tumour/tu/tum.43379.jpg",
+        "VAL1:benign/norm/norm.71248.jpg",
+        "VAL1:tumour/tu/tum.41266.jpg",
+        "VAL1:benign/norm/norm.6177.jpg",
+        "VAL1:tumour/tu/tum.42190.jpg",
+        "VAL1:benign/norm/norm.74870.jpg",
+        "VAL1:tumour/tu/tum.33062.jpg",
+        "VAL1:benign/norm/norm.25931.jpg",
+        "VAL1:tumour/tu/tum.23982.jpg",
+        "VAL1:benign/norm/norm.2849.jpg",
+        "VAL1:tumour/tu/tum.1050.jpg",
+        "VAL1:benign/norm/norm.74196.jpg",
+        "VAL1:tumour/tu/tum.3071.jpg",
+        "VAL1:benign/norm/norm.42473.jpg",
+        "VAL1:tumour/tu/tum.23890.jpg",
+        "VAL1:benign/norm/norm.44229.jpg",
+        "VAL1:tumour/tu/tum.25195.jpg",
+        "VAL1:benign/norm/norm.54262.jpg",
+        "VAL1:tumour/tu/tum.11549.jpg",
+        "VAL1:benign/norm/norm.23970.jpg",
+        "VAL1:tumour/tu/tum.49761.jpg",
+        "VAL1:benign/norm/norm.13187.jpg",
+        "VAL1:tumour/tu/tum.19722.jpg",
+        "VAL1:benign/norm/norm.66547.jpg",
+        "VAL1:tumour/tu/tum.4394.jpg",
+        "VAL1:benign/norm/norm.25366.jpg",
+        "VAL1:tumour/tu/tum.22164.jpg",
+        "VAL1:benign/norm/norm.34941.jpg",
+        "VAL1:tumour/tu/tum.19418.jpg",
+        "VAL1:benign/norm/norm.23359.jpg",
+        "VAL1:tumour/tu/tum.10913.jpg",
+        "VAL1:benign/norm/norm.18280.jpg",
+        "VAL1:tumour/tu/tum.189.jpg",
+        "VAL1:benign/norm/norm.40746.jpg",
+        "VAL1:tumour/tu/tum.29080.jpg",
+        "VAL1:benign/norm/norm.8415.jpg",
+        "VAL1:tumour/tu/tum.19244.jpg",
+        "VAL1:benign/norm/norm.89025.jpg",
+        "VAL1:tumour/tu/tum.36243.jpg",
+        "VAL1:benign/norm/norm.55478.jpg",
+        "VAL1:tumour/tu/tum.35434.jpg",
+        "VAL1:benign/norm/norm.72.jpg",
+        "VAL1:tumour/tu/tum.44609.jpg",
+        "VAL1:benign/norm/norm.23413.jpg",
+        "VAL1:tumour/tu/tum.7844.jpg",
+        "VAL1:benign/norm/norm.82224.jpg",
+        "VAL1:tumour/tu/tum.21611.jpg",
+        "VAL1:benign/norm/norm.9829.jpg",
+        "VAL1:tumour/tu/tum.12073.jpg",
+        "VAL1:benign/norm/norm.6184.jpg",
+        "VAL1:tumour/tu/tum.11046.jpg",
+        "VAL1:benign/norm/norm.70926.jpg",
+        "VAL1:tumour/tu/tum.6584.jpg",
+        "VAL1:benign/norm/norm.14549.jpg",
+        "VAL1:tumour/tu/tum.28977.jpg",
+        "VAL1:benign/norm/norm.53150.jpg",
+        "VAL1:tumour/tu/tum.41659.jpg",
+        "VAL1:benign/norm/norm.50634.jpg",
+        "VAL1:tumour/tu/tum.36587.jpg",
+        "VAL1:benign/norm/norm.92533.jpg",
+        "VAL1:tumour/tu/tum.42532.jpg",
+        "VAL1:benign/norm/norm.43146.jpg",
+        "VAL1:tumour/tu/tum.29691.jpg",
+        "VAL1:benign/norm/norm.15181.jpg",
+        "VAL1:tumour/tu/tum.43146.jpg",
+        "VAL1:benign/norm/norm.78454.jpg",
+        "VAL1:tumour/tu/tum.3580.jpg",
+        "VAL1:benign/norm/norm.54705.jpg",
+        "VAL1:tumour/tu/tum.36635.jpg",
+        "VAL1:benign/norm/norm.29780.jpg",
+        "VAL1:tumour/tu/tum.42746.jpg",
+        "VAL1:benign/norm/norm.30057.jpg",
+        "VAL1:tumour/tu/tum.42993.jpg",
+        "VAL1:benign/norm/norm.81699.jpg",
+        "VAL1:tumour/tu/tum.49663.jpg",
+        "VAL1:benign/norm/norm.27536.jpg",
+        "VAL1:tumour/tu/tum.7060.jpg",
+        "VAL1:benign/norm/norm.53354.jpg",
+        "VAL1:tumour/tu/tum.17675.jpg",
+        "VAL1:benign/norm/norm.55391.jpg",
+        "VAL1:tumour/tu/tum.13288.jpg",
+        "VAL1:benign/norm/norm.51745.jpg",
+        "VAL1:tumour/tu/tum.42815.jpg",
+        "VAL1:benign/norm/norm.33171.jpg",
+        "VAL1:tumour/tu/tum.18371.jpg",
+        "VAL1:benign/norm/norm.73958.jpg",
+        "VAL1:tumour/tu/tum.19162.jpg",
+        "VAL1:benign/norm/norm.8959.jpg",
+        "VAL1:tumour/tu/tum.34913.jpg",
+        "VAL1:benign/norm/norm.52738.jpg",
+        "VAL1:tumour/tu/tum.16397.jpg",
+        "VAL1:benign/norm/norm.69350.jpg",
+        "VAL1:tumour/tu/tum.35104.jpg",
+        "VAL1:benign/norm/norm.17995.jpg",
+        "VAL1:tumour/tu/tum.31306.jpg",
+        "VAL1:benign/norm/norm.50176.jpg",
+        "VAL1:tumour/tu/tum.45432.jpg",
+        "VAL1:benign/norm/norm.3724.jpg",
+        "VAL1:tumour/tu/tum.10635.jpg",
+        "VAL1:benign/norm/norm.6576.jpg",
+        "VAL1:tumour/tu/tum.52163.jpg",
+        "VAL1:benign/norm/norm.24090.jpg",
+        "VAL1:tumour/tu/tum.18982.jpg",
+        "VAL1:benign/norm/norm.30329.jpg",
+        "VAL1:tumour/tu/tum.49307.jpg",
+        "VAL1:benign/norm/norm.88002.jpg",
+        "VAL1:tumour/tu/tum.3732.jpg",
+        "VAL1:benign/norm/norm.14362.jpg",
+        "VAL1:tumour/tu/tum.22834.jpg",
+        "VAL1:benign/norm/norm.7366.jpg",
+        "VAL1:tumour/tu/tum.25619.jpg",
+        "VAL1:benign/norm/norm.45614.jpg",
+        "VAL1:tumour/tu/tum.1826.jpg",
+        "VAL1:benign/norm/norm.87295.jpg",
+        "VAL1:tumour/tu/tum.33611.jpg",
+        "VAL1:benign/norm/norm.77254.jpg",
+        "VAL1:tumour/tu/tum.22562.jpg",
+        "VAL1:benign/norm/norm.13548.jpg",
+        "VAL1:tumour/tu/tum.18253.jpg",
+        "VAL1:benign/norm/norm.11364.jpg",
+        "VAL1:tumour/tu/tum.39064.jpg",
+        "VAL1:benign/norm/norm.54866.jpg",
+        "VAL1:tumour/tu/tum.15379.jpg",
+        "VAL1:benign/norm/norm.64600.jpg",
+        "VAL1:tumour/tu/tum.6038.jpg",
+        "VAL1:benign/norm/norm.37205.jpg",
+        "VAL1:tumour/tu/tum.1803.jpg",
+        "VAL1:benign/norm/norm.16663.jpg",
+        "VAL1:tumour/tu/tum.7883.jpg",
+        "VAL1:benign/norm/norm.16466.jpg",
+        "VAL1:tumour/tu/tum.11367.jpg",
+        "VAL1:benign/norm/norm.31983.jpg",
+        "VAL1:tumour/tu/tum.37191.jpg",
+        "VAL1:benign/norm/norm.68733.jpg",
+        "VAL1:tumour/tu/tum.39236.jpg",
+        "VAL1:benign/norm/norm.41678.jpg",
+        "VAL1:tumour/tu/tum.28864.jpg",
+        "VAL1:benign/norm/norm.31950.jpg",
+        "VAL1:tumour/tu/tum.40704.jpg",
+        "VAL1:benign/norm/norm.26472.jpg",
+        "VAL1:tumour/tu/tum.36653.jpg",
+        "VAL1:benign/norm/norm.42810.jpg",
+        "VAL1:tumour/tu/tum.2377.jpg",
+        "VAL1:benign/norm/norm.1540.jpg",
+        "VAL1:tumour/tu/tum.5744.jpg",
+        "VAL1:benign/norm/norm.44132.jpg",
+        "VAL1:tumour/tu/tum.33337.jpg",
+        "VAL1:benign/norm/norm.48529.jpg",
+        "VAL1:tumour/tu/tum.27511.jpg",
+        "VAL1:benign/norm/norm.49494.jpg",
+        "VAL1:tumour/tu/tum.22254.jpg",
+        "VAL1:benign/norm/norm.53607.jpg",
+        "VAL1:tumour/tu/tum.1206.jpg",
+        "VAL1:benign/norm/norm.46982.jpg",
+        "VAL1:tumour/tu/tum.14501.jpg",
+        "VAL1:benign/norm/norm.92757.jpg",
+        "VAL1:tumour/tu/tum.17691.jpg",
+        "VAL1:benign/norm/norm.19844.jpg",
+        "VAL1:tumour/tu/tum.20413.jpg",
+        "VAL1:benign/norm/norm.26780.jpg",
+        "VAL1:tumour/tu/tum.37165.jpg",
+        "VAL1:benign/norm/norm.43041.jpg",
+        "VAL1:tumour/tu/tum.21179.jpg",
+        "VAL1:benign/norm/norm.39665.jpg",
+        "VAL1:tumour/tu/tum.52568.jpg",
+        "VAL1:benign/norm/norm.61682.jpg",
+        "VAL1:tumour/tu/tum.4598.jpg",
+        "VAL1:benign/norm/norm.27581.jpg",
+        "VAL1:tumour/tu/tum.9245.jpg",
+        "VAL1:benign/norm/norm.42299.jpg",
+        "VAL1:tumour/tu/tum.24812.jpg",
+        "VAL1:benign/norm/norm.66439.jpg",
+        "VAL1:tumour/tu/tum.20926.jpg",
+        "VAL1:benign/norm/norm.26683.jpg",
+        "VAL1:tumour/tu/tum.41655.jpg",
+        "VAL1:benign/norm/norm.88443.jpg",
+        "VAL1:tumour/tu/tum.7035.jpg",
+        "VAL1:benign/norm/norm.47427.jpg",
+        "VAL1:tumour/tu/tum.16598.jpg",
+        "VAL1:benign/norm/norm.80294.jpg",
+        "VAL1:tumour/tu/tum.15219.jpg",
+        "VAL1:benign/norm/norm.52947.jpg",
+        "VAL1:tumour/tu/tum.11584.jpg",
+        "VAL1:benign/norm/norm.37087.jpg",
+        "VAL1:tumour/tu/tum.4987.jpg",
+        "VAL1:benign/norm/norm.72070.jpg",
+        "VAL1:tumour/tu/tum.23186.jpg",
+        "VAL1:benign/norm/norm.28544.jpg",
+        "VAL1:tumour/tu/tum.35271.jpg",
+        "VAL1:benign/norm/norm.24676.jpg",
+        "VAL1:tumour/tu/tum.11487.jpg",
+        "VAL1:benign/norm/norm.58923.jpg",
+        "VAL1:tumour/tu/tum.8319.jpg",
+        "VAL1:benign/norm/norm.91184.jpg",
+        "VAL1:tumour/tu/tum.26078.jpg",
+        "VAL1:benign/norm/norm.89812.jpg",
+        "VAL1:tumour/tu/tum.37964.jpg",
+        "VAL1:benign/norm/norm.7503.jpg",
+        "VAL1:tumour/tu/tum.45911.jpg",
+        "VAL1:benign/norm/norm.44366.jpg",
+        "VAL1:tumour/tu/tum.7624.jpg",
+        "VAL1:benign/norm/norm.21212.jpg",
+        "VAL1:tumour/tu/tum.52313.jpg",
+        "VAL1:benign/norm/norm.83770.jpg",
+        "VAL1:tumour/tu/tum.8886.jpg",
+        "VAL1:benign/norm/norm.45662.jpg",
+        "VAL1:tumour/tu/tum.49499.jpg",
+        "VAL1:benign/norm/norm.35987.jpg",
+        "VAL1:tumour/tu/tum.36041.jpg",
+        "VAL1:benign/norm/norm.5415.jpg",
+        "VAL1:tumour/tu/tum.29041.jpg",
+        "VAL1:benign/norm/norm.30613.jpg",
+        "VAL1:tumour/tu/tum.25987.jpg",
+        "VAL1:benign/norm/norm.40000.jpg",
+        "VAL1:tumour/tu/tum.30328.jpg",
+        "VAL1:benign/norm/norm.47061.jpg",
+        "VAL1:tumour/tu/tum.43406.jpg",
+        "VAL1:benign/norm/norm.73170.jpg",
+        "VAL1:tumour/tu/tum.52354.jpg",
+        "VAL1:benign/norm/norm.32873.jpg",
+        "VAL1:tumour/tu/tum.44550.jpg",
+        "VAL1:benign/norm/norm.60349.jpg",
+        "VAL1:tumour/tu/tum.18793.jpg",
+        "VAL1:benign/norm/norm.45079.jpg",
+        "VAL1:tumour/tu/tum.52772.jpg",
+        "VAL1:benign/norm/norm.13502.jpg",
+        "VAL1:tumour/tu/tum.23350.jpg",
+        "VAL1:benign/norm/norm.79801.jpg",
+        "VAL1:tumour/tu/tum.47011.jpg",
+        "VAL1:benign/norm/norm.37665.jpg",
+        "VAL1:tumour/tu/tum.362.jpg",
+        "VAL1:benign/norm/norm.83844.jpg",
+        "VAL1:tumour/tu/tum.49976.jpg",
+        "VAL1:benign/norm/norm.35105.jpg",
+        "VAL1:tumour/tu/tum.47337.jpg",
+        "VAL1:benign/norm/norm.69016.jpg",
+        "VAL1:tumour/tu/tum.49775.jpg",
+        "VAL1:benign/norm/norm.81039.jpg",
+        "VAL1:tumour/tu/tum.33184.jpg",
+        "VAL1:benign/norm/norm.76715.jpg",
+        "VAL1:tumour/tu/tum.28537.jpg",
+        "VAL1:benign/norm/norm.21254.jpg",
+        "VAL1:tumour/tu/tum.42762.jpg",
+        "VAL1:benign/norm/norm.9136.jpg",
+        "VAL1:tumour/tu/tum.12089.jpg",
+        "VAL1:benign/norm/norm.20593.jpg",
+        "VAL1:tumour/tu/tum.107.jpg",
+        "VAL1:benign/norm/norm.88758.jpg",
+        "VAL1:tumour/tu/tum.25445.jpg",
+        "VAL1:benign/norm/norm.68963.jpg",
+        "VAL1:tumour/tu/tum.19835.jpg",
+        "VAL1:benign/norm/norm.42636.jpg",
+        "VAL1:tumour/tu/tum.26.jpg",
+        "VAL1:benign/norm/norm.11118.jpg",
+        "VAL1:tumour/tu/tum.50154.jpg",
+        "VAL1:benign/norm/norm.92720.jpg",
+        "VAL1:tumour/tu/tum.23004.jpg",
+        "VAL1:benign/norm/norm.91334.jpg",
+        "VAL1:tumour/tu/tum.1717.jpg",
+        "VAL1:benign/norm/norm.19929.jpg",
+        "VAL1:tumour/tu/tum.9359.jpg",
+        "VAL1:benign/norm/norm.68114.jpg",
+        "VAL1:tumour/tu/tum.52320.jpg",
+        "VAL1:benign/norm/norm.88429.jpg",
+        "VAL1:tumour/tu/tum.18831.jpg",
+        "VAL1:benign/norm/norm.63745.jpg",
+        "VAL1:tumour/tu/tum.15030.jpg",
+        "VAL1:benign/norm/norm.67501.jpg",
+        "VAL1:tumour/tu/tum.531.jpg",
+        "VAL1:benign/norm/norm.59058.jpg",
+        "VAL1:tumour/tu/tum.29610.jpg",
+        "VAL1:benign/norm/norm.69772.jpg",
+        "VAL1:tumour/tu/tum.11691.jpg",
+        "VAL1:benign/norm/norm.90236.jpg",
+        "VAL1:tumour/tu/tum.3414.jpg",
+        "VAL1:benign/norm/norm.6623.jpg",
+        "VAL1:tumour/tu/tum.19544.jpg",
+        "VAL1:benign/norm/norm.51966.jpg",
+        "VAL1:tumour/tu/tum.13824.jpg",
+        "VAL1:benign/norm/norm.25392.jpg",
+        "VAL1:tumour/tu/tum.44979.jpg",
+        "VAL1:benign/norm/norm.33152.jpg",
+        "VAL1:tumour/tu/tum.40277.jpg",
+        "VAL1:benign/norm/norm.28149.jpg",
+        "VAL1:tumour/tu/tum.41889.jpg",
+        "VAL1:benign/norm/norm.55307.jpg",
+        "VAL1:tumour/tu/tum.30504.jpg",
+        "VAL1:benign/norm/norm.77076.jpg",
+        "VAL1:tumour/tu/tum.30084.jpg",
+        "VAL1:benign/norm/norm.81123.jpg",
+        "VAL1:tumour/tu/tum.45678.jpg",
+        "VAL1:benign/norm/norm.31567.jpg",
+        "VAL1:tumour/tu/tum.7487.jpg",
+        "VAL1:benign/norm/norm.237.jpg",
+        "VAL1:tumour/tu/tum.49378.jpg"
+      ],
+      "samples": 400,
+      "split": {
+        "VAL2_images_accessed": false,
+        "algorithm": "SHA256 UTF-8 VAL1-internal-v1|42|<sample_id>; ties sample_id; first N per class validate",
+        "fingerprints": {
+          "VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+          "VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8"
+        },
+        "internal_validation": {
+          "benign": 18602,
+          "tumour": 10562
+        },
+        "limitation": "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+        "row_order": "cohort,class_name,normalized relative_path; independent zero-based row_index",
+        "seed": 42,
+        "source_images_modified": false,
+        "source_manifest_sha256": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+        "train": {
+          "benign": 74407,
+          "tumour": 42248
+        }
+      }
+    },
+    "estimated_14_epochs": {
+      "caveat": "Endpoint-stage extrapolation, not measured intermediate stages; excludes checkpoint IO and thermal/IO variation.",
+      "lower_seconds": 600049.9875471068,
+      "upper_seconds": 637095.0262144089
+    },
+    "post_run_provenance": {
+      "explanation": "Post-run verification of the unchanged Keras cache file against official Keras MD5. Initial metadata lookup used the URL filename instead of Keras lowercase cache filename. Lookup corrected after benchmarking; numerical preprocessing/training code unchanged.",
+      "imagenet_weights": {
+        "filename": "nasnet_large_no_top.h5",
+        "md5": "d81d89dc07e6e56530c4e77faddd61b5",
+        "mtime_ns": 1790839837230669752,
+        "sha256": "c4e84e674635001db3548bad5cc652e7dd314a03f36612b2a1d82f45bef69a6a",
+        "size_bytes": 343610240,
+        "source": "https://storage.googleapis.com/tensorflow/keras-applications/nasnet/NASNet-large-no-top.h5"
+      },
+      "recorded_at_utc": "2026-10-01T11:52:20.887136+00:00",
+      "source": "environment_provenance.json"
+    },
+    "production_decision": "GO",
+    "recommended_float32_batch": 4,
+    "results": [
+      {
+        "boundary": "normal_conv_1_17",
+        "checkpoint": {
+          "artifact_sha256": {
+            "disposable_checkpoint.data-00000-of-00001": "b82ed69bb3f52084dd507bff135bd905bbc67abd392c4f790b73030efa5865d6",
+            "disposable_checkpoint.index": "37647ab5cd29eb80cac175bde97927f248b4cfbe758828dc5bd76fcdfde97cf6"
+          },
+          "model_and_adam_state": true,
+          "retained": false,
+          "status": "PASS"
+        },
+        "device": {
+          "build": {
+            "cpu_compiler": "clang 18",
+            "cuda_compute_capabilities": [
+              "sm_60",
+              "sm_70",
+              "sm_80",
+              "sm_89",
+              "compute_90"
+            ],
+            "cuda_version": "12.5.1",
+            "cudnn_version": "9",
+            "is_cuda_build": true,
+            "is_rocm_build": false,
+            "is_tensorrt_build": false
+          },
+          "cuda_visible_devices": "unset",
+          "deterministic_ops": true,
+          "gpu_details": [
+            {
+              "compute_capability": [
+                8,
+                9
+              ],
+              "device_name": "NVIDIA GeForce RTX 4080 Laptop GPU"
+            }
+          ],
+          "keras": "3.15.1",
+          "synchronous_execution": true,
+          "tensor_float_32": false,
+          "tensorflow": "2.20.0",
+          "visible_gpus": [
+            "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+          ]
+        },
+        "effective_batch": 100,
+        "estimate_scope": "Serial preprocessing plus measured compute; excludes checkpoint IO; validation timing extrapolated from VAL1-training images.",
+        "estimated_epoch_training_seconds": 36329.31435973622,
+        "estimated_validation_seconds": 27198.386220811157,
+        "finite_gradients": true,
+        "finite_loss": true,
+        "frozen_layers_stable": true,
+        "images_per_second": 11.997733795094616,
+        "measured_images": 300,
+        "measured_seconds": 25.004722151999886,
+        "memory": {
+          "current": 2621500672,
+          "peak": 3790305792
+        },
+        "metadata": {
+          "class_order": [
+            "benign",
+            "tumour"
+          ],
+          "code": {
+            "branch": "main",
+            "commit": "c4fe25e171288ae815d36a38d6b8938d630cfe72",
+            "tracked_dirty": true,
+            "untracked_paths": [
+              "REIMPLEMENTATION.md",
+              "manifests/VAL1_benign.csv",
+              "manifests/VAL1_internal_v1/VAL1_internal_validation.csv",
+              "manifests/VAL1_internal_v1/VAL1_split_summary.json",
+              "manifests/VAL1_internal_v1/VAL1_train.csv",
+              "manifests/VAL1_manifest.csv",
+              "manifests/VAL1_tumour.csv",
+              "manifests/VAL2_benign.csv",
+              "manifests/VAL2_manifest.csv",
+              "manifests/VAL2_tumour.csv",
+              "manifests/manifest_summary.json",
+              "manifests/manifest_summary.md",
+              "modern_pca/evaluate_reimplementation.py",
+              "modern_pca/reimplementation.py",
+              "modern_pca/train_reimplementation.py",
+              "reports/dataset_verification.json",
+              "reports/dataset_verification.md",
+              "requirements-reimplementation-wsl.txt",
+              "runs/smoke_cpu64/evaluation/evaluation.json",
+              "runs/smoke_cpu64/final.keras",
+              "runs/smoke_cpu64/history.csv",
+              "runs/smoke_cpu64/latest_stage.keras",
+              "runs/smoke_cpu64/summary.json",
+              "runs/stage2d_smoke/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/run.log",
+              "runs/stage2d_smoke/run.log",
+              "runs/stage2d_smoke/smoke_inputs.json",
+              "runs/stage2d_smoke/smoke_inputs.npy",
+              "runs/stage2d_smoke/smoke_labels.npy",
+              "runs/stage2d_smoke/smoke_samples.csv",
+              "tests/test_reimplementation.py",
+              "tests/test_validation_manifests.py",
+              "tools/build_validation_manifests.py"
+            ]
+          },
+          "command": [
+            "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/GitHub/dsa5206-proj/modern_pca/train_reimplementation.py",
+            "--smoke-worker",
+            "--smoke-parent",
+            "runs/stage2d_smoke",
+            "--output",
+            "runs/stage2d_smoke/normal_conv_1_17_float32_batch1",
+            "--boundary",
+            "normal_conv_1_17",
+            "--batch-size",
+            "1",
+            "--precision",
+            "float32"
+          ],
+          "created_at_utc": "2026-10-01T07:30:40.906611+00:00",
+          "deviations": [
+            "Constrained reimplementation, not exact reproduction or an original checkpoint.",
+            "Released binary benign/tumour labels replace gland/nongland/tumour; two outputs.",
+            "VAL1 repurposed for training/internal validation; original training data unavailable.",
+            "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "All BatchNormalization layers frozen and called in inference mode.",
+            "Physical microbatches with sample-weighted gradient accumulation to effective 100.",
+            "Modern TensorFlow/Keras/Pillow and StainTools compatibility adapter, no claimed numerical parity."
+          ],
+          "effective_batch": 100,
+          "environment": {
+            "platform": {
+              "cpu": "x86_64",
+              "cuda_visible_devices": null,
+              "kernel": "6.18.33.2-microsoft-standard-WSL2",
+              "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+              "ram_bytes": 16511066112,
+              "ram_unavailable_reason": null
+            },
+            "software": {
+              "Pillow": "10.4.0",
+              "h5py": "3.16.0",
+              "keras": "3.15.1",
+              "numpy": "1.26.4",
+              "opencv-python": "4.11.0.86",
+              "opencv-python-headless": null,
+              "python": "3.11.16",
+              "scikit-learn": "1.5.2",
+              "spams": null,
+              "spams-bin": "2.6.13",
+              "staintools": "2.1.2",
+              "tensorflow": "2.20.0"
+            }
+          },
+          "imagenet_weight_files": {},
+          "implementation_sha256": {
+            "evaluate_reimplementation.py": "d0a9c491e8b5904eb129dea11f45c666e9bf72518e46fab1ce10bb8a0523b068",
+            "reimplementation.py": "95a87eb02ba02808f1f11cba874aa71733b0eea41c7bb5e126e158c2667a7bbf",
+            "train_reimplementation.py": "283bf7edda7a667d3a1d08624cda3569958bc4f33814457ea7de87c7858cfda1"
+          },
+          "model": {
+            "backbone": "NASNetLarge",
+            "head": [
+              "Flatten",
+              "Dense(256,relu)",
+              "Dense(2,softmax)"
+            ],
+            "input": [
+              350,
+              350,
+              3
+            ],
+            "parameters": 209812820,
+            "weights": "imagenet"
+          },
+          "optimizer": {
+            "amsgrad": false,
+            "beta_1": 0.9,
+            "beta_2": 0.999,
+            "clipping": null,
+            "epsilon": 1e-07,
+            "name": "Adam",
+            "reset": "each stage; retain epochs 1-7",
+            "weight_decay": null
+          },
+          "physical_batch": 1,
+          "post_run_provenance": {
+            "explanation": "Post-run verification of the unchanged Keras cache file against official Keras MD5. Initial metadata lookup used the URL filename instead of Keras lowercase cache filename. Lookup corrected after benchmarking; numerical preprocessing/training code unchanged.",
+            "imagenet_weights": {
+              "filename": "nasnet_large_no_top.h5",
+              "md5": "d81d89dc07e6e56530c4e77faddd61b5",
+              "mtime_ns": 1790839837230669752,
+              "sha256": "c4e84e674635001db3548bad5cc652e7dd314a03f36612b2a1d82f45bef69a6a",
+              "size_bytes": 343610240,
+              "source": "https://storage.googleapis.com/tensorflow/keras-applications/nasnet/NASNet-large-no-top.h5"
+            },
+            "recorded_at_utc": "2026-10-01T11:52:20.887136+00:00",
+            "source": "environment_provenance.json"
+          },
+          "precision": "float32",
+          "preprocessing": {
+            "backend_source_sha256": {
+              "opencv-python": "1a06287c8d0d6e1e7c8d1c57d3ccef223bfc777a8566eba1315dff09308b4527",
+              "spams": "unavailable",
+              "staintools": "52a377f0c9eafc921367536b58131b8d2406afe23e3b38f3033e5666e76dfdfa"
+            },
+            "brightness": "legacy StainTools brightness/luminosity standardization; 95th-percentile default; API-compatible implementation",
+            "dtype": "float32",
+            "failure_policy": "abort",
+            "reference_fit": "staintools.read_image; no brightness transform",
+            "resize": "Pillow LANCZOS 350x350",
+            "resize_before_normalization": true,
+            "scale": "1/255",
+            "source_decode": "PIL RGB; no EXIF transpose",
+            "stain_method": "macenko",
+            "stain_options": "installed defaults bound to backend source hashes"
+          },
+          "purpose": "smoke_disposable",
+          "schedule": [
+            [
+              "normal_conv_1_17",
+              7,
+              1e-05
+            ],
+            [
+              "normal_conv_1_14",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_11",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_9",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_7",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_5",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_3",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_1",
+              1,
+              1e-06
+            ]
+          ],
+          "seed": 42,
+          "split": {
+            "VAL2_images_accessed": false,
+            "algorithm": "SHA256 UTF-8 VAL1-internal-v1|42|<sample_id>; ties sample_id; first N per class validate",
+            "fingerprints": {
+              "VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+              "VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8"
+            },
+            "internal_validation": {
+              "benign": 18602,
+              "tumour": 10562
+            },
+            "limitation": "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "row_order": "cohort,class_name,normalized relative_path; independent zero-based row_index",
+            "seed": 42,
+            "source_images_modified": false,
+            "source_manifest_sha256": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+            "train": {
+              "benign": 74407,
+              "tumour": 42248
+            }
+          },
+          "stain_reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1"
+        },
+        "microbatch_median_seconds": 0.08137374800207908,
+        "microbatch_p95_seconds": 0.09009703360097775,
+        "model_loading_seconds": 45.5467703270042,
+        "optimizer_steps": 4,
+        "optimizer_update_median_seconds": 0.057652985997265205,
+        "optimizer_update_seconds": [
+          0.05635232399799861,
+          0.057652985997265205,
+          0.06296801900316495
+        ],
+        "parameters": 209812820,
+        "physical_batch": 1,
+        "precision": "float32",
+        "preprocessing_images_per_second": 4.38449972458489,
+        "stage_trainable_parameters": {
+          "normal_conv_1_1": 208800242,
+          "normal_conv_1_11": 193794818,
+          "normal_conv_1_14": 172378178,
+          "normal_conv_1_17": 142263170,
+          "normal_conv_1_3": 207506642,
+          "normal_conv_1_5": 206213042,
+          "normal_conv_1_7": 203485058,
+          "normal_conv_1_9": 198865730
+        },
+        "status": "PASS",
+        "timing_scope": "microbatch includes augmentation, transfer, forward/backward, finite checks, accumulation and synchronization; optimizer timed separately; warm-up excluded",
+        "validation_inference_images_per_second": 1.4193956971526178,
+        "warmup_images": 100,
+        "warmup_memory": {
+          "current": 2621164544,
+          "peak": 3760927744
+        },
+        "weights_updated": true
+      },
+      {
+        "boundary": "normal_conv_1_17",
+        "checkpoint": {
+          "artifact_sha256": {
+            "disposable_checkpoint.data-00000-of-00001": "e6648d79329b445549f95a8f72c91180786ba8109d58218a545a478e7f374e6d",
+            "disposable_checkpoint.index": "bc40e82a51ce7064560de3be6b2474073104a24f4f38e6263742d9ad28ab3bb3"
+          },
+          "model_and_adam_state": true,
+          "retained": false,
+          "status": "PASS"
+        },
+        "device": {
+          "build": {
+            "cpu_compiler": "clang 18",
+            "cuda_compute_capabilities": [
+              "sm_60",
+              "sm_70",
+              "sm_80",
+              "sm_89",
+              "compute_90"
+            ],
+            "cuda_version": "12.5.1",
+            "cudnn_version": "9",
+            "is_cuda_build": true,
+            "is_rocm_build": false,
+            "is_tensorrt_build": false
+          },
+          "cuda_visible_devices": "unset",
+          "deterministic_ops": true,
+          "gpu_details": [
+            {
+              "compute_capability": [
+                8,
+                9
+              ],
+              "device_name": "NVIDIA GeForce RTX 4080 Laptop GPU"
+            }
+          ],
+          "keras": "3.15.1",
+          "synchronous_execution": true,
+          "tensor_float_32": false,
+          "tensorflow": "2.20.0",
+          "visible_gpus": [
+            "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+          ]
+        },
+        "effective_batch": 100,
+        "estimate_scope": "Serial preprocessing plus measured compute; excludes checkpoint IO; validation timing extrapolated from VAL1-training images.",
+        "estimated_epoch_training_seconds": 33056.99199659001,
+        "estimated_validation_seconds": 15996.9530459133,
+        "finite_gradients": true,
+        "finite_loss": true,
+        "frozen_layers_stable": true,
+        "images_per_second": 18.083904912827208,
+        "measured_images": 300,
+        "measured_seconds": 16.58933739400527,
+        "memory": {
+          "current": 2630206720,
+          "peak": 3860035840
+        },
+        "metadata": {
+          "class_order": [
+            "benign",
+            "tumour"
+          ],
+          "code": {
+            "branch": "main",
+            "commit": "c4fe25e171288ae815d36a38d6b8938d630cfe72",
+            "tracked_dirty": true,
+            "untracked_paths": [
+              "REIMPLEMENTATION.md",
+              "manifests/VAL1_benign.csv",
+              "manifests/VAL1_internal_v1/VAL1_internal_validation.csv",
+              "manifests/VAL1_internal_v1/VAL1_split_summary.json",
+              "manifests/VAL1_internal_v1/VAL1_train.csv",
+              "manifests/VAL1_manifest.csv",
+              "manifests/VAL1_tumour.csv",
+              "manifests/VAL2_benign.csv",
+              "manifests/VAL2_manifest.csv",
+              "manifests/VAL2_tumour.csv",
+              "manifests/manifest_summary.json",
+              "manifests/manifest_summary.md",
+              "modern_pca/evaluate_reimplementation.py",
+              "modern_pca/reimplementation.py",
+              "modern_pca/train_reimplementation.py",
+              "reports/dataset_verification.json",
+              "reports/dataset_verification.md",
+              "requirements-reimplementation-wsl.txt",
+              "runs/smoke_cpu64/evaluation/evaluation.json",
+              "runs/smoke_cpu64/final.keras",
+              "runs/smoke_cpu64/history.csv",
+              "runs/smoke_cpu64/latest_stage.keras",
+              "runs/smoke_cpu64/summary.json",
+              "runs/stage2d_smoke/benchmark_results.json",
+              "runs/stage2d_smoke/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/run.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/run.log",
+              "runs/stage2d_smoke/run.log",
+              "runs/stage2d_smoke/smoke_inputs.json",
+              "runs/stage2d_smoke/smoke_inputs.npy",
+              "runs/stage2d_smoke/smoke_labels.npy",
+              "runs/stage2d_smoke/smoke_samples.csv",
+              "tests/test_reimplementation.py",
+              "tests/test_validation_manifests.py",
+              "tools/build_validation_manifests.py"
+            ]
+          },
+          "command": [
+            "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/GitHub/dsa5206-proj/modern_pca/train_reimplementation.py",
+            "--smoke-worker",
+            "--smoke-parent",
+            "runs/stage2d_smoke",
+            "--output",
+            "runs/stage2d_smoke/normal_conv_1_17_float32_batch2",
+            "--boundary",
+            "normal_conv_1_17",
+            "--batch-size",
+            "2",
+            "--precision",
+            "float32"
+          ],
+          "created_at_utc": "2026-10-01T07:33:43.582238+00:00",
+          "deviations": [
+            "Constrained reimplementation, not exact reproduction or an original checkpoint.",
+            "Released binary benign/tumour labels replace gland/nongland/tumour; two outputs.",
+            "VAL1 repurposed for training/internal validation; original training data unavailable.",
+            "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "All BatchNormalization layers frozen and called in inference mode.",
+            "Physical microbatches with sample-weighted gradient accumulation to effective 100.",
+            "Modern TensorFlow/Keras/Pillow and StainTools compatibility adapter, no claimed numerical parity."
+          ],
+          "effective_batch": 100,
+          "environment": {
+            "platform": {
+              "cpu": "x86_64",
+              "cuda_visible_devices": null,
+              "kernel": "6.18.33.2-microsoft-standard-WSL2",
+              "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+              "ram_bytes": 16511066112,
+              "ram_unavailable_reason": null
+            },
+            "software": {
+              "Pillow": "10.4.0",
+              "h5py": "3.16.0",
+              "keras": "3.15.1",
+              "numpy": "1.26.4",
+              "opencv-python": "4.11.0.86",
+              "opencv-python-headless": null,
+              "python": "3.11.16",
+              "scikit-learn": "1.5.2",
+              "spams": null,
+              "spams-bin": "2.6.13",
+              "staintools": "2.1.2",
+              "tensorflow": "2.20.0"
+            }
+          },
+          "imagenet_weight_files": {},
+          "implementation_sha256": {
+            "evaluate_reimplementation.py": "d0a9c491e8b5904eb129dea11f45c666e9bf72518e46fab1ce10bb8a0523b068",
+            "reimplementation.py": "95a87eb02ba02808f1f11cba874aa71733b0eea41c7bb5e126e158c2667a7bbf",
+            "train_reimplementation.py": "283bf7edda7a667d3a1d08624cda3569958bc4f33814457ea7de87c7858cfda1"
+          },
+          "model": {
+            "backbone": "NASNetLarge",
+            "head": [
+              "Flatten",
+              "Dense(256,relu)",
+              "Dense(2,softmax)"
+            ],
+            "input": [
+              350,
+              350,
+              3
+            ],
+            "parameters": 209812820,
+            "weights": "imagenet"
+          },
+          "optimizer": {
+            "amsgrad": false,
+            "beta_1": 0.9,
+            "beta_2": 0.999,
+            "clipping": null,
+            "epsilon": 1e-07,
+            "name": "Adam",
+            "reset": "each stage; retain epochs 1-7",
+            "weight_decay": null
+          },
+          "physical_batch": 2,
+          "post_run_provenance": {
+            "explanation": "Post-run verification of the unchanged Keras cache file against official Keras MD5. Initial metadata lookup used the URL filename instead of Keras lowercase cache filename. Lookup corrected after benchmarking; numerical preprocessing/training code unchanged.",
+            "imagenet_weights": {
+              "filename": "nasnet_large_no_top.h5",
+              "md5": "d81d89dc07e6e56530c4e77faddd61b5",
+              "mtime_ns": 1790839837230669752,
+              "sha256": "c4e84e674635001db3548bad5cc652e7dd314a03f36612b2a1d82f45bef69a6a",
+              "size_bytes": 343610240,
+              "source": "https://storage.googleapis.com/tensorflow/keras-applications/nasnet/NASNet-large-no-top.h5"
+            },
+            "recorded_at_utc": "2026-10-01T11:52:20.887136+00:00",
+            "source": "environment_provenance.json"
+          },
+          "precision": "float32",
+          "preprocessing": {
+            "backend_source_sha256": {
+              "opencv-python": "1a06287c8d0d6e1e7c8d1c57d3ccef223bfc777a8566eba1315dff09308b4527",
+              "spams": "unavailable",
+              "staintools": "52a377f0c9eafc921367536b58131b8d2406afe23e3b38f3033e5666e76dfdfa"
+            },
+            "brightness": "legacy StainTools brightness/luminosity standardization; 95th-percentile default; API-compatible implementation",
+            "dtype": "float32",
+            "failure_policy": "abort",
+            "reference_fit": "staintools.read_image; no brightness transform",
+            "resize": "Pillow LANCZOS 350x350",
+            "resize_before_normalization": true,
+            "scale": "1/255",
+            "source_decode": "PIL RGB; no EXIF transpose",
+            "stain_method": "macenko",
+            "stain_options": "installed defaults bound to backend source hashes"
+          },
+          "purpose": "smoke_disposable",
+          "schedule": [
+            [
+              "normal_conv_1_17",
+              7,
+              1e-05
+            ],
+            [
+              "normal_conv_1_14",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_11",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_9",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_7",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_5",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_3",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_1",
+              1,
+              1e-06
+            ]
+          ],
+          "seed": 42,
+          "split": {
+            "VAL2_images_accessed": false,
+            "algorithm": "SHA256 UTF-8 VAL1-internal-v1|42|<sample_id>; ties sample_id; first N per class validate",
+            "fingerprints": {
+              "VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+              "VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8"
+            },
+            "internal_validation": {
+              "benign": 18602,
+              "tumour": 10562
+            },
+            "limitation": "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "row_order": "cohort,class_name,normalized relative_path; independent zero-based row_index",
+            "seed": 42,
+            "source_images_modified": false,
+            "source_manifest_sha256": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+            "train": {
+              "benign": 74407,
+              "tumour": 42248
+            }
+          },
+          "stain_reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1"
+        },
+        "microbatch_median_seconds": 0.1069859639974311,
+        "microbatch_p95_seconds": 0.12580464964630658,
+        "model_loading_seconds": 9.018077002998325,
+        "optimizer_steps": 4,
+        "optimizer_update_median_seconds": 0.055765704993973486,
+        "optimizer_update_seconds": [
+          0.05598471499979496,
+          0.055765704993973486,
+          0.05413856900122482
+        ],
+        "parameters": 209812820,
+        "physical_batch": 2,
+        "precision": "float32",
+        "preprocessing_images_per_second": 4.38449972458489,
+        "stage_trainable_parameters": {
+          "normal_conv_1_1": 208800242,
+          "normal_conv_1_11": 193794818,
+          "normal_conv_1_14": 172378178,
+          "normal_conv_1_17": 142263170,
+          "normal_conv_1_3": 207506642,
+          "normal_conv_1_5": 206213042,
+          "normal_conv_1_7": 203485058,
+          "normal_conv_1_9": 198865730
+        },
+        "status": "PASS",
+        "timing_scope": "microbatch includes augmentation, transfer, forward/backward, finite checks, accumulation and synchronization; optimizer timed separately; warm-up excluded",
+        "validation_inference_images_per_second": 3.1207000659809045,
+        "warmup_images": 100,
+        "warmup_memory": {
+          "current": 2629243904,
+          "peak": 3769320704
+        },
+        "weights_updated": true
+      },
+      {
+        "boundary": "normal_conv_1_17",
+        "checkpoint": {
+          "artifact_sha256": {
+            "disposable_checkpoint.data-00000-of-00001": "ca60c20d293dd9da6a520550f8aa77bc1d591b082b87a5a7613681b7d67014af",
+            "disposable_checkpoint.index": "96e2643531ca1e22076c082a398d5b051ef392c8374ceef33187bc0fcedb2220"
+          },
+          "model_and_adam_state": true,
+          "retained": false,
+          "status": "PASS"
+        },
+        "device": {
+          "build": {
+            "cpu_compiler": "clang 18",
+            "cuda_compute_capabilities": [
+              "sm_60",
+              "sm_70",
+              "sm_80",
+              "sm_89",
+              "compute_90"
+            ],
+            "cuda_version": "12.5.1",
+            "cudnn_version": "9",
+            "is_cuda_build": true,
+            "is_rocm_build": false,
+            "is_tensorrt_build": false
+          },
+          "cuda_visible_devices": "unset",
+          "deterministic_ops": true,
+          "gpu_details": [
+            {
+              "compute_capability": [
+                8,
+                9
+              ],
+              "device_name": "NVIDIA GeForce RTX 4080 Laptop GPU"
+            }
+          ],
+          "keras": "3.15.1",
+          "synchronous_execution": true,
+          "tensor_float_32": false,
+          "tensorflow": "2.20.0",
+          "visible_gpus": [
+            "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+          ]
+        },
+        "effective_batch": 100,
+        "estimate_scope": "Serial preprocessing plus measured compute; excludes checkpoint IO; validation timing extrapolated from VAL1-training images.",
+        "estimated_epoch_training_seconds": 31196.31201125225,
+        "estimated_validation_seconds": 11664.401384969668,
+        "finite_gradients": true,
+        "finite_loss": true,
+        "frozen_layers_stable": true,
+        "images_per_second": 25.414568349920568,
+        "measured_images": 300,
+        "measured_seconds": 11.804253209003946,
+        "memory": {
+          "current": 2635706112,
+          "peak": 3870555648
+        },
+        "metadata": {
+          "class_order": [
+            "benign",
+            "tumour"
+          ],
+          "code": {
+            "branch": "main",
+            "commit": "c4fe25e171288ae815d36a38d6b8938d630cfe72",
+            "tracked_dirty": true,
+            "untracked_paths": [
+              "REIMPLEMENTATION.md",
+              "manifests/VAL1_benign.csv",
+              "manifests/VAL1_internal_v1/VAL1_internal_validation.csv",
+              "manifests/VAL1_internal_v1/VAL1_split_summary.json",
+              "manifests/VAL1_internal_v1/VAL1_train.csv",
+              "manifests/VAL1_manifest.csv",
+              "manifests/VAL1_tumour.csv",
+              "manifests/VAL2_benign.csv",
+              "manifests/VAL2_manifest.csv",
+              "manifests/VAL2_tumour.csv",
+              "manifests/manifest_summary.json",
+              "manifests/manifest_summary.md",
+              "modern_pca/evaluate_reimplementation.py",
+              "modern_pca/reimplementation.py",
+              "modern_pca/train_reimplementation.py",
+              "reports/dataset_verification.json",
+              "reports/dataset_verification.md",
+              "requirements-reimplementation-wsl.txt",
+              "runs/smoke_cpu64/evaluation/evaluation.json",
+              "runs/smoke_cpu64/final.keras",
+              "runs/smoke_cpu64/history.csv",
+              "runs/smoke_cpu64/latest_stage.keras",
+              "runs/smoke_cpu64/summary.json",
+              "runs/stage2d_smoke/benchmark_results.json",
+              "runs/stage2d_smoke/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/run.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/run.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/run.log",
+              "runs/stage2d_smoke/run.log",
+              "runs/stage2d_smoke/smoke_inputs.json",
+              "runs/stage2d_smoke/smoke_inputs.npy",
+              "runs/stage2d_smoke/smoke_labels.npy",
+              "runs/stage2d_smoke/smoke_samples.csv",
+              "tests/test_reimplementation.py",
+              "tests/test_validation_manifests.py",
+              "tools/build_validation_manifests.py"
+            ]
+          },
+          "command": [
+            "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/GitHub/dsa5206-proj/modern_pca/train_reimplementation.py",
+            "--smoke-worker",
+            "--smoke-parent",
+            "runs/stage2d_smoke",
+            "--output",
+            "runs/stage2d_smoke/normal_conv_1_17_float32_batch4",
+            "--boundary",
+            "normal_conv_1_17",
+            "--batch-size",
+            "4",
+            "--precision",
+            "float32"
+          ],
+          "created_at_utc": "2026-10-01T07:35:56.705187+00:00",
+          "deviations": [
+            "Constrained reimplementation, not exact reproduction or an original checkpoint.",
+            "Released binary benign/tumour labels replace gland/nongland/tumour; two outputs.",
+            "VAL1 repurposed for training/internal validation; original training data unavailable.",
+            "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "All BatchNormalization layers frozen and called in inference mode.",
+            "Physical microbatches with sample-weighted gradient accumulation to effective 100.",
+            "Modern TensorFlow/Keras/Pillow and StainTools compatibility adapter, no claimed numerical parity."
+          ],
+          "effective_batch": 100,
+          "environment": {
+            "platform": {
+              "cpu": "x86_64",
+              "cuda_visible_devices": null,
+              "kernel": "6.18.33.2-microsoft-standard-WSL2",
+              "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+              "ram_bytes": 16511066112,
+              "ram_unavailable_reason": null
+            },
+            "software": {
+              "Pillow": "10.4.0",
+              "h5py": "3.16.0",
+              "keras": "3.15.1",
+              "numpy": "1.26.4",
+              "opencv-python": "4.11.0.86",
+              "opencv-python-headless": null,
+              "python": "3.11.16",
+              "scikit-learn": "1.5.2",
+              "spams": null,
+              "spams-bin": "2.6.13",
+              "staintools": "2.1.2",
+              "tensorflow": "2.20.0"
+            }
+          },
+          "imagenet_weight_files": {},
+          "implementation_sha256": {
+            "evaluate_reimplementation.py": "d0a9c491e8b5904eb129dea11f45c666e9bf72518e46fab1ce10bb8a0523b068",
+            "reimplementation.py": "95a87eb02ba02808f1f11cba874aa71733b0eea41c7bb5e126e158c2667a7bbf",
+            "train_reimplementation.py": "283bf7edda7a667d3a1d08624cda3569958bc4f33814457ea7de87c7858cfda1"
+          },
+          "model": {
+            "backbone": "NASNetLarge",
+            "head": [
+              "Flatten",
+              "Dense(256,relu)",
+              "Dense(2,softmax)"
+            ],
+            "input": [
+              350,
+              350,
+              3
+            ],
+            "parameters": 209812820,
+            "weights": "imagenet"
+          },
+          "optimizer": {
+            "amsgrad": false,
+            "beta_1": 0.9,
+            "beta_2": 0.999,
+            "clipping": null,
+            "epsilon": 1e-07,
+            "name": "Adam",
+            "reset": "each stage; retain epochs 1-7",
+            "weight_decay": null
+          },
+          "physical_batch": 4,
+          "post_run_provenance": {
+            "explanation": "Post-run verification of the unchanged Keras cache file against official Keras MD5. Initial metadata lookup used the URL filename instead of Keras lowercase cache filename. Lookup corrected after benchmarking; numerical preprocessing/training code unchanged.",
+            "imagenet_weights": {
+              "filename": "nasnet_large_no_top.h5",
+              "md5": "d81d89dc07e6e56530c4e77faddd61b5",
+              "mtime_ns": 1790839837230669752,
+              "sha256": "c4e84e674635001db3548bad5cc652e7dd314a03f36612b2a1d82f45bef69a6a",
+              "size_bytes": 343610240,
+              "source": "https://storage.googleapis.com/tensorflow/keras-applications/nasnet/NASNet-large-no-top.h5"
+            },
+            "recorded_at_utc": "2026-10-01T11:52:20.887136+00:00",
+            "source": "environment_provenance.json"
+          },
+          "precision": "float32",
+          "preprocessing": {
+            "backend_source_sha256": {
+              "opencv-python": "1a06287c8d0d6e1e7c8d1c57d3ccef223bfc777a8566eba1315dff09308b4527",
+              "spams": "unavailable",
+              "staintools": "52a377f0c9eafc921367536b58131b8d2406afe23e3b38f3033e5666e76dfdfa"
+            },
+            "brightness": "legacy StainTools brightness/luminosity standardization; 95th-percentile default; API-compatible implementation",
+            "dtype": "float32",
+            "failure_policy": "abort",
+            "reference_fit": "staintools.read_image; no brightness transform",
+            "resize": "Pillow LANCZOS 350x350",
+            "resize_before_normalization": true,
+            "scale": "1/255",
+            "source_decode": "PIL RGB; no EXIF transpose",
+            "stain_method": "macenko",
+            "stain_options": "installed defaults bound to backend source hashes"
+          },
+          "purpose": "smoke_disposable",
+          "schedule": [
+            [
+              "normal_conv_1_17",
+              7,
+              1e-05
+            ],
+            [
+              "normal_conv_1_14",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_11",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_9",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_7",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_5",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_3",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_1",
+              1,
+              1e-06
+            ]
+          ],
+          "seed": 42,
+          "split": {
+            "VAL2_images_accessed": false,
+            "algorithm": "SHA256 UTF-8 VAL1-internal-v1|42|<sample_id>; ties sample_id; first N per class validate",
+            "fingerprints": {
+              "VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+              "VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8"
+            },
+            "internal_validation": {
+              "benign": 18602,
+              "tumour": 10562
+            },
+            "limitation": "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "row_order": "cohort,class_name,normalized relative_path; independent zero-based row_index",
+            "seed": 42,
+            "source_images_modified": false,
+            "source_manifest_sha256": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+            "train": {
+              "benign": 74407,
+              "tumour": 42248
+            }
+          },
+          "stain_reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1"
+        },
+        "microbatch_median_seconds": 0.15223636200244073,
+        "microbatch_p95_seconds": 0.16733489020043635,
+        "model_loading_seconds": 7.915647991001606,
+        "optimizer_steps": 4,
+        "optimizer_update_median_seconds": 0.060417273998609744,
+        "optimizer_update_seconds": [
+          0.056424646005325485,
+          0.06069117299921345,
+          0.060417273998609744
+        ],
+        "parameters": 209812820,
+        "physical_batch": 4,
+        "precision": "float32",
+        "preprocessing_images_per_second": 4.38449972458489,
+        "stage_trainable_parameters": {
+          "normal_conv_1_1": 208800242,
+          "normal_conv_1_11": 193794818,
+          "normal_conv_1_14": 172378178,
+          "normal_conv_1_17": 142263170,
+          "normal_conv_1_3": 207506642,
+          "normal_conv_1_5": 206213042,
+          "normal_conv_1_7": 203485058,
+          "normal_conv_1_9": 198865730
+        },
+        "status": "PASS",
+        "timing_scope": "microbatch includes augmentation, transfer, forward/backward, finite checks, accumulation and synchronization; optimizer timed separately; warm-up excluded",
+        "validation_inference_images_per_second": 5.817920867298491,
+        "warmup_images": 100,
+        "warmup_memory": {
+          "current": 2632218368,
+          "peak": 3770370816
+        },
+        "weights_updated": true
+      },
+      {
+        "boundary": "normal_conv_1_1",
+        "checkpoint": {
+          "artifact_sha256": {
+            "disposable_checkpoint.data-00000-of-00001": "52897a351492f09713ebee4a4cb7fd01e1ef369b345df42dbc4cbf66164e4f55",
+            "disposable_checkpoint.index": "73f2ef30287cd2da890db392a0c060e66076dd72862d73aa3c65074b8c59a981"
+          },
+          "model_and_adam_state": true,
+          "retained": false,
+          "status": "PASS"
+        },
+        "device": {
+          "build": {
+            "cpu_compiler": "clang 18",
+            "cuda_compute_capabilities": [
+              "sm_60",
+              "sm_70",
+              "sm_80",
+              "sm_89",
+              "compute_90"
+            ],
+            "cuda_version": "12.5.1",
+            "cudnn_version": "9",
+            "is_cuda_build": true,
+            "is_rocm_build": false,
+            "is_tensorrt_build": false
+          },
+          "cuda_visible_devices": "unset",
+          "deterministic_ops": true,
+          "gpu_details": [
+            {
+              "compute_capability": [
+                8,
+                9
+              ],
+              "device_name": "NVIDIA GeForce RTX 4080 Laptop GPU"
+            }
+          ],
+          "keras": "3.15.1",
+          "synchronous_execution": true,
+          "tensor_float_32": false,
+          "tensorflow": "2.20.0",
+          "visible_gpus": [
+            "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+          ]
+        },
+        "effective_batch": 100,
+        "estimate_scope": "Serial preprocessing plus measured compute; excludes checkpoint IO; validation timing extrapolated from VAL1-training images.",
+        "estimated_epoch_training_seconds": 49698.87232717583,
+        "estimated_validation_seconds": 27067.787277268002,
+        "finite_gradients": true,
+        "finite_loss": true,
+        "frozen_layers_stable": true,
+        "images_per_second": 5.051608603574387,
+        "measured_images": 300,
+        "measured_seconds": 59.38702372700209,
+        "memory": {
+          "current": 3193454592,
+          "peak": 5228070656
+        },
+        "metadata": {
+          "class_order": [
+            "benign",
+            "tumour"
+          ],
+          "code": {
+            "branch": "main",
+            "commit": "c4fe25e171288ae815d36a38d6b8938d630cfe72",
+            "tracked_dirty": true,
+            "untracked_paths": [
+              "REIMPLEMENTATION.md",
+              "manifests/VAL1_benign.csv",
+              "manifests/VAL1_internal_v1/VAL1_internal_validation.csv",
+              "manifests/VAL1_internal_v1/VAL1_split_summary.json",
+              "manifests/VAL1_internal_v1/VAL1_train.csv",
+              "manifests/VAL1_manifest.csv",
+              "manifests/VAL1_tumour.csv",
+              "manifests/VAL2_benign.csv",
+              "manifests/VAL2_manifest.csv",
+              "manifests/VAL2_tumour.csv",
+              "manifests/manifest_summary.json",
+              "manifests/manifest_summary.md",
+              "modern_pca/evaluate_reimplementation.py",
+              "modern_pca/reimplementation.py",
+              "modern_pca/train_reimplementation.py",
+              "reports/dataset_verification.json",
+              "reports/dataset_verification.md",
+              "requirements-reimplementation-wsl.txt",
+              "runs/smoke_cpu64/evaluation/evaluation.json",
+              "runs/smoke_cpu64/final.keras",
+              "runs/smoke_cpu64/history.csv",
+              "runs/smoke_cpu64/latest_stage.keras",
+              "runs/smoke_cpu64/summary.json",
+              "runs/stage2d_smoke/benchmark_results.json",
+              "runs/stage2d_smoke/executed_source/modern_pca/evaluate_paper.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/evaluate_reimplementation.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/models.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/reimplementation.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/train_reimplementation.py",
+              "runs/stage2d_smoke/executed_source/tools/build_validation_manifests.py",
+              "runs/stage2d_smoke/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/run.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/run.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/run.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1.console.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1/run.log",
+              "runs/stage2d_smoke/run.log",
+              "runs/stage2d_smoke/smoke_inputs.json",
+              "runs/stage2d_smoke/smoke_inputs.npy",
+              "runs/stage2d_smoke/smoke_labels.npy",
+              "runs/stage2d_smoke/smoke_samples.csv",
+              "tests/test_reimplementation.py",
+              "tests/test_validation_manifests.py",
+              "tools/build_validation_manifests.py"
+            ]
+          },
+          "command": [
+            "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/GitHub/dsa5206-proj/modern_pca/train_reimplementation.py",
+            "--smoke-worker",
+            "--smoke-parent",
+            "runs/stage2d_smoke",
+            "--output",
+            "runs/stage2d_smoke/normal_conv_1_1_float32_batch1",
+            "--boundary",
+            "normal_conv_1_1",
+            "--batch-size",
+            "1",
+            "--precision",
+            "float32"
+          ],
+          "created_at_utc": "2026-10-01T07:37:54.037730+00:00",
+          "deviations": [
+            "Constrained reimplementation, not exact reproduction or an original checkpoint.",
+            "Released binary benign/tumour labels replace gland/nongland/tumour; two outputs.",
+            "VAL1 repurposed for training/internal validation; original training data unavailable.",
+            "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "All BatchNormalization layers frozen and called in inference mode.",
+            "Physical microbatches with sample-weighted gradient accumulation to effective 100.",
+            "Modern TensorFlow/Keras/Pillow and StainTools compatibility adapter, no claimed numerical parity."
+          ],
+          "effective_batch": 100,
+          "environment": {
+            "platform": {
+              "cpu": "x86_64",
+              "cuda_visible_devices": null,
+              "kernel": "6.18.33.2-microsoft-standard-WSL2",
+              "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+              "ram_bytes": 16511066112,
+              "ram_unavailable_reason": null
+            },
+            "software": {
+              "Pillow": "10.4.0",
+              "h5py": "3.16.0",
+              "keras": "3.15.1",
+              "numpy": "1.26.4",
+              "opencv-python": "4.11.0.86",
+              "opencv-python-headless": null,
+              "python": "3.11.16",
+              "scikit-learn": "1.5.2",
+              "spams": null,
+              "spams-bin": "2.6.13",
+              "staintools": "2.1.2",
+              "tensorflow": "2.20.0"
+            }
+          },
+          "imagenet_weight_files": {},
+          "implementation_sha256": {
+            "evaluate_reimplementation.py": "d0a9c491e8b5904eb129dea11f45c666e9bf72518e46fab1ce10bb8a0523b068",
+            "reimplementation.py": "95a87eb02ba02808f1f11cba874aa71733b0eea41c7bb5e126e158c2667a7bbf",
+            "train_reimplementation.py": "283bf7edda7a667d3a1d08624cda3569958bc4f33814457ea7de87c7858cfda1"
+          },
+          "model": {
+            "backbone": "NASNetLarge",
+            "head": [
+              "Flatten",
+              "Dense(256,relu)",
+              "Dense(2,softmax)"
+            ],
+            "input": [
+              350,
+              350,
+              3
+            ],
+            "parameters": 209812820,
+            "weights": "imagenet"
+          },
+          "optimizer": {
+            "amsgrad": false,
+            "beta_1": 0.9,
+            "beta_2": 0.999,
+            "clipping": null,
+            "epsilon": 1e-07,
+            "name": "Adam",
+            "reset": "each stage; retain epochs 1-7",
+            "weight_decay": null
+          },
+          "physical_batch": 1,
+          "post_run_provenance": {
+            "explanation": "Post-run verification of the unchanged Keras cache file against official Keras MD5. Initial metadata lookup used the URL filename instead of Keras lowercase cache filename. Lookup corrected after benchmarking; numerical preprocessing/training code unchanged.",
+            "imagenet_weights": {
+              "filename": "nasnet_large_no_top.h5",
+              "md5": "d81d89dc07e6e56530c4e77faddd61b5",
+              "mtime_ns": 1790839837230669752,
+              "sha256": "c4e84e674635001db3548bad5cc652e7dd314a03f36612b2a1d82f45bef69a6a",
+              "size_bytes": 343610240,
+              "source": "https://storage.googleapis.com/tensorflow/keras-applications/nasnet/NASNet-large-no-top.h5"
+            },
+            "recorded_at_utc": "2026-10-01T11:52:20.887136+00:00",
+            "source": "environment_provenance.json"
+          },
+          "precision": "float32",
+          "preprocessing": {
+            "backend_source_sha256": {
+              "opencv-python": "1a06287c8d0d6e1e7c8d1c57d3ccef223bfc777a8566eba1315dff09308b4527",
+              "spams": "unavailable",
+              "staintools": "52a377f0c9eafc921367536b58131b8d2406afe23e3b38f3033e5666e76dfdfa"
+            },
+            "brightness": "legacy StainTools brightness/luminosity standardization; 95th-percentile default; API-compatible implementation",
+            "dtype": "float32",
+            "failure_policy": "abort",
+            "reference_fit": "staintools.read_image; no brightness transform",
+            "resize": "Pillow LANCZOS 350x350",
+            "resize_before_normalization": true,
+            "scale": "1/255",
+            "source_decode": "PIL RGB; no EXIF transpose",
+            "stain_method": "macenko",
+            "stain_options": "installed defaults bound to backend source hashes"
+          },
+          "purpose": "smoke_disposable",
+          "schedule": [
+            [
+              "normal_conv_1_17",
+              7,
+              1e-05
+            ],
+            [
+              "normal_conv_1_14",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_11",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_9",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_7",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_5",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_3",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_1",
+              1,
+              1e-06
+            ]
+          ],
+          "seed": 42,
+          "split": {
+            "VAL2_images_accessed": false,
+            "algorithm": "SHA256 UTF-8 VAL1-internal-v1|42|<sample_id>; ties sample_id; first N per class validate",
+            "fingerprints": {
+              "VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+              "VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8"
+            },
+            "internal_validation": {
+              "benign": 18602,
+              "tumour": 10562
+            },
+            "limitation": "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "row_order": "cohort,class_name,normalized relative_path; independent zero-based row_index",
+            "seed": 42,
+            "source_images_modified": false,
+            "source_manifest_sha256": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+            "train": {
+              "benign": 74407,
+              "tumour": 42248
+            }
+          },
+          "stain_reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1"
+        },
+        "microbatch_median_seconds": 0.1936745399980282,
+        "microbatch_p95_seconds": 0.21831561005419645,
+        "model_loading_seconds": 10.129674953997892,
+        "optimizer_steps": 4,
+        "optimizer_update_median_seconds": 0.18291299600241473,
+        "optimizer_update_seconds": [
+          0.16134317399701104,
+          0.18291299600241473,
+          0.1950556680021691
+        ],
+        "parameters": 209812820,
+        "physical_batch": 1,
+        "precision": "float32",
+        "preprocessing_images_per_second": 4.38449972458489,
+        "stage_trainable_parameters": {
+          "normal_conv_1_1": 208800242,
+          "normal_conv_1_11": 193794818,
+          "normal_conv_1_14": 172378178,
+          "normal_conv_1_17": 142263170,
+          "normal_conv_1_3": 207506642,
+          "normal_conv_1_5": 206213042,
+          "normal_conv_1_7": 203485058,
+          "normal_conv_1_9": 198865730
+        },
+        "status": "PASS",
+        "timing_scope": "microbatch includes augmentation, transfer, forward/backward, finite checks, accumulation and synchronization; optimizer timed separately; warm-up excluded",
+        "validation_inference_images_per_second": 1.4284753408505766,
+        "warmup_images": 100,
+        "warmup_memory": {
+          "current": 3193306624,
+          "peak": 4879397376
+        },
+        "weights_updated": true
+      },
+      {
+        "boundary": "normal_conv_1_1",
+        "checkpoint": {
+          "artifact_sha256": {
+            "disposable_checkpoint.data-00000-of-00001": "dd77b445a626cb45de981cf38923bf16b9a055d57900570ed8db935f1171df01",
+            "disposable_checkpoint.index": "bafb859aaabbdc43319c719d156ea8c5c6dc347a5b3c44620b163034098f95cb"
+          },
+          "model_and_adam_state": true,
+          "retained": false,
+          "status": "PASS"
+        },
+        "device": {
+          "build": {
+            "cpu_compiler": "clang 18",
+            "cuda_compute_capabilities": [
+              "sm_60",
+              "sm_70",
+              "sm_80",
+              "sm_89",
+              "compute_90"
+            ],
+            "cuda_version": "12.5.1",
+            "cudnn_version": "9",
+            "is_cuda_build": true,
+            "is_rocm_build": false,
+            "is_tensorrt_build": false
+          },
+          "cuda_visible_devices": "unset",
+          "deterministic_ops": true,
+          "gpu_details": [
+            {
+              "compute_capability": [
+                8,
+                9
+              ],
+              "device_name": "NVIDIA GeForce RTX 4080 Laptop GPU"
+            }
+          ],
+          "keras": "3.15.1",
+          "synchronous_execution": true,
+          "tensor_float_32": false,
+          "tensorflow": "2.20.0",
+          "visible_gpus": [
+            "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+          ]
+        },
+        "effective_batch": 100,
+        "estimate_scope": "Serial preprocessing plus measured compute; excludes checkpoint IO; validation timing extrapolated from VAL1-training images.",
+        "estimated_epoch_training_seconds": 40970.550296282905,
+        "estimated_validation_seconds": 16668.8824466617,
+        "finite_gradients": true,
+        "finite_loss": true,
+        "frozen_layers_stable": true,
+        "images_per_second": 8.12116289370108,
+        "measured_images": 300,
+        "measured_seconds": 36.94052242600446,
+        "memory": {
+          "current": 3208162304,
+          "peak": 5600047616
+        },
+        "metadata": {
+          "class_order": [
+            "benign",
+            "tumour"
+          ],
+          "code": {
+            "branch": "main",
+            "commit": "c4fe25e171288ae815d36a38d6b8938d630cfe72",
+            "tracked_dirty": true,
+            "untracked_paths": [
+              "REIMPLEMENTATION.md",
+              "manifests/VAL1_benign.csv",
+              "manifests/VAL1_internal_v1/VAL1_internal_validation.csv",
+              "manifests/VAL1_internal_v1/VAL1_split_summary.json",
+              "manifests/VAL1_internal_v1/VAL1_train.csv",
+              "manifests/VAL1_manifest.csv",
+              "manifests/VAL1_tumour.csv",
+              "manifests/VAL2_benign.csv",
+              "manifests/VAL2_manifest.csv",
+              "manifests/VAL2_tumour.csv",
+              "manifests/manifest_summary.json",
+              "manifests/manifest_summary.md",
+              "modern_pca/evaluate_reimplementation.py",
+              "modern_pca/reimplementation.py",
+              "modern_pca/train_reimplementation.py",
+              "reports/dataset_verification.json",
+              "reports/dataset_verification.md",
+              "requirements-reimplementation-wsl.txt",
+              "runs/smoke_cpu64/evaluation/evaluation.json",
+              "runs/smoke_cpu64/final.keras",
+              "runs/smoke_cpu64/history.csv",
+              "runs/smoke_cpu64/latest_stage.keras",
+              "runs/smoke_cpu64/summary.json",
+              "runs/stage2d_smoke/benchmark_results.json",
+              "runs/stage2d_smoke/environment_provenance.json",
+              "runs/stage2d_smoke/executed_source/modern_pca/evaluate_paper.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/evaluate_reimplementation.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/models.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/reimplementation.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/train_reimplementation.py",
+              "runs/stage2d_smoke/executed_source/tools/build_validation_manifests.py",
+              "runs/stage2d_smoke/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/run.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/run.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/run.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1.console.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1/result.json",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1/run.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch2.console.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch2/run.log",
+              "runs/stage2d_smoke/run.log",
+              "runs/stage2d_smoke/smoke_inputs.json",
+              "runs/stage2d_smoke/smoke_inputs.npy",
+              "runs/stage2d_smoke/smoke_labels.npy",
+              "runs/stage2d_smoke/smoke_samples.csv",
+              "tests/test_reimplementation.py",
+              "tests/test_validation_manifests.py",
+              "tools/build_validation_manifests.py"
+            ]
+          },
+          "command": [
+            "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/GitHub/dsa5206-proj/modern_pca/train_reimplementation.py",
+            "--smoke-worker",
+            "--smoke-parent",
+            "runs/stage2d_smoke",
+            "--output",
+            "runs/stage2d_smoke/normal_conv_1_1_float32_batch2",
+            "--boundary",
+            "normal_conv_1_1",
+            "--batch-size",
+            "2",
+            "--precision",
+            "float32"
+          ],
+          "created_at_utc": "2026-10-01T07:42:36.483831+00:00",
+          "deviations": [
+            "Constrained reimplementation, not exact reproduction or an original checkpoint.",
+            "Released binary benign/tumour labels replace gland/nongland/tumour; two outputs.",
+            "VAL1 repurposed for training/internal validation; original training data unavailable.",
+            "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "All BatchNormalization layers frozen and called in inference mode.",
+            "Physical microbatches with sample-weighted gradient accumulation to effective 100.",
+            "Modern TensorFlow/Keras/Pillow and StainTools compatibility adapter, no claimed numerical parity."
+          ],
+          "effective_batch": 100,
+          "environment": {
+            "platform": {
+              "cpu": "x86_64",
+              "cuda_visible_devices": null,
+              "kernel": "6.18.33.2-microsoft-standard-WSL2",
+              "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+              "ram_bytes": 16511066112,
+              "ram_unavailable_reason": null
+            },
+            "software": {
+              "Pillow": "10.4.0",
+              "h5py": "3.16.0",
+              "keras": "3.15.1",
+              "numpy": "1.26.4",
+              "opencv-python": "4.11.0.86",
+              "opencv-python-headless": null,
+              "python": "3.11.16",
+              "scikit-learn": "1.5.2",
+              "spams": null,
+              "spams-bin": "2.6.13",
+              "staintools": "2.1.2",
+              "tensorflow": "2.20.0"
+            }
+          },
+          "imagenet_weight_files": {},
+          "implementation_sha256": {
+            "evaluate_reimplementation.py": "d0a9c491e8b5904eb129dea11f45c666e9bf72518e46fab1ce10bb8a0523b068",
+            "reimplementation.py": "95a87eb02ba02808f1f11cba874aa71733b0eea41c7bb5e126e158c2667a7bbf",
+            "train_reimplementation.py": "283bf7edda7a667d3a1d08624cda3569958bc4f33814457ea7de87c7858cfda1"
+          },
+          "model": {
+            "backbone": "NASNetLarge",
+            "head": [
+              "Flatten",
+              "Dense(256,relu)",
+              "Dense(2,softmax)"
+            ],
+            "input": [
+              350,
+              350,
+              3
+            ],
+            "parameters": 209812820,
+            "weights": "imagenet"
+          },
+          "optimizer": {
+            "amsgrad": false,
+            "beta_1": 0.9,
+            "beta_2": 0.999,
+            "clipping": null,
+            "epsilon": 1e-07,
+            "name": "Adam",
+            "reset": "each stage; retain epochs 1-7",
+            "weight_decay": null
+          },
+          "physical_batch": 2,
+          "post_run_provenance": {
+            "explanation": "Post-run verification of the unchanged Keras cache file against official Keras MD5. Initial metadata lookup used the URL filename instead of Keras lowercase cache filename. Lookup corrected after benchmarking; numerical preprocessing/training code unchanged.",
+            "imagenet_weights": {
+              "filename": "nasnet_large_no_top.h5",
+              "md5": "d81d89dc07e6e56530c4e77faddd61b5",
+              "mtime_ns": 1790839837230669752,
+              "sha256": "c4e84e674635001db3548bad5cc652e7dd314a03f36612b2a1d82f45bef69a6a",
+              "size_bytes": 343610240,
+              "source": "https://storage.googleapis.com/tensorflow/keras-applications/nasnet/NASNet-large-no-top.h5"
+            },
+            "recorded_at_utc": "2026-10-01T11:52:20.887136+00:00",
+            "source": "environment_provenance.json"
+          },
+          "precision": "float32",
+          "preprocessing": {
+            "backend_source_sha256": {
+              "opencv-python": "1a06287c8d0d6e1e7c8d1c57d3ccef223bfc777a8566eba1315dff09308b4527",
+              "spams": "unavailable",
+              "staintools": "52a377f0c9eafc921367536b58131b8d2406afe23e3b38f3033e5666e76dfdfa"
+            },
+            "brightness": "legacy StainTools brightness/luminosity standardization; 95th-percentile default; API-compatible implementation",
+            "dtype": "float32",
+            "failure_policy": "abort",
+            "reference_fit": "staintools.read_image; no brightness transform",
+            "resize": "Pillow LANCZOS 350x350",
+            "resize_before_normalization": true,
+            "scale": "1/255",
+            "source_decode": "PIL RGB; no EXIF transpose",
+            "stain_method": "macenko",
+            "stain_options": "installed defaults bound to backend source hashes"
+          },
+          "purpose": "smoke_disposable",
+          "schedule": [
+            [
+              "normal_conv_1_17",
+              7,
+              1e-05
+            ],
+            [
+              "normal_conv_1_14",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_11",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_9",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_7",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_5",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_3",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_1",
+              1,
+              1e-06
+            ]
+          ],
+          "seed": 42,
+          "split": {
+            "VAL2_images_accessed": false,
+            "algorithm": "SHA256 UTF-8 VAL1-internal-v1|42|<sample_id>; ties sample_id; first N per class validate",
+            "fingerprints": {
+              "VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+              "VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8"
+            },
+            "internal_validation": {
+              "benign": 18602,
+              "tumour": 10562
+            },
+            "limitation": "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "row_order": "cohort,class_name,normalized relative_path; independent zero-based row_index",
+            "seed": 42,
+            "source_images_modified": false,
+            "source_manifest_sha256": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+            "train": {
+              "benign": 74407,
+              "tumour": 42248
+            }
+          },
+          "stain_reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1"
+        },
+        "microbatch_median_seconds": 0.2426136444992153,
+        "microbatch_p95_seconds": 0.2548206383999059,
+        "model_loading_seconds": 8.911612617004721,
+        "optimizer_steps": 4,
+        "optimizer_update_median_seconds": 0.1574598919978598,
+        "optimizer_update_seconds": [
+          0.17216986299899872,
+          0.1567075719940476,
+          0.1574598919978598
+        ],
+        "parameters": 209812820,
+        "physical_batch": 2,
+        "precision": "float32",
+        "preprocessing_images_per_second": 4.38449972458489,
+        "stage_trainable_parameters": {
+          "normal_conv_1_1": 208800242,
+          "normal_conv_1_11": 193794818,
+          "normal_conv_1_14": 172378178,
+          "normal_conv_1_17": 142263170,
+          "normal_conv_1_3": 207506642,
+          "normal_conv_1_5": 206213042,
+          "normal_conv_1_7": 203485058,
+          "normal_conv_1_9": 198865730
+        },
+        "status": "PASS",
+        "timing_scope": "microbatch includes augmentation, transfer, forward/backward, finite checks, accumulation and synchronization; optimizer timed separately; warm-up excluded",
+        "validation_inference_images_per_second": 2.911372528409063,
+        "warmup_images": 100,
+        "warmup_memory": {
+          "current": 3208162304,
+          "peak": 4895197440
+        },
+        "weights_updated": true
+      },
+      {
+        "boundary": "normal_conv_1_1",
+        "checkpoint": {
+          "artifact_sha256": {
+            "disposable_checkpoint.data-00000-of-00001": "e03791ab95fb228f06a344d434fefd99dbb0c920de85f01b5d640b0be88e41df",
+            "disposable_checkpoint.index": "1365f7dcb9829a98df4088bc2127937b6bee15cdf7667d83c5a8174f8f440690"
+          },
+          "model_and_adam_state": true,
+          "retained": false,
+          "status": "PASS"
+        },
+        "device": {
+          "build": {
+            "cpu_compiler": "clang 18",
+            "cuda_compute_capabilities": [
+              "sm_60",
+              "sm_70",
+              "sm_80",
+              "sm_89",
+              "compute_90"
+            ],
+            "cuda_version": "12.5.1",
+            "cudnn_version": "9",
+            "is_cuda_build": true,
+            "is_rocm_build": false,
+            "is_tensorrt_build": false
+          },
+          "cuda_visible_devices": "unset",
+          "deterministic_ops": true,
+          "gpu_details": [
+            {
+              "compute_capability": [
+                8,
+                9
+              ],
+              "device_name": "NVIDIA GeForce RTX 4080 Laptop GPU"
+            }
+          ],
+          "keras": "3.15.1",
+          "synchronous_execution": true,
+          "tensor_float_32": false,
+          "tensorflow": "2.20.0",
+          "visible_gpus": [
+            "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+          ]
+        },
+        "effective_batch": 100,
+        "estimate_scope": "Serial preprocessing plus measured compute; excludes checkpoint IO; validation timing extrapolated from VAL1-training images.",
+        "estimated_epoch_training_seconds": 36362.264331685845,
+        "estimated_validation_seconds": 11790.597445579224,
+        "finite_gradients": true,
+        "finite_loss": true,
+        "frozen_layers_stable": true,
+        "images_per_second": 11.957212728476676,
+        "measured_images": 300,
+        "measured_seconds": 25.08945912499621,
+        "memory": {
+          "current": 3176288768,
+          "peak": 6247237632
+        },
+        "metadata": {
+          "class_order": [
+            "benign",
+            "tumour"
+          ],
+          "code": {
+            "branch": "main",
+            "commit": "c4fe25e171288ae815d36a38d6b8938d630cfe72",
+            "tracked_dirty": true,
+            "untracked_paths": [
+              "REIMPLEMENTATION.md",
+              "manifests/VAL1_benign.csv",
+              "manifests/VAL1_internal_v1/VAL1_internal_validation.csv",
+              "manifests/VAL1_internal_v1/VAL1_split_summary.json",
+              "manifests/VAL1_internal_v1/VAL1_train.csv",
+              "manifests/VAL1_manifest.csv",
+              "manifests/VAL1_tumour.csv",
+              "manifests/VAL2_benign.csv",
+              "manifests/VAL2_manifest.csv",
+              "manifests/VAL2_tumour.csv",
+              "manifests/manifest_summary.json",
+              "manifests/manifest_summary.md",
+              "modern_pca/evaluate_reimplementation.py",
+              "modern_pca/reimplementation.py",
+              "modern_pca/train_reimplementation.py",
+              "reports/dataset_verification.json",
+              "reports/dataset_verification.md",
+              "requirements-reimplementation-wsl.txt",
+              "runs/smoke_cpu64/evaluation/evaluation.json",
+              "runs/smoke_cpu64/final.keras",
+              "runs/smoke_cpu64/history.csv",
+              "runs/smoke_cpu64/latest_stage.keras",
+              "runs/smoke_cpu64/summary.json",
+              "runs/stage2d_smoke/benchmark_results.json",
+              "runs/stage2d_smoke/environment_provenance.json",
+              "runs/stage2d_smoke/executed_source/modern_pca/evaluate_paper.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/evaluate_reimplementation.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/models.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/reimplementation.py",
+              "runs/stage2d_smoke/executed_source/modern_pca/train_reimplementation.py",
+              "runs/stage2d_smoke/executed_source/tools/build_validation_manifests.py",
+              "runs/stage2d_smoke/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch1/run.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch2/run.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4.console.log",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/result.json",
+              "runs/stage2d_smoke/normal_conv_1_17_float32_batch4/run.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1.console.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1/result.json",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch1/run.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch2.console.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch2/metadata.json",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch2/result.json",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch2/run.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch4.console.log",
+              "runs/stage2d_smoke/normal_conv_1_1_float32_batch4/run.log",
+              "runs/stage2d_smoke/run.log",
+              "runs/stage2d_smoke/smoke_inputs.json",
+              "runs/stage2d_smoke/smoke_inputs.npy",
+              "runs/stage2d_smoke/smoke_labels.npy",
+              "runs/stage2d_smoke/smoke_samples.csv",
+              "tests/test_reimplementation.py",
+              "tests/test_validation_manifests.py",
+              "tools/build_validation_manifests.py"
+            ]
+          },
+          "command": [
+            "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/GitHub/dsa5206-proj/modern_pca/train_reimplementation.py",
+            "--smoke-worker",
+            "--smoke-parent",
+            "runs/stage2d_smoke",
+            "--output",
+            "runs/stage2d_smoke/normal_conv_1_1_float32_batch4",
+            "--boundary",
+            "normal_conv_1_1",
+            "--batch-size",
+            "4",
+            "--precision",
+            "float32"
+          ],
+          "created_at_utc": "2026-10-01T07:46:12.816575+00:00",
+          "deviations": [
+            "Constrained reimplementation, not exact reproduction or an original checkpoint.",
+            "Released binary benign/tumour labels replace gland/nongland/tumour; two outputs.",
+            "VAL1 repurposed for training/internal validation; original training data unavailable.",
+            "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "All BatchNormalization layers frozen and called in inference mode.",
+            "Physical microbatches with sample-weighted gradient accumulation to effective 100.",
+            "Modern TensorFlow/Keras/Pillow and StainTools compatibility adapter, no claimed numerical parity."
+          ],
+          "effective_batch": 100,
+          "environment": {
+            "platform": {
+              "cpu": "x86_64",
+              "cuda_visible_devices": null,
+              "kernel": "6.18.33.2-microsoft-standard-WSL2",
+              "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+              "ram_bytes": 16511066112,
+              "ram_unavailable_reason": null
+            },
+            "software": {
+              "Pillow": "10.4.0",
+              "h5py": "3.16.0",
+              "keras": "3.15.1",
+              "numpy": "1.26.4",
+              "opencv-python": "4.11.0.86",
+              "opencv-python-headless": null,
+              "python": "3.11.16",
+              "scikit-learn": "1.5.2",
+              "spams": null,
+              "spams-bin": "2.6.13",
+              "staintools": "2.1.2",
+              "tensorflow": "2.20.0"
+            }
+          },
+          "imagenet_weight_files": {},
+          "implementation_sha256": {
+            "evaluate_reimplementation.py": "d0a9c491e8b5904eb129dea11f45c666e9bf72518e46fab1ce10bb8a0523b068",
+            "reimplementation.py": "95a87eb02ba02808f1f11cba874aa71733b0eea41c7bb5e126e158c2667a7bbf",
+            "train_reimplementation.py": "283bf7edda7a667d3a1d08624cda3569958bc4f33814457ea7de87c7858cfda1"
+          },
+          "model": {
+            "backbone": "NASNetLarge",
+            "head": [
+              "Flatten",
+              "Dense(256,relu)",
+              "Dense(2,softmax)"
+            ],
+            "input": [
+              350,
+              350,
+              3
+            ],
+            "parameters": 209812820,
+            "weights": "imagenet"
+          },
+          "optimizer": {
+            "amsgrad": false,
+            "beta_1": 0.9,
+            "beta_2": 0.999,
+            "clipping": null,
+            "epsilon": 1e-07,
+            "name": "Adam",
+            "reset": "each stage; retain epochs 1-7",
+            "weight_decay": null
+          },
+          "physical_batch": 4,
+          "post_run_provenance": {
+            "explanation": "Post-run verification of the unchanged Keras cache file against official Keras MD5. Initial metadata lookup used the URL filename instead of Keras lowercase cache filename. Lookup corrected after benchmarking; numerical preprocessing/training code unchanged.",
+            "imagenet_weights": {
+              "filename": "nasnet_large_no_top.h5",
+              "md5": "d81d89dc07e6e56530c4e77faddd61b5",
+              "mtime_ns": 1790839837230669752,
+              "sha256": "c4e84e674635001db3548bad5cc652e7dd314a03f36612b2a1d82f45bef69a6a",
+              "size_bytes": 343610240,
+              "source": "https://storage.googleapis.com/tensorflow/keras-applications/nasnet/NASNet-large-no-top.h5"
+            },
+            "recorded_at_utc": "2026-10-01T11:52:20.887136+00:00",
+            "source": "environment_provenance.json"
+          },
+          "precision": "float32",
+          "preprocessing": {
+            "backend_source_sha256": {
+              "opencv-python": "1a06287c8d0d6e1e7c8d1c57d3ccef223bfc777a8566eba1315dff09308b4527",
+              "spams": "unavailable",
+              "staintools": "52a377f0c9eafc921367536b58131b8d2406afe23e3b38f3033e5666e76dfdfa"
+            },
+            "brightness": "legacy StainTools brightness/luminosity standardization; 95th-percentile default; API-compatible implementation",
+            "dtype": "float32",
+            "failure_policy": "abort",
+            "reference_fit": "staintools.read_image; no brightness transform",
+            "resize": "Pillow LANCZOS 350x350",
+            "resize_before_normalization": true,
+            "scale": "1/255",
+            "source_decode": "PIL RGB; no EXIF transpose",
+            "stain_method": "macenko",
+            "stain_options": "installed defaults bound to backend source hashes"
+          },
+          "purpose": "smoke_disposable",
+          "schedule": [
+            [
+              "normal_conv_1_17",
+              7,
+              1e-05
+            ],
+            [
+              "normal_conv_1_14",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_11",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_9",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_7",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_5",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_3",
+              1,
+              1e-06
+            ],
+            [
+              "normal_conv_1_1",
+              1,
+              1e-06
+            ]
+          ],
+          "seed": 42,
+          "split": {
+            "VAL2_images_accessed": false,
+            "algorithm": "SHA256 UTF-8 VAL1-internal-v1|42|<sample_id>; ties sample_id; first N per class validate",
+            "fingerprints": {
+              "VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+              "VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8"
+            },
+            "internal_validation": {
+              "benign": 18602,
+              "tumour": 10562
+            },
+            "limitation": "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+            "row_order": "cohort,class_name,normalized relative_path; independent zero-based row_index",
+            "seed": 42,
+            "source_images_modified": false,
+            "source_manifest_sha256": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+            "train": {
+              "benign": 74407,
+              "tumour": 42248
+            }
+          },
+          "stain_reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1"
+        },
+        "microbatch_median_seconds": 0.3252640130012878,
+        "microbatch_p95_seconds": 0.35276992350118236,
+        "model_loading_seconds": 9.796730857000512,
+        "optimizer_steps": 4,
+        "optimizer_update_median_seconds": 0.1518470930022886,
+        "optimizer_update_seconds": [
+          0.1518470930022886,
+          0.21416334000241477,
+          0.1432082530009211
+        ],
+        "parameters": 209812820,
+        "physical_batch": 4,
+        "precision": "float32",
+        "preprocessing_images_per_second": 4.38449972458489,
+        "stage_trainable_parameters": {
+          "normal_conv_1_1": 208800242,
+          "normal_conv_1_11": 193794818,
+          "normal_conv_1_14": 172378178,
+          "normal_conv_1_17": 142263170,
+          "normal_conv_1_3": 207506642,
+          "normal_conv_1_5": 206213042,
+          "normal_conv_1_7": 203485058,
+          "normal_conv_1_9": 198865730
+        },
+        "status": "PASS",
+        "timing_scope": "microbatch includes augmentation, transfer, forward/backward, finite checks, accumulation and synchronization; optimizer timed separately; warm-up excluded",
+        "validation_inference_images_per_second": 5.675052397244369,
+        "warmup_images": 100,
+        "warmup_memory": {
+          "current": 3177639424,
+          "peak": 4860353536
+        },
+        "weights_updated": true
+      }
+    ]
+  },
+  "final_changes_after_benchmark": [
+    "Correct Keras ImageNet cache filename lookup and include dependency source hashes",
+    "Reject dataset/output directory overlap before writes",
+    "Capture Python warnings in logs; clarify supervisor batch metadata"
+  ],
+  "generated_at_utc": "2026-10-01T11:54:22.061838+00:00",
+  "git_diff_check": "PASS",
+  "git_status": "?? REIMPLEMENTATION.md\n?? manifests/\n?? modern_pca/evaluate_reimplementation.py\n?? modern_pca/reimplementation.py\n?? modern_pca/train_reimplementation.py\n?? reports/\n?? requirements-reimplementation-wsl.txt\n?? runs/\n?? tests/test_reimplementation.py\n?? tests/test_validation_manifests.py\n?? tools/build_validation_manifests.py\n",
+  "numerical_functions_identical_to_benchmarked_snapshot": true,
+  "production_started": false,
+  "recommendation": "GO for float32 GPU feasibility at physical batch 4/effective 100. Current serial pipeline is slow; production not launched.",
+  "source_images_modified": false,
+  "split": {
+    "VAL2_images_accessed": false,
+    "algorithm": "SHA256 UTF-8 VAL1-internal-v1|42|<sample_id>; ties sample_id; first N per class validate",
+    "fingerprints": {
+      "VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+      "VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8"
+    },
+    "internal_validation": {
+      "benign": 18602,
+      "tumour": 10562
+    },
+    "limitation": "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+    "row_order": "cohort,class_name,normalized relative_path; independent zero-based row_index",
+    "seed": 42,
+    "source_images_modified": false,
+    "source_manifest_sha256": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+    "train": {
+      "benign": 74407,
+      "tumour": 42248
+    }
+  },
+  "status": "PASS",
+  "strict_evaluator_unchanged": true,
+  "tests": {
+    "windows_cpu_before_final_metadata_guards": "165 passed, 1 skipped",
+    "wsl_cpu": "169 passed"
+  }
+}

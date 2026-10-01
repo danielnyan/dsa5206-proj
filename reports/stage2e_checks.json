@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-10-01T22:42:54.307696+00:00",
+  "unit_test_command": [
+    "/home/soonh/miniconda3/envs/dsa5206-reimplementation/bin/python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider"
+  ],
+  "unit_tests_returncode": 0,
+  "unit_test_log": "reports/stage2e_tests.log",
+  "final_checked_at_utc": "2026-10-01T22:43:28.748227+00:00",
+  "git_diff_check": {
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "git_status_short": "?? REIMPLEMENTATION.md\n?? manifests/\n?? modern_pca/evaluate_reimplementation.py\n?? modern_pca/numerical_parity.py\n?? modern_pca/preprocessing_cache.py\n?? modern_pca/profile_reimplementation.py\n?? modern_pca/profile_validation.py\n?? modern_pca/reimplementation.py\n?? modern_pca/train_reimplementation.py\n?? reports/\n?? requirements-reimplementation-wsl.txt\n?? runs/\n?? tests/test_reimplementation.py\n?? tests/test_stage2e.py\n?? tests/test_validation_manifests.py\n?? tools/build_validation_manifests.py\n?? tools/report_stage2e.py\n",
+  "unit_tests_summary": "183 passed in 80.39s (0:01:20)",
+  "protected_files_sha256": {
+    "manifests/VAL1_internal_v1/VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+    "manifests/VAL1_internal_v1/VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8",
+    "manifests/VAL1_manifest.csv": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+    "modern_pca/evaluate_paper.py": "e79d883bab30061dce3b68dc493a454c8a5b5f763e75916d2f31485345654c8b",
+    "modern_pca/reimplementation.py": "851b807fdc6d95f5880a4ccf51e0182087931df1fb4c42fa7a6984369cc46550",
+    "modern_pca/train_reimplementation.py": "f11db0e4c2a7870bb838cd992c78a75d7b3d6a3377a000b32b73616fa650e286"
+  },
+  "stage2e_files_whitespace_pass": true,
+  "protected_files_pass": true,
+  "source_code_and_report_sha256": {
+    "modern_pca/preprocessing_cache.py": "3d3cd67e59a5128a42a91c538399df01aff207c5b5c8fae2d01a71c77fcfc8d6",
+    "modern_pca/numerical_parity.py": "290440ac1269d810fb3e8e320dd9aeacefbd2e038480429763b3c15c89773429",
+    "modern_pca/profile_reimplementation.py": "afda084ce7d1faa256ab3fb220be9832ae31d027e317cb919adffcd6d7d9fbfe",
+    "modern_pca/profile_validation.py": "6895237ea81ca8ca9d5e0b2957021a4f98a1fe3444c566eb288e33c3a99b4d98",
+    "tools/report_stage2e.py": "996f515b60d055b4063e4e0ed22315610e64cfee2e37b543bde854ea9b9767c5",
+    "tests/test_stage2e.py": "6a3379a7fe5ff59a0ea9fb3eebbc27e154779d2669c20a4bf232c96ca5509ae2",
+    "reports/stage2e_performance.md": "baf635357c50fce0bb30ec2ac9b0a13f1006b0acbca422db1867e0792258367e",
+    "reports/stage2e_performance.json": "56d2f751d439b149703ef9b398071bb7f5586ba9512f802a5bd50d10fdb979bb"
+  }
+}

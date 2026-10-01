@@ -1,0 +1,21 @@
+{
+  "VAL2_images_accessed": false,
+  "algorithm": "SHA256 UTF-8 VAL1-internal-v1|42|<sample_id>; ties sample_id; first N per class validate",
+  "fingerprints": {
+    "VAL1_internal_validation.csv": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+    "VAL1_train.csv": "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8"
+  },
+  "internal_validation": {
+    "benign": 18602,
+    "tumour": 10562
+  },
+  "limitation": "Patch-level internal split: patient/slide identities unavailable; leakage is possible.",
+  "row_order": "cohort,class_name,normalized relative_path; independent zero-based row_index",
+  "seed": 42,
+  "source_images_modified": false,
+  "source_manifest_sha256": "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+  "train": {
+    "benign": 74407,
+    "tumour": 42248
+  }
+}

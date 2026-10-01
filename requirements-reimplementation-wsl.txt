@@ -1,0 +1,13 @@
+# Tested Stage 2D WSL environment, Python 3.11.16.
+# TensorFlow's and-cuda extra supplies CUDA runtime packages (not a host driver).
+tensorflow[and-cuda]==2.20.0
+keras==3.15.1
+numpy==1.26.4
+Pillow==10.4.0
+staintools==2.1.2
+spams-bin==2.6.13
+opencv-python==4.11.0.86
+scipy==1.17.1
+scikit-learn==1.5.2
+h5py==3.16.0
+pytest==8.3.5
