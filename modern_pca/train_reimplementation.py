@@ -247,6 +247,9 @@ def smoke_benchmark(args, train, summary):
 
 def production(args, train, validation, summary):
     """Explicit future production mode: fixed 14 epochs, no selection/early stopping."""
+    if getattr(args, 'cache', None) is not None:
+        from .cached_training import production as cached_production
+        return cached_production(args, train, validation, summary)
     import tensorflow as tf
     device = r.gpu_setup()
     model, counts = r.build_model()
@@ -308,6 +311,8 @@ def parse_args(argv=None):
     parser.add_argument("--batch-size",type=int,choices=[1,2,4],default=1)
     parser.add_argument("--log-every",type=int,default=1000)
     parser.add_argument("--log-level",choices=["INFO","DEBUG"],default="INFO")
+    parser.add_argument("--cache",type=Path,help="Verified full VAL1 cache; production only, requires --batch-size 4")
+    parser.add_argument("--resume-cache-checkpoint",type=Path,help="Resume a completed cached-production epoch checkpoint")
     parser.add_argument("--smoke-parent",type=Path,help=argparse.SUPPRESS)
     parser.add_argument("--boundary",choices=[s[0] for s in r.SCHEDULE],help=argparse.SUPPRESS)
     parser.add_argument("--precision",choices=["float32","mixed_float16"],default="float32",help=argparse.SUPPRESS)
@@ -316,8 +321,12 @@ def parse_args(argv=None):
         parser.error("--log-every must be positive")
     if not args.freeze_split and args.output is None:
         parser.error("--output required")
-    if (args.smoke_benchmark or args.train_production) and args.extracted is None:
+    if (args.smoke_benchmark or (args.train_production and args.cache is None)) and args.extracted is None:
         parser.error("--extracted required")
+    if args.cache is not None and (not args.train_production or args.batch_size != 4):
+        parser.error("--cache requires --train-production and --batch-size 4")
+    if args.resume_cache_checkpoint is not None and args.cache is None:
+        parser.error("--resume-cache-checkpoint requires --cache")
     if not args.smoke_worker and args.precision != "float32":
         parser.error("Mixed precision only allowed as an explicitly labelled smoke fallback")
     return args
@@ -329,6 +338,8 @@ def main(argv=None):
         return smoke_worker(args)
     if args.extracted is not None:
         r.ensure_output_separation(args.extracted,[p for p in (args.output,args.split_output) if p is not None])
+    if args.cache is not None:
+        r.ensure_output_separation(args.cache, [args.output])
     train, validation, summary = r.freeze_split(args.manifest,args.split_output)
     if args.freeze_split:
         print(json.dumps(summary,indent=2))

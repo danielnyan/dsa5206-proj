@@ -22,11 +22,11 @@ The released Zenodo validation datasets are therefore used for a carefully contr
 | Stage 2D | GPU feasibility and smoke benchmarking | **PASS** |
 | Stage 2E | Performance profiling and preprocessing-cache validation | **COMPLETE** |
 | Stage 2F | CPU/GPU numerical-gradient investigation | **COMPLETE** |
-| Full VAL1 cache | One-time lossless preprocessing-cache generation | **NEXT** |
+| Stage 2G | Full VAL1 cache, integrity/parity audits and trainer dry run | **PASS** |
 | Production training | 14-epoch constrained reimplementation | **NOT STARTED** |
 | VAL2 evaluation | Final external evaluation | **NOT STARTED** |
 
-> **Production training is currently NO-GO pending Stage 2F numerical-parity investigation.**
+> **Stage 2G recommends GO for production readiness; production training has not started.** Stage 2F strict CPU/GPU parity remains FAIL under its original tolerance; its separate material-equivalence assessment supports GPU training on numerical grounds.
 
 > **VAL2 has remained untouched during model development, profiling, performance optimization and hyperparameter decisions.**
 
@@ -304,7 +304,7 @@ differing elements = 0
 
 This means deterministic preprocessing can be performed once and reused across epochs without changing the cached image values.
 
-The full VAL1 cache has **not yet been generated**.
+At Stage 2E, the full VAL1 cache had **not yet been generated**. It was subsequently generated and fully verified in Stage 2G.
 
 ---
 
@@ -326,28 +326,138 @@ This does not automatically prove that GPU training is scientifically invalid, b
 
 ## Stage 2F — CPU/GPU Numerical-Parity Investigation
 
-Strict CPU/GPU parity remained FAIL under the original predeclared
-tolerances, reproducing the same 8 of 47 gradient-tensor failures.
+Strict CPU/GPU parity remained **FAIL** under the original predeclared
+tolerances, reproducing exactly the same **8 of 47 gradient-tensor failures**.
+The original tolerances were not relaxed.
 
 Further diagnostics found:
 
-- CPU repeatability: bitwise exact
-- GPU repeatability: bitwise exact
-- gradient accumulation checks: 47/47 PASS
-- 10-update CPU/GPU prediction agreement: 100%
-- final comparison: 1,000/1,000 predictions agreed
-- maximum probability difference: 0.0000174
+- CPU repeatability: **bitwise exact**
+- GPU repeatability: **bitwise exact**
+- independent gradient-accumulation checks: **47/47 PASS**
+- no accumulation inconsistency was found
+- 10-update CPU/GPU prediction agreement remained aligned
+- final comparison across 1,000 images: **1,000/1,000 predictions agreed**
+- maximum probability difference: **0.0000174**
 
-The differences are assessed as likely benign float32 CPU/GPU numerical
-variation rather than an implementation inconsistency.
+The observed discrepancies are therefore assessed as likely benign float32
+CPU/GPU numerical variation rather than an implementation inconsistency.
 
-Scientific/material-equivalence assessment: GO for GPU training on
-numerical grounds.
+**Scientific/material-equivalence assessment: GO for GPU training on numerical grounds.**
 
-Next step: generate and verify the full VAL1 preprocessing cache.
+This does **not** claim that CPU and GPU training will remain bitwise identical
+over a complete 14-epoch run. It establishes only that the measured short-run
+numerical differences were not materially significant.
 
-Production training has not started.
+Detailed Stage 2F evidence:
+
+- `reports/stage2f_numerical_parity.md`
+- `reports/stage2f_numerical_parity.json`
+- `reports/stage2f_checks.json`
+
+Production training was not started during Stage 2F.
+VAL2 remained untouched.
+
+---
+
+## Stage 2G — Full VAL1 Cache Generation and Trainer Readiness
+
+Stage 2G generated and verified the complete lossless VAL1 preprocessing cache
+used for the production-training path.
+
+### Full cache result
+
+| Measurement | Verified result |
+|---|---:|
+| Total VAL1 samples | 145,819 |
+| Training samples | 116,655 |
+| Internal-validation samples | 29,164 |
+| NPY shards | 570 |
+| Tensor payload | 53.589 GB |
+| Metadata | 149.393 MB |
+| Active cache size | ~53.738 GB |
+| Full cache integrity | PASS |
+| Source-image immutability | PASS |
+| Trainer/cache integration | PASS |
+| One-update GPU dry run | PASS |
+| Checkpoint reload | PASS |
+| Resume behavior | PASS |
+
+The full cache is stored locally under:
+
+```text
+runs/stage2g_full_cache/cache
+```
+
+Because `runs/` is ignored by Git, the approximately 54 GB cache is **not**
+uploaded to GitHub.
+
+### Preprocessing parity
+
+Exact online-versus-cache parity passed on:
+
+- **590 representative samples**, covering both classes, both splits,
+  source-dimension strata and every shard;
+- **1,000 deterministic random samples**.
+
+For both audits:
+
+```text
+PASS
+maximum difference = 0
+differing elements = 0
+```
+
+All 145,819 cached tensor checksums and corresponding original VAL1 JPEG
+checksums were reverified.
+
+### Trainer integration
+
+The production trainer successfully traversed all 145,819 cached samples with
+the expected order, labels and split assignments.
+
+The bounded GPU dry run verified:
+
+- physical batch size 4
+- effective batch size 100
+- float32 training
+- TF32 disabled
+- frozen BatchNormalization behavior
+- gradient accumulation
+- exactly one optimizer update
+- validation pass
+- checkpoint write and reload
+- optimizer-state restoration
+- resume cursor behavior
+
+No production epoch was run.
+
+### Stage 2G performance
+
+| Measurement | Result |
+|---|---:|
+| Full-cache loader throughput | 130.8 images/s |
+| Revised 14-epoch training forecast | ~22.09 hours |
+| Conservative serial-input estimate | ~26.48 hours |
+| Recorded cache-generation time | at least 2.809 hours |
+| Recorded generation throughput | at most 14.418 images/s |
+
+The cache-generation timing is a **lower-bound timing claim** because one
+generation session was interrupted. Correspondingly, the reported generation
+throughput is an upper bound rather than an exact end-to-end throughput claim.
+
+Stage 2G conclusion:
+
+> **Full VAL1 cache: PASS. Trainer/cache integration: PASS. Production readiness: GO.**
+
+Production training has still **not started**.
 VAL2 remains untouched.
+
+Detailed Stage 2G evidence:
+
+- `reports/stage2g_full_cache.md`
+- `reports/stage2g_full_cache.json`
+- `reports/stage2g_checks.json`
 
 ---
 
@@ -363,7 +473,11 @@ modern_pca/
     train_reimplementation.py
     preprocessing_cache.py
     profile_reimplementation.py
+    profile_validation.py
     numerical_parity.py
+    diagnose_parity.py
+    full_cache.py
+    cached_training.py
 
 manifests/
     VAL1_manifest.csv
@@ -380,14 +494,27 @@ reports/
     stage2e_performance.md
     stage2e_performance.json
     stage2e_checks.json
+    stage2f_numerical_parity.md
+    stage2f_numerical_parity.json
+    stage2f_checks.json
+    stage2g_full_cache.md
+    stage2g_full_cache.json
+    stage2g_checks.json
 
 tools/
     build_validation_manifests.py
     download_validation_data.ps1
+    report_stage2f.py
+    finish_stage2g.py
+    profile_full_cache.py
+    report_stage2g.py
 
 tests/
     test_validation_manifests.py
     test_reimplementation.py
+    test_stage2e.py
+    test_diagnose_parity.py
+    test_full_cache.py
 
 4_WSI_pipeline/
     WSI_pipeline_v6/
@@ -425,12 +552,16 @@ Run the repository test suite before production work:
 python -m pytest -q
 ```
 
-At completion of Stage 2E:
+Latest verified test status:
 
 ```text
-183 tests passed
+Stage 2E: 183 tests passed
+Stage 2F: 190 tests passed
+Stage 2G: 213 tests passed
 git diff --check passed
 ```
+
+Stage 2G also reran 23 focused cache/integration tests successfully.
 
 ---
 
@@ -461,8 +592,14 @@ Use this README as the project landing page. Detailed evidence and implementatio
 - `reports/stage2d_implementation.md` — GPU feasibility and smoke benchmark
 - `reports/stage2e_performance.md` — profiling, preprocessing cache and CPU/GPU numerical-parity results
 - `reports/stage2e_checks.json` — Stage 2E verification checks
+- `reports/stage2f_numerical_parity.md` — CPU/GPU numerical-parity diagnosis and scientific assessment
+- `reports/stage2f_numerical_parity.json` — machine-readable Stage 2F evidence
+- `reports/stage2f_checks.json` — Stage 2F verification checks
+- `reports/stage2g_full_cache.md` — full VAL1 cache, exact parity audits, trainer readiness and runtime forecast
+- `reports/stage2g_full_cache.json` — machine-readable Stage 2G evidence
+- `reports/stage2g_checks.json` — Stage 2G tests, protected-file hashes and Git checks
 
-Large experimental artifacts under `runs/`, downloaded source data and future full preprocessing caches should remain outside normal Git tracking.
+Large experimental artifacts under `runs/`, downloaded source data and the generated full preprocessing cache remain outside normal Git tracking.
 
 ---
 
@@ -488,20 +625,11 @@ The original repository should still be consulted when comparing legacy training
 ## Current Next Step
 
 ```text
-Stage 2F
-CPU/GPU numerical-gradient investigation
+Stage 2G PASS
+Full VAL1 cache verified; trainer integration and one-update dry run passed
         |
         v
-If scientifically acceptable
-        |
-        v
-Generate and verify full VAL1 preprocessing cache once
-        |
-        v
-Short production dry run
-        |
-        v
-14-epoch production training
+14-epoch production training (not started; separate authorization)
         |
         v
 Freeze epoch-14 checkpoint
@@ -510,4 +638,4 @@ Freeze epoch-14 checkpoint
 Final untouched VAL2 evaluation
 ```
 
-Do not begin production training or use VAL2 for development until the Stage 2F gate has been resolved.
+Stage 2G verified all 145,819 cached samples (116,655 training; 29,164 internal validation), exact online parity on 590 representative and 1,000 deterministic random samples, and checkpoint reload/resume. The revised training-only forecast is approximately 22.09 hours, with a conservative serial-input estimate of 26.48 hours. See the Stage 2G report for timing limitations. VAL2 must remain unused for development.
