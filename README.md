@@ -21,8 +21,8 @@ The released Zenodo validation datasets are therefore used for a carefully contr
 | Stage 2C | Reimplementation experimental design | **PASS** |
 | Stage 2D | GPU feasibility and smoke benchmarking | **PASS** |
 | Stage 2E | Performance profiling and preprocessing-cache validation | **COMPLETE** |
-| Stage 2F | CPU/GPU numerical-gradient investigation | **NEXT** |
-| Full VAL1 cache | One-time lossless preprocessing-cache generation | **NOT STARTED** |
+| Stage 2F | CPU/GPU numerical-gradient investigation | **COMPLETE** |
+| Full VAL1 cache | One-time lossless preprocessing-cache generation | **NEXT** |
 | Production training | 14-epoch constrained reimplementation | **NOT STARTED** |
 | VAL2 evaluation | Final external evaluation | **NOT STARTED** |
 
@@ -324,16 +324,30 @@ The tolerances were **not relaxed** after observing the result.
 
 This does not automatically prove that GPU training is scientifically invalid, because CPU and GPU floating-point accumulation can differ. However, the discrepancy must be investigated before production training.
 
-### Stage 2F
+## Stage 2F — CPU/GPU Numerical-Parity Investigation
 
-The next stage will determine whether the failed gradient tensors represent:
+Strict CPU/GPU parity remained FAIL under the original predeclared
+tolerances, reproducing the same 8 of 47 gradient-tensor failures.
 
-1. benign expected CPU/GPU float32 numerical differences, or
-2. a materially important implementation inconsistency.
+Further diagnostics found:
 
-Until Stage 2F is complete:
+- CPU repeatability: bitwise exact
+- GPU repeatability: bitwise exact
+- gradient accumulation checks: 47/47 PASS
+- 10-update CPU/GPU prediction agreement: 100%
+- final comparison: 1,000/1,000 predictions agreed
+- maximum probability difference: 0.0000174
 
-> **Production training remains NO-GO.**
+The differences are assessed as likely benign float32 CPU/GPU numerical
+variation rather than an implementation inconsistency.
+
+Scientific/material-equivalence assessment: GO for GPU training on
+numerical grounds.
+
+Next step: generate and verify the full VAL1 preprocessing cache.
+
+Production training has not started.
+VAL2 remains untouched.
 
 ---
 

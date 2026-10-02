@@ -1,0 +1,79 @@
+{
+    "timestamp_utc":  "2026-10-02T06:01:21.8262656Z",
+    "branch":  "main",
+    "git_commit":  "199b8b8d4242f8e16a4899a86d07ec365b684a34",
+    "full_suite":  {
+                       "exit_code":  0,
+                       "command":  "CUDA_VISIBLE_DEVICES=-1 python -B -m pytest -q -p no:cacheprovider (WSL2)",
+                       "log":  "reports/stage2f_tests.log",
+                       "passed":  190
+                   },
+    "focused_suite_after_report_changes":  {
+                                               "exit_code":  0,
+                                               "command":  "python -B -m pytest tests/test_diagnose_parity.py -q -p no:cacheprovider (Windows)",
+                                               "log":  "reports/stage2f_diagnostic_tests.log",
+                                               "passed":  7
+                                           },
+    "git_diff_check_exit_code":  0,
+    "new_file_trailing_whitespace":  [
+
+                                     ],
+    "protected_files_unchanged":  true,
+    "protected_files_sha256":  {
+                                   "manifests/VAL1_internal_v1/VAL1_internal_validation.csv":  "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+                                   "manifests/VAL1_internal_v1/VAL1_train.csv":  "e6aaa451d54602fa19c86ea37b395043ed8fb0526122d6e780a1ecd410ebc3b8",
+                                   "manifests/VAL1_manifest.csv":  "c483f827985c241106942766062ad58b23c7ad86e6853ade51bb045bb5feff77",
+                                   "modern_pca/evaluate_paper.py":  "e79d883bab30061dce3b68dc493a454c8a5b5f763e75916d2f31485345654c8b",
+                                   "modern_pca/numerical_parity.py":  "290440ac1269d810fb3e8e320dd9aeacefbd2e038480429763b3c15c89773429",
+                                   "modern_pca/preprocessing_cache.py":  "3d3cd67e59a5128a42a91c538399df01aff207c5b5c8fae2d01a71c77fcfc8d6",
+                                   "modern_pca/profile_reimplementation.py":  "afda084ce7d1faa256ab3fb220be9832ae31d027e317cb919adffcd6d7d9fbfe",
+                                   "modern_pca/profile_validation.py":  "6895237ea81ca8ca9d5e0b2957021a4f98a1fe3444c566eb288e33c3a99b4d98",
+                                   "modern_pca/reimplementation.py":  "851b807fdc6d95f5880a4ccf51e0182087931df1fb4c42fa7a6984369cc46550",
+                                   "modern_pca/train_reimplementation.py":  "f11db0e4c2a7870bb838cd992c78a75d7b3d6a3377a000b32b73616fa650e286",
+                                   "tests/test_stage2e.py":  "6a3379a7fe5ff59a0ea9fb3eebbc27e154779d2669c20a4bf232c96ca5509ae2",
+                                   "tools/report_stage2e.py":  "996f515b60d055b4063e4e0ed22315610e64cfee2e37b543bde854ea9b9767c5"
+                               },
+    "created_file_sha256":  {
+                                "modern_pca/diagnose_parity.py":  "48e8142a60372beac090a83aee83d04dffec53db4ed11dc082d79becccb8e313",
+                                "tools/report_stage2f.py":  "e7d7c511426263b1ab7889c087617160d7ac8a14f25094c66b886816a39abae0",
+                                "tests/test_diagnose_parity.py":  "3fcf30934ca5e101d850b14c268b012a2276033a922d5af655d576306e7c1c0d",
+                                "reports/stage2f_numerical_parity.json":  "f3e1881455e5d86feafcb1644ce8740fcfd7e9043ec907478dd3ea60544285a3",
+                                "reports/stage2f_numerical_parity.md":  "6c8b3a9a1a2ba9e67b92478520e42e604f367280b6cb02258dc69ad4be953bbd",
+                                "reports/stage2f_tests.log":  "4822863e4fc9e8b4f63d87bcd5402d8f4e0c9c796a787109b2a6d1eb4c1f8ff9",
+                                "reports/stage2f_diagnostic_tests.log":  "4ca397d655641822922f980161b6e6eae12a349d7212d356365716639696eb42",
+                                "reports/stage2f_report_generation.log":  "1b40f90b771ffa15ec8ca3267b6167df980ede0e93a5a75500c688e9d5f466a9"
+                            },
+    "scientific_assessment":  "likely_benign",
+    "strict_verdict":  "FAIL",
+    "evidence_checks":  {
+                            "all_post_prediction_checks_pass":  true,
+                            "all_weight_checks_pass":  true,
+                            "averages_exact":  true,
+                            "cross_device_inputs_and_initialization_exact":  true,
+                            "final_1000_pass":  true,
+                            "frozen_weights_exact":  true,
+                            "independent_float32_accumulation_exact":  true,
+                            "instrumented_first_gradient_exact":  true,
+                            "original_tensor_files_exact":  true,
+                            "reproduction":  true,
+                            "same_device_exact":  true,
+                            "sample_counts_correct":  true
+                        },
+    "production_training_started":  false,
+    "VAL2_accessed":  false,
+    "full_cache_generated":  false,
+    "committed_or_pushed":  false,
+    "git_status":  [
+                       "?? modern_pca/diagnose_parity.py",
+                       "?? reports/stage2e_report_generation.log",
+                       "?? reports/stage2e_tests.log",
+                       "?? reports/stage2f_checks.json",
+                       "?? reports/stage2f_diagnostic_tests.log",
+                       "?? reports/stage2f_numerical_parity.json",
+                       "?? reports/stage2f_numerical_parity.md",
+                       "?? reports/stage2f_report_generation.log",
+                       "?? reports/stage2f_tests.log",
+                       "?? tests/test_diagnose_parity.py",
+                       "?? tools/report_stage2f.py"
+                   ]
+}
