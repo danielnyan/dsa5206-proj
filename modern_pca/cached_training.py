@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import json
 from pathlib import Path
 import time
 
@@ -17,13 +18,33 @@ from . import preprocessing_cache as c
 from . import reimplementation as r
 
 
+def check_environment_compatibility(cached, current):
+    """Compare canonical contracts; only physical RAM inventory is informational.
+
+    Work on JSON copies so the authenticated Stage 2G context stays unchanged.
+    Missing RAM fields remain errors, as do all other contract differences.
+    """
+    before, after = (json.loads(json.dumps(value)) for value in (cached, current))
+    try:
+        old_ram = before['provenance']['environment']['platform'].pop('ram_bytes')
+        new_ram = after['provenance']['environment']['platform'].pop('ram_bytes')
+    except (KeyError, TypeError) as error:
+        raise ValueError('Cached preprocessing environment contract missing RAM inventory') from error
+    if f.digest(before) != f.digest(after):
+        raise ValueError('Cached preprocessing environment mismatch')
+    if old_ram != new_ram:
+        r.LOG.info('Informational cache RAM inventory difference: cached ram_bytes=%r; current ram_bytes=%r; '
+                   'all other environment contract fields match', old_ram, new_ram)
+    return dict(status='PASS', informational_ram_bytes=dict(cached=old_ram, current=new_ram))
+
+
 def checked_reader(root):
     reader = f.FullCacheReader(root)
     verification = f.read(Path(root) / 'verification.json')
     if verification['status'] != 'PASS' or verification['cache_catalog_sha256'] != r.sha256_file(Path(root) / 'cache.json'):
         raise ValueError('Full-cache verification is missing or stale')
-    if f.digest(f.environment_contract()) != f.digest(reader.context['context']['contract']):
-        raise ValueError('Cached preprocessing environment mismatch')
+    reader.environment_compatibility = check_environment_compatibility(
+        reader.context['context']['contract'], f.environment_contract())
     for path, expected in reader.context['context']['protected_sha256'].items():
         r.sha256_file(Path(path), expected)
     return reader
@@ -210,6 +231,70 @@ def dry_run(cache, output):
     return report
 
 
+def validate_finalization_state(state):
+    """Require a complete final-epoch production record before restoring/exporting."""
+    boundary, _, rate = r.SCHEDULE[-1]
+    if (state.get('purpose') != 'production' or type(state.get('completed_epochs')) is not int
+            or state['completed_epochs'] != 14 or state.get('boundary') != boundary
+            or state.get('rate') != rate):
+        raise ValueError('Invalid epoch-14 production finalization state')
+    history = state.get('history')
+    boundaries = [name for name, epochs, _ in r.SCHEDULE for _ in range(epochs)]
+    if not isinstance(history, list) or len(history) != 14:
+        raise ValueError('Incomplete epoch-14 history')
+    for epoch, (entry, expected) in enumerate(zip(history, boundaries), 1):
+        if (not isinstance(entry, dict) or type(entry.get('epoch')) is not int
+                or entry['epoch'] != epoch or entry.get('boundary') != expected
+                or type(entry.get('loss')) not in (int, float)
+                or not np.isfinite(entry['loss']) or entry['loss'] < 0):
+            raise ValueError('Invalid epoch-14 history entry')
+        metrics = entry.get('internal_validation')
+        if not isinstance(metrics, dict):
+            raise ValueError('Missing epoch-14 validation history')
+        counts = [metrics.get(key) for key in ('TN', 'FP', 'FN', 'TP')]
+        if (any(type(value) is not int or value < 0 for value in counts)
+                or counts[0] + counts[1] != r.VALIDATION_COUNTS['benign']
+                or counts[2] + counts[3] != r.VALIDATION_COUNTS['tumour']
+                or metrics.get('confusion_matrix') != [counts[:2], counts[2:]]
+                or metrics.get('label_order') != list(r.CLASSES)):
+            raise ValueError('Invalid epoch-14 validation counts')
+        for key in ('accuracy', 'precision', 'recall', 'sensitivity', 'tumour_accuracy',
+                    'specificity', 'benign_accuracy', 'f1', 'roc_auc'):
+            if key not in metrics:
+                raise ValueError('Missing epoch-14 validation metric')
+            value = metrics.get(key)
+            if key == 'precision' and value is None and counts[1] + counts[3] == 0:
+                continue
+            if type(value) not in (int, float) or not np.isfinite(value) or not 0 <= value <= 1:
+                raise ValueError('Invalid epoch-14 validation metric')
+
+
+def finalize_epoch14(model, resume, output, cache_sha, meta):
+    """Restore the strict checkpoint then export, without any data iteration/update."""
+    state = f.read(Path(resume) / 'checkpoint.json')['state']
+    validate_finalization_state(state)
+    # The CLI creates a fresh directory containing only its startup log/metadata.
+    if any(path.name not in {'run.log', 'metadata.json'} for path in output.iterdir()):
+        raise ValueError('Finalization requires a fresh output directory')
+    r.configure_stage(model, state['boundary'])
+    optimizer = r.adam(state['rate'])
+    restored = restore_checkpoint(model, optimizer, resume, cache_sha, 'production')
+    validate_finalization_state(restored)
+    if restored != state:
+        raise ValueError('Finalization checkpoint state changed during restore')
+    iterations = int(optimizer.iterations.numpy())
+    checkpoint = output / 'epoch14.keras'
+    model.save(checkpoint)
+    if int(optimizer.iterations.numpy()) != iterations:
+        raise ValueError('Finalization changed optimizer iterations')
+    f.atomic_json(output / 'history.json', dict(epochs=restored['history'], selection='none; fixed epoch14'))
+    meta.update(completed_epochs=14, model_sha256=r.sha256_file(checkpoint), completed_at_utc=r.utc_now(),
+                finalization_only=True, resumed_from=str(resume), optimizer_iterations=iterations)
+    f.atomic_json(output / 'metadata.json', meta)
+    r.LOG.info('Epoch-14 checkpoint finalized without training: %s', checkpoint)
+    return 0
+
+
 def production(args, train, validation_rows, summary):
     """Future explicit production entry; same schedule, loss, class mapping and flips."""
     from .evaluate_paper import calculate_binary_metrics
@@ -227,6 +312,10 @@ def production(args, train, validation_rows, summary):
             raise ValueError('Cannot resume production from a diagnostic checkpoint')
         completed = checkpoint['state']['completed_epochs']
         history = checkpoint['state']['history']
+        if type(completed) is not int or not 1 <= completed <= 14:
+            raise ValueError('Invalid completed production epoch')
+        if completed == 14:
+            return finalize_epoch14(model, resume, args.output, cache_sha, meta)
     for boundary, epochs, rate in r.SCHEDULE:
         end_epoch = epoch + epochs
         if completed >= end_epoch:
@@ -257,8 +346,6 @@ def production(args, train, validation_rows, summary):
             f.atomic_json(args.output / 'history.json', dict(epochs=history, selection='none; fixed epoch14'))
         epoch = end_epoch
         del accumulator, optimizer; gc.collect()
-    if completed == 14:
-        raise ValueError('Checkpoint already completed all 14 epochs; no training to resume')
     checkpoint = args.output / 'epoch14.keras'; model.save(checkpoint)
     meta.update(completed_epochs=14, model_sha256=r.sha256_file(checkpoint), completed_at_utc=r.utc_now())
     f.atomic_json(args.output / 'metadata.json', meta)

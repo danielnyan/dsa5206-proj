@@ -1,0 +1,71 @@
+{
+  "status": "PASS",
+  "timestamp": "2026-10-05T02:27:27.222922+00:00",
+  "cache_compatibility": {
+    "status": "PASS",
+    "informational_ram_bytes": {
+      "cached": 16511066112,
+      "current": 16511041536
+    }
+  },
+  "samples": 145819,
+  "counts": {
+    "internal_validation": 29164,
+    "train": 116655
+  },
+  "shards": 570,
+  "cache_metadata_sha256": {
+    "runs/stage2g_full_cache/cache/context.json": "af2b63b695fdef2bc6d73acaea52e203f0d12fd73366d6eb238ef8bb5ba418b5",
+    "runs/stage2g_full_cache/cache/cache.json": "29763b50e177c26cdb58ddbfd3ccb0e5b83be593253e745e104b3fcbd740c6d1",
+    "runs/stage2g_full_cache/cache/verification.json": "42fba49ffe76aa31f3808f691f46c40873b7747233d9afc0098342b274a29b8b"
+  },
+  "cache_metadata_unchanged": true,
+  "cache_payload_rehashed": false,
+  "gpu": {
+    "tensorflow": "2.20.0",
+    "keras": "3.15.1",
+    "visible_gpus": [
+      "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+    ],
+    "gpu_details": [
+      {
+        "compute_capability": [
+          8,
+          9
+        ],
+        "device_name": "NVIDIA GeForce RTX 4080 Laptop GPU"
+      }
+    ],
+    "cuda_visible_devices": "unset",
+    "build": {
+      "cpu_compiler": "clang 18",
+      "cuda_compute_capabilities": [
+        "sm_60",
+        "sm_70",
+        "sm_80",
+        "sm_89",
+        "compute_90"
+      ],
+      "cuda_version": "12.5.1",
+      "cudnn_version": "9",
+      "is_cuda_build": true,
+      "is_rocm_build": false,
+      "is_tensorrt_build": false
+    },
+    "synchronous_execution": true,
+    "tensor_float_32": false,
+    "deterministic_ops": true
+  },
+  "disk_free_bytes": 1112889876480,
+  "disk_budget_bytes": 40000000000,
+  "output_directories_absent": [
+    "runs/stage2h_production",
+    "runs/stage2h_production_resume_01",
+    "runs/stage2h_finalized"
+  ],
+  "production_training_started": false,
+  "optimizer_updates": 0,
+  "training_batches": 0,
+  "validation_batches": 0,
+  "VAL2_access_attempts": 0
+}
