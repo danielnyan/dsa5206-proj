@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#PBS -N gleason-eval
+#PBS -l select=1:ncpus=4:ngpus=1:mem=32gb
+#PBS -l walltime=08:00:00
+#PBS -j oe
+set -euo pipefail
+source "${PIPELINE_CONFIG:?Supply absolute site.env path}"
+: "${MODEL_DIR:?Supply frozen model directory}"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+source "$VENV_DIR/bin/activate"
+cd "$REPO_DIR"
+extra=(--final-evaluation)
+if [[ "${MODE:-production}" == smoke ]]; then extra=(--smoke); fi
+python -u -m modern_pca.evaluate_gleason --model-dir "$MODEL_DIR" \
+  --manifests "$PREPARED_DIR/manifests" --cache "$PREPARED_DIR/cache" \
+  --output "$RUN_ROOT/${PBS_JOBID}-evaluation" "${extra[@]}"

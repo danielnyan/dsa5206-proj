@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#PBS -N gleason-train
+#PBS -l select=1:ncpus=8:ngpus=1:mem=96gb
+#PBS -l walltime=48:00:00
+#PBS -j oe
+set -euo pipefail
+source "${PIPELINE_CONFIG:?Supply absolute site.env path}"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+source "$VENV_DIR/bin/activate"
+cd "$REPO_DIR"
+export KERAS_HOME="$DATA_ROOT/keras"
+mode=${MODE:-smoke}
+extra=()
+case "$mode" in
+  smoke) extra+=(--smoke); batch=${SMOKE_BATCH_SIZE:-1};;
+  production) batch=${BATCH_SIZE:-100};;
+  *) echo 'MODE must be smoke or production' >&2; exit 2;;
+esac
+output=${MODEL_DIR:-$RUN_ROOT/${PBS_JOBID}-${mode}}
+if [[ "${RESUME:-0}" == 1 ]]; then
+  : "${MODEL_DIR:?Set existing MODEL_DIR for resumption}"
+  extra+=(--resume)
+fi
+python -u -m modern_pca.train_gleason --manifests "$PREPARED_DIR/manifests" \
+  --cache "$PREPARED_DIR/cache" --output "$output" --batch-size "$batch" \
+  --seed "${SEED:-42}" "${extra[@]}"

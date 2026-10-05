@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#PBS -N gleason-stability
+#PBS -l select=1:ncpus=1:mem=4gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+set -euo pipefail
+source "${PIPELINE_CONFIG:?}"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+source "$VENV_DIR/bin/activate"
+cd "$REPO_DIR"
+python -u -m modern_pca.gleason_regions stability --predictions "${PREDICTIONS:?}" \
+  --output "$RUN_ROOT/${PBS_JOBID}-stability" --fov-um "${FOV_UM:?}"

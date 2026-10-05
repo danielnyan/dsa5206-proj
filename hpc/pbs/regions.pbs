@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#PBS -N gleason-regions
+#PBS -l select=1:ncpus=4:ngpus=1:mem=32gb
+#PBS -l walltime=08:00:00
+#PBS -j oe
+set -euo pipefail
+source "${PIPELINE_CONFIG:?}"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+source "$VENV_DIR/bin/activate"
+cd "$REPO_DIR"
+python -u -m modern_pca.gleason_regions validate --model-dir "${MODEL_DIR:?}" \
+  --input "${REGION_INPUT:?}" --output "$RUN_ROOT/${PBS_JOBID}-regions" \
+  --mpp "${REGION_MPP:?}" --patch-size "${PATCH_SIZE:-600}" --center-crop

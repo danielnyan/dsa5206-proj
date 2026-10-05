@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#PBS -N gleason-prep
+#PBS -l select=1:ncpus=8:mem=32gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+set -euo pipefail
+source "${PIPELINE_CONFIG:?Supply absolute site.env path}"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+source "$VENV_DIR/bin/activate"
+cd "$REPO_DIR"
+args=()
+if [[ -n "${CROWD_IMAGES:-}" ]]; then
+  args+=(--crowd-images "$CROWD_IMAGES" --crowd-annotations "${CROWD_ANNOTATIONS:?}" \
+         --sicap-images "${SICAP_IMAGES:?}" --sicap-annotations "${SICAP_ANNOTATIONS:?}")
+else
+  args+=(--archives "$DATA_ROOT/archives" --extracted "$DATA_ROOT/extracted" --variant "${DATA_VARIANT:-raw-crowd}")
+fi
+if [[ "${ALLOW_PRENORMALIZED:-0}" == 1 ]]; then args+=(--allow-prenormalized); fi
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+python -u -m modern_pca.prepare_gleason "${args[@]}" --output "$PREPARED_DIR" --workers "${PREP_WORKERS:-8}"

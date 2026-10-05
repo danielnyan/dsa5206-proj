@@ -25,6 +25,7 @@ def build_classifier(
     image_size: int = 350,
     head: str = "original",
     weights: str | None = "imagenet",
+    backbone_training: bool | None = False,
 ) -> tf.keras.Model:
     """Build the paper model or a controlled modern alternative.
 
@@ -46,7 +47,9 @@ def build_classifier(
         # Preserve the released author's 1/255 NASNet input convention exactly.
         backbone_inputs = inputs
     backbone = BACKBONES[architecture](**backbone_kwargs)
-    x = backbone(backbone_inputs, training=False)
+    # Existing callers retain frozen-BN execution. The legacy Gleason trainer
+    # uses None so fit/evaluate propagate their training mode to the backbone.
+    x = backbone(backbone_inputs, training=backbone_training)
     if head == "original":
         x = tf.keras.layers.Flatten(name="paper_flatten")(x)
         x = tf.keras.layers.Dense(256, activation="relu", name="paper_dense_256")(x)

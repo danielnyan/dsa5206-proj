@@ -6,3 +6,6 @@ outputs/
 *.pt
 *.pth
 runs/
+hpc/site.env
+*.o[0-9]*
+*.e[0-9]*

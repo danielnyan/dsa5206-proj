@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#PBS -N gleason-wsi
+#PBS -l select=1:ncpus=4:ngpus=1:mem=48gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+set -euo pipefail
+source "${PIPELINE_CONFIG:?}"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+source "$VENV_DIR/bin/activate"
+cd "$REPO_DIR"
+extra=()
+if [[ "${C8:-0}" == 1 ]]; then extra+=(--c8); fi
+if [[ "${ENVIRONMENT:-0}" == 1 ]]; then extra+=(--environment); fi
+python -u -m modern_pca.gleason_wsi --slide "${SLIDE:?}" --tumour-model "${TUMOUR_MODEL:?}" \
+  --tumour-classes "${TUMOUR_CLASSES:-3}" --tumour-index "${TUMOUR_INDEX:-2}" \
+  --gleason-model-dir "${MODEL_DIR:?}" --output "$RUN_ROOT/${PBS_JOBID}-wsi" \
+  --patch-size "${PATCH_SIZE:-600}" "${extra[@]}"

@@ -1,0 +1,175 @@
+# Tumour-only Gleason training on PBS
+
+This implementation adapts the released Tolkach training code to labelled
+CrowdGleason and SICAPv2 tumour patches. It uses published Crowd `MV`, published
+SICAP patch classes, removes NC, and outputs `GP3,GP4,GP5`. Both training portions
+are combined. Validation/test partitions retain their supplied membership.
+
+The exact architecture is ImageNet NASNetLarge, 350x350 RGB, Flatten,
+Dense(256, ReLU), Dense(3, softmax). The 14-epoch schedule, categorical loss,
+Adam resets, horizontal/vertical flips, and trainable BatchNorm after each
+release boundary follow `1_training/NASNetLarge_350px_FULL_training.py`.
+The existing `modern_pca.models.build_classifier` now has an optional
+`backbone_training` parameter: other callers retain their previous `False`;
+the Gleason trainer uses `None` to propagate training/evaluation mode.
+
+StainTools 2.1.2 and the existing compatibility adapter in `evaluate_paper.py`
+provide brightness/Macenko preprocessing. The separately implemented NumPy
+normalizer is not used. Cache PNGs preserve uint8 normalized pixels exactly.
+
+No stromal decontamination, pseudo-label expansion, purity/consensus filtering,
+new subpatch labels, GAP head, class weighting, or new scoring rules are added.
+Original training material is unavailable. Whole public patches retain their
+labels and are resized to 350x350; their field of view/resolution differs from
+the original approximately 150 um training fields.
+
+## Configure the cluster
+
+Copy the extracted repository to shared scratch. Edit account, queue, GPU
+resource syntax, and walltime in `hpc/pbs/*.pbs` to match your PBS installation.
+The headers use PBS Pro/OpenPBS `select`; other PBS variants may need edits.
+Resource requests are starting points; GPU VRAM is site-specific and must be
+selected through the site's resource syntax. The full Flatten model is about
+210M parameters. Batch 100 may require substantially more memory than your GPU;
+measure batch 1 first. A smaller production batch changes BatchNorm statistics
+and is recorded as a deviation. There is no automatic batch/precision fallback.
+
+```bash
+cd /scratch/USER/dsa5206-proj
+cp hpc/site.env.example /scratch/USER/gleason-site.env
+# Edit all paths and SITE_SETUP. Reserve at least ~100 GB scratch initially.
+export PIPELINE_CONFIG=/scratch/USER/gleason-site.env
+bash hpc/bootstrap_env.sh
+```
+
+Bootstrap uses the repository's pinned TF/Keras/native dependency environment
+plus OpenPyXL/OpenSlide. Use cluster-provided compatible modules if appropriate.
+If your site prohibits compilation/package installation on login nodes, perform
+bootstrap on an interactive CPU allocation with internet access.
+
+## Download before scheduling compute
+
+On the permitted login or transfer node:
+
+```bash
+bash hpc/download_data.sh /scratch/USER/dsa5206-data raw-crowd
+```
+
+Downloads have resume/retry and published MD5 checks. Sources are
+[CrowdGleason Zenodo v1](https://zenodo.org/records/14178894) and the official
+Keras NASNetLarge no-top ImageNet weights. The downloader stages weights in
+`DATA_ROOT/keras/models` so training does not need outbound network access.
+About 17 GB of archives plus 0.35 GB of weights must be staged before extraction.
+Sources, extracted images, caches, and training output stay outside the repo.
+
+The stable automated route supplies **normalized SICAPv2**, while `raw-crowd`
+selects unnormalized Crowd images. `ALLOW_PRENORMALIZED=1` explicitly accepts
+this release and records that the legacy Tolkach normalization is applied after
+the source's normalization. This is a preprocessing limitation. Set the four
+explicit source paths in `site.env` to use original SICAP images instead; masks
+are not needed. The original SICAP layout uses
+`partition/Validation/Val1/{Train,Test}.xlsx` for train/validation and
+`partition/Test/Test.xlsx` for held-out test. No invented random split is used.
+The original dataset landing page is
+[SICAPv2 v1](https://data.mendeley.com/datasets/9xxm58dvs3/1); its legacy bulk URL
+was inaccessible during implementation, so the script does not depend on it.
+
+## Submit preparation, then a GPU smoke run
+
+```bash
+PIPELINE_CONFIG=/scratch/USER/gleason-site.env MODE=smoke bash hpc/submit_pipeline.sh
+```
+
+Preparation runs only in the CPU job. It authenticates archives, checks safe ZIP
+paths, extracts them, joins labels, audits every available image (including NC),
+removes NC, and builds the derived cache/manifests. `prepared.json` is written
+only after successful completion. Missing image joins fail production. Duplicate
+image content crossing splits fails; shared slide prefixes are reported in
+`audit.json` while supplied membership is preserved. Slide prefixes alone do not
+establish patient independence. Preprocessing workers are bounded; each uses the
+same fixed stain reference.
+
+The smoke job reads only train/validation caches, limits samples, and runs one
+epoch at boundaries 17 and 1. It checks finite operations, classifier updates,
+a frozen weight, and final model reload. Smoke models cannot be used for final
+test evaluation. The repository includes no trained checkpoint.
+
+Inspect the smoke result and PBS resource accounting. Adjust `BATCH_SIZE` and
+resource requests. Production defaults to the legacy physical batch 100.
+
+```bash
+PIPELINE_CONFIG=/scratch/USER/gleason-site.env SKIP_PREP=1 MODE=production bash hpc/submit_pipeline.sh
+```
+
+Use a new `PREPARED_DIR` when changing source data or preprocessing. The CPU
+preparer refuses to overwrite an existing output directory. An interrupted
+extraction can be rerun; derived output should use a new directory.
+
+Each completed training stage writes an alternating recovery checkpoint plus a
+checksum-bound `checkpoint.json`. Resume uses the last completed stage; a stage
+interrupted before checkpoint completion is repeated. Adam resets at every stage
+as in the legacy script. This is not a claim of bitwise restart equivalence.
+
+```bash
+qsub -v PIPELINE_CONFIG=/scratch/USER/gleason-site.env,MODE=production,RESUME=1,MODEL_DIR=/scratch/USER/dsa5206-runs/JOB-production hpc/pbs/train_gleason.pbs
+qsub -v PIPELINE_CONFIG=/scratch/USER/gleason-site.env,MODEL_DIR=/scratch/USER/dsa5206-runs/JOB-production hpc/pbs/evaluate_gleason.pbs
+```
+
+Evaluation verifies the final checkpoint and frozen manifest/cache hashes and
+reports tumour-only per-class precision/recall/F1, confusion matrix, accuracy,
+and Cohen's kappa separately for each dataset. Raw probabilities are exported.
+Use `MODE=smoke` in the evaluation job for a bounded validation-only check.
+Neither training nor smoke evaluation reads test cache images; CPU preparation
+does apply fixed, reference-based preprocessing to all supplied partitions.
+
+## Folders 3, 4 and 5
+
+`modern_pca.gleason_regions validate` executes the legacy large-image tiling,
+preprocessing, and soft-probability summation. Its default offsets match folder
+3; `--center-crop` uses the centered grid from folder 5. Predictions can be reused
+for folder 5 without repeated inference. `legacy_score` extracts and executes
+the original pure `gscoring()` function; no model is loaded from the old script.
+
+```bash
+python -m modern_pca.gleason_regions validate --model-dir RUN --input IMAGES --output REGION_OUTPUT --mpp 0.25 --patch-size 600 --center-crop
+python -m modern_pca.gleason_regions stability --predictions REGION_OUTPUT/predictions.csv --output STABILITY_OUTPUT --fov-um 150
+```
+
+Run those commands through `hpc/pbs/regions.pbs` (GPU) and `stability.pbs` (CPU),
+setting the required variables documented in the files. Stability preserves
+sampling without replacement and 20 rounds, clips requests to available tiles,
+and skips regions with fewer than 16 tiles. Default 1-16 matches the paper;
+`--max-tiles 19` matches the released loop. Record actual physical field size.
+Pixel dimensions alone cannot establish the original sampling-area comparison.
+
+`modern_pca.gleason_wsi` ports the legacy C1/C8/environment and Type-2 path.
+Use `hpc/pbs/wsi.pbs` with `SLIDE`, `TUMOUR_MODEL`, and `MODEL_DIR`. The default
+gate is the legacy three-class tumour model (index 2); the existing constrained
+binary gate can be explicitly selected with `TUMOUR_CLASSES=2,TUMOUR_INDEX=1`.
+It must use the same normalized 350x350 `/255` input convention.
+
+The WSI wrapper preserves tissue/nucleus thresholds, grey zone `[0.2,0.8)`,
+eight-view classwise medians, native `>0.5` tumour decisions, and the environment
+check's raw resize-and-scale input. Bounds checks fix negative-index wraparound
+and out-of-range neighbours. Environment-disabled execution is valid. No-tumour
+slides report no grade. The legacy +1 detection-grid offset, aligned grading grid,
+rounded patch percentages, and nonempty-slide pseudocounts remain documented
+behaviour. Heatmap generation uses direct colours and reports the same class
+semantics; it does not duplicate the old decorative bitmap tiles.
+
+Set `PATCH_SIZE` explicitly for the source resolution; default is legacy 600
+level-0 pixels. Slide MPP is recorded, not silently inferred. Test source-domain
+and FOV suitability before interpreting grades from replacement-data models.
+Whole-slide execution still needs suitable slides and a compatible tumour model.
+
+## Local validation and release
+
+See `reports/gleason_implementation.md` for checks actually run. Full GPU
+training, GPU serialization, WSI model inference, and PBS scheduler execution
+remain cluster validation steps. The small VM has no provisioned GPU or full
+datasets. The sample-only preparation flag permits structural checks and is
+rejected by production training and final evaluation.
+
+The ZIP contains source, original examples, existing reference manifests/reports, and these
+jobs, with per-file SHA-256 in `RELEASE.json`. It excludes Git internals, secrets,
+site configuration, environment packages, caches, training runs, and data archives.

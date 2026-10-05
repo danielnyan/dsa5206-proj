@@ -6,6 +6,11 @@ The project studies the reproducibility of the prostate-cancer pathology work by
 
 The original/legacy code is retained for reference. The current project also contains a separate modern constrained reimplementation and reproducibility pipeline.
 
+The tumour-only CrowdGleason/SICAPv2 adaptation and PBS jobs are documented in
+[`hpc/README.md`](hpc/README.md). They reuse the legacy NASNetLarge training
+schedule and established StainTools adapter; local verification is recorded in
+[`reports/gleason_implementation.md`](reports/gleason_implementation.md).
+
 ---
 
 ## Current Reproducibility Status
