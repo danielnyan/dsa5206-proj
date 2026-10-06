@@ -8,6 +8,7 @@ source "${PIPELINE_CONFIG:?Supply absolute site.env path}"
 if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
 source "$VENV_DIR/bin/activate"
 cd "$REPO_DIR"
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 export KERAS_HOME="$DATA_ROOT/keras"
 mode=${MODE:-smoke}
 extra=()

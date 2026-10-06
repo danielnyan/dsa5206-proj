@@ -22,16 +22,37 @@ def test_gleason2019_pixel_votes_background_ties_and_invalid_six():
              np.array([[3, 4, 5, 3, 1]], dtype=np.uint8),
              np.array([[4, 0, 0, 3, 0]], dtype=np.uint8)]
     result, unresolved = consensus_mask(masks)
-    assert result.tolist() == [[3, 0, 0, 0, 1]]
-    assert unresolved.tolist() == [[False, True, False, True, False]]
+    assert result.tolist() == [[3, 0, 0, 3, 1]]
+    assert unresolved.tolist() == [[False, True, False, False, False]]
 
 
 def test_gleason2019_background_and_unknown_encoding():
     from modern_pca.prepare_gleason import consensus_mask
     result, unresolved = consensus_mask([np.zeros((2, 2), dtype=np.uint8)])
     assert not result.any() and not unresolved.any()
+    result, unresolved = consensus_mask([np.array([[6]], dtype=np.uint8)])
+    assert result[0, 0] == 0 and unresolved[0, 0]
     with pytest.raises(ValueError, match='encoding'):
         consensus_mask([np.array([[2]], dtype=np.uint8)])
+
+
+def test_gleason2019_plurality_is_not_strict_majority():
+    from modern_pca.prepare_gleason import consensus_mask
+    masks = [np.array([[v]], dtype=np.uint8) for v in [3, 3, 4, 5, 0]]
+    voted, unresolved = consensus_mask(masks)
+    assert voted[0, 0] == 3 and not unresolved[0, 0]
+
+
+def test_gleason2019_grouped_split_is_stable_and_keeps_cores_together():
+    from modern_pca.prepare_gleason import grouped_core_split
+    cores = [f'slide{s:03}_core{c:03}' for s in range(1, 6) for c in (1, 2)]
+    first = grouped_core_split(cores)
+    assert first == grouped_core_split(list(reversed(cores)))
+    assert list(first.values()).count('validation') == 2
+    for s in range(1, 6):
+        assert first[f'slide{s:03}_core001'] == first[f'slide{s:03}_core002']
+    with pytest.raises(ValueError, match='two slide'):
+        grouped_core_split(['slide001_core001'])
 
 
 def test_gleason2019_tile_geometry_uses_existing_preprocessing():
@@ -56,6 +77,7 @@ def test_gleason2019_preparation_inventory_and_audit(tmp_path, monkeypatch, audi
     images = raw / 'images'
     images.mkdir(parents=True)
     Image.new('RGB', (1250, 600), (240, 10, 70)).save(images / 'slide001_core001.jpg')
+    Image.new('RGB', (1250, 600), (230, 20, 80)).save(images / 'slide002_core001.jpg')
     mask = np.ones((600, 1250), dtype=np.uint8)
     mask[:, :600] = 3
     encoded = io.BytesIO()
@@ -65,7 +87,14 @@ def test_gleason2019_preparation_inventory_and_audit(tmp_path, monkeypatch, audi
         for expert in range(1, 7):
             nested = io.BytesIO()
             with zipfile.ZipFile(nested, 'w') as inner:
-                inner.writestr('slide001_core001_classimg_nonconvex.png', encoded.getvalue())
+                pixels = mask.copy()
+                # Two-way GP/benign tie plus four invalid votes: keep patch/core.
+                pixels[0, 0] = 3 if expert == 1 else 1 if expert == 2 else 6
+                pixels[0, 1] = 6 if expert == 1 else 3
+                payload = io.BytesIO()
+                Image.fromarray(pixels).save(payload, format='PNG')
+                inner.writestr('slide001_core001_classimg_nonconvex.png', payload.getvalue())
+                inner.writestr('slide002_core001_classimg_nonconvex.png', payload.getvalue())
             outer.writestr(f'Maps{expert}_T.zip', nested.getvalue())
     monkeypatch.setattr(module, 'GLEASON_MASK_SHA', sha(archive))
     monkeypatch.setattr(module, 'download_gleason2019', lambda root: (images, archive))
@@ -79,12 +108,15 @@ def test_gleason2019_preparation_inventory_and_audit(tmp_path, monkeypatch, audi
         stain_reference=module.REFERENCE, audit_only=audit_only))
     result = json.loads((output / 'gleason2019.json').read_text())
     assert result['complete'] and not result['training_ready']
-    assert result['counts'] == {'single_gp': 1, 'non_tumour': 1, 'discarded_edge_pixels': 30000}
+    assert result['counts'] == {'single_gp': 2, 'non_tumour': 2, 'discarded_edge_pixels': 60000}
     with (output / 'patch_inventory.csv').open() as stream:
         rows = list(csv.DictReader(stream))
-    assert [r['x'] for r in rows] == ['0', '600']
+    assert [r['x'] for r in rows] == ['0', '600', '0', '600']
     assert rows[0]['class_name'] == 'GP3' and rows[0]['experts'] == '6'
-    assert all(r['split'] == 'unassigned' for r in rows)
+    assert rows[0]['unresolved_pixels'] == '1'
+    assert rows[0]['invalid_value6_votes'] == '5'
+    assert rows[0]['region_role'] == 'pure'
+    assert {r['split'] for r in rows} == {'train', 'validation'}
     assert not rows[1]['cache_file']
     if audit_only:
         assert not rows[0]['cache_file']
@@ -92,6 +124,121 @@ def test_gleason2019_preparation_inventory_and_audit(tmp_path, monkeypatch, audi
         with Image.open(output / 'cache' / rows[0]['cache_file']) as cached:
             assert cached.size == (350, 350)
         assert sha(output / 'cache' / rows[0]['cache_file']) == rows[0]['cache_sha256']
+    assert read_rows(output / 'manifests', 'gleason2019', 'train')[0]['label'] == 0
+
+
+def test_track_manifest_contract_rejects_mixing():
+    from modern_pca.gleason import manifest_datasets
+    assert manifest_datasets({}) == ['crowd', 'sicap']
+    assert manifest_datasets({'datasets': ['gleason2019']}) == ['gleason2019']
+    with pytest.raises(ValueError, match='separate'):
+        manifest_datasets({'datasets': ['gleason2019', 'sicap']})
+
+
+def test_gleason2019_complete_track_and_own_teacher_mining(tmp_path, monkeypatch):
+    import io
+    from types import SimpleNamespace
+    import modern_pca.prepare_gleason as preparation
+    from modern_pca.evaluate_gleason import mining_candidates, mining_records
+    raw = tmp_path / 'raw'
+    images = raw / 'images'
+    images.mkdir(parents=True)
+    names = {}
+    for slide in (1, 2):
+        for core, gp in enumerate((3, 4, 5, 'mixed'), 1):
+            name = f'slide{slide:03}_core{core:03}'
+            Image.new('RGB', (600, 600), (150 + slide * 30, 10 + core * 20, 70)).save(images / (name + '.jpg'))
+            pixels = np.full((600, 600), 3 if gp == 'mixed' else gp, dtype=np.uint8)
+            if gp == 'mixed':
+                pixels[:, 300:] = 4
+            buffer = io.BytesIO()
+            Image.fromarray(pixels).save(buffer, format='PNG')
+            names[name] = buffer.getvalue()
+    archive = raw / 'masks.zip'
+    with zipfile.ZipFile(archive, 'w') as outer:
+        for expert in range(1, 7):
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, 'w') as inner:
+                for name, payload in names.items():
+                    inner.writestr(name + '_classimg_nonconvex.png', payload)
+            outer.writestr(f'Maps{expert}_T.zip', buffer.getvalue())
+    monkeypatch.setattr(preparation, 'GLEASON_MASK_SHA', sha(archive))
+    monkeypatch.setattr(preparation, 'download_gleason2019', lambda root: (images, archive))
+    class Identity:
+        def transform(self, value):
+            return value
+    monkeypatch.setattr('modern_pca.evaluate_paper.create_legacy_normalizer',
+                        lambda path: (Identity(), Identity()))
+    output = tmp_path / 'prepared'
+    preparation.prepare_gleason2019(SimpleNamespace(gleason2019_root=raw, output=output,
+        stain_reference=preparation.REFERENCE, audit_only=False, seed=42))
+    prepared = json.loads((output / 'prepared.json').read_text())
+    assert prepared['training_ready'] and prepared['evaluation_split'] == 'validation'
+    assert prepared['seed_class_counts'] == {'GP3': 1, 'GP4': 1, 'GP5': 1}
+    teacher = dict(complete=True, smoke=False, training_cohort='pure',
+                   datasets=['gleason2019'], manifests=prepared['manifests'],
+                   region_grade_sha256=prepared['region_grade_sha256'])
+    candidates = mining_candidates(output / 'manifests', prepared, teacher)
+    assert len(candidates) == 1 and candidates[0]['label'] is None
+    predictions, retained = mining_records(candidates, [[.01, .98, .01]], 'teacher-sha')
+    assert retained[0]['label'] == 1 and retained[0]['annotation_label'] is None
+    assert predictions[0]['split'] == 'train'
+    with pytest.raises(ValueError, match='Cross-track'):
+        mining_candidates(output / 'manifests', prepared, dict(teacher, datasets=['crowd', 'sicap']))
+
+
+def test_gleason2019_unlabelled_rows_are_only_mining_candidates(tmp_path):
+    fields = ['dataset', 'split', 'label', 'class_name', 'status']
+    manifests = tmp_path / 'manifests'
+    manifests.mkdir()
+    path = manifests / 'gleason2019_train.csv'
+    write_csv(path, [dict(dataset='gleason2019', split='train', label='', class_name='', status='mixed')], fields)
+    write_json(tmp_path / 'prepared.json', dict(manifests={path.name: sha(path)}))
+    assert read_rows(manifests, 'gleason2019', 'train', allow_unlabelled=True)[0]['label'] is None
+    with pytest.raises(ValueError):
+        read_rows(manifests, 'gleason2019', 'train')
+
+
+@pytest.mark.parametrize('track', ['crowd-sicap', 'gleason2019'])
+def test_hpc_submission_queues_preparation_then_smoke_without_real_jobs(tmp_path, track):
+    import os
+    import subprocess
+    root = Path(__file__).resolve().parents[1]
+    env = tmp_path / 'env' / 'bin'
+    env.mkdir(parents=True)
+    (env / 'python').symlink_to('/usr/bin/python3')
+    workbook = tmp_path / 'wsi_labels.xlsx'
+    workbook.touch()
+    calls = tmp_path / 'qsub-calls'
+    qsub = env / 'qsub'
+    qsub.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$CALLS"\necho 123.server\n')
+    qsub.chmod(0o755)
+    config = tmp_path / 'site.env'
+    text = (root / 'hpc/site.env.example').read_text()
+    text = text.replace('/scratch/USER/dsa5206-proj', str(root))
+    text = text.replace('/scratch/USER/dsa5206-work', str(tmp_path))
+    text = text.replace('/scratch/USER/raw/SICAPv2/wsi_labels.xlsx', str(workbook))
+    config.write_text(text)
+    variables = dict(os.environ, PIPELINE_CONFIG=str(config), CALLS=str(calls),
+                     PATH=str(env) + ':' + os.environ['PATH'])
+    for key in ('DATASET', 'PREPARED_DIR', 'DATA_ROOT', 'RUN_ROOT', 'VENV_DIR', 'MODE', 'MODEL_DIR'):
+        variables.pop(key, None)
+    subprocess.run(['bash', str(root / 'hpc/submit_pipeline.sh'), track, 'smoke'],
+                   env=variables, check=True, capture_output=True, text=True)
+    lines = calls.read_text().splitlines()
+    assert len(lines) == 2
+    assert f'DATASET={track}' in lines[0]
+    assert lines[0].endswith('prepare_gleason.pbs')
+    assert 'depend=afterok:123.server' in lines[1] and 'MODE=smoke' in lines[1]
+    # Completed preparation is reused; full training never repeats CPU work.
+    prepared = tmp_path / 'prepared' / f'{track}-v2'
+    prepared.mkdir(parents=True)
+    (prepared / 'prepared.json').write_text('{"complete": true, "training_ready": true}')
+    subprocess.run(['bash', str(root / 'hpc/submit_pipeline.sh'), track, 'train'],
+                   env=variables, check=True, capture_output=True, text=True)
+    lines = calls.read_text().splitlines()
+    assert len(lines) == 3 and 'MODE=production' in lines[-1]
+    assert lines[-1].endswith('train_gleason.pbs')
 
 
 def test_crowd_uses_supplied_vote_not_new_tie_rule(tmp_path):

@@ -1,5 +1,46 @@
 # Tumour-only Gleason implementation handoff
 
+## Current dual-track overlay revision
+
+The tracks now remain fully independent: Crowd/SICAP and Gleason2019 have their
+own prepared roots, models and mining pools. Gleason2019 produces train/validation
+manifests using a frozen approximately 80/20 filename-slide-group split (seed 42).
+Its seed eligibility is a single-pattern-core consensus proxy, computed over the
+whole core including discarded crop edges; it is not a patient-level pure-case claim.
+
+The user-approved annotation policy supersedes the earlier conservative version:
+missing experts abstain; value 6 abstains at affected pixels; unique plurality
+including background/benign wins; ties stay unresolved. Partial uncertainty does
+not veto patches or cores. Every patch records unresolved counts/fractions and
+invalid-vote counts. Resolved single-GP patches have a supervised target; mixed
+patches do not. No masks/no resolved tumour means no supervised tumour example.
+
+The same legacy training implementation now reads either track's manifests.
+Gleason2019 evaluates its internal validation split, not an invented official test
+set. Mining rejects cross-track teachers and only processes mixed training cores;
+the original strict >0.95 selection rule is unchanged. Subsequent expansion
+training is still not invented or run.
+
+The operational README/runbook are consolidated, with scientific limitations at
+the end. Config needs repository/work-root paths and the separate SICAP workbook;
+dataset-specific paths are derived. CPU PBS preparation downloads automatically;
+Gleason2019 stages weights without downloading Crowd/SICAP. Existing incomplete
+preparation is preserved; insufficient seed coverage prevents dependent GPU work.
+
+The overlay ZIP contains only this revision's modified source/procedure files,
+plus a refreshed RELEASE.json. It is meant to be extracted over the last release,
+not treated as a standalone full repository. Old site.env is not overwritten;
+refresh its structure from the new example once. No GPU training or actual PBS
+scheduler execution has been performed on this VM.
+
+Revision verification: **56 passed, 1 skipped** across the focused Gleason and
+modern-static tests. The skip needs native StainTools. Tests cover partial
+uncertainty retention, value-6 abstention, plurality below 50%, grouped splits,
+three-class seed readiness, independent-teacher mining of unlabelled mixed tiles,
+and mocked dependent PBS submissions/reuse for both tracks. Synthetic cache
+tests use identity-normalizer fixtures, not a claim of native normalization.
+Python compilation, CLI help, all PBS/shell syntax and git diff checks pass.
+
 Original implementation base `364082e`; this revision is on `gleason`, based on
 `6744af2`. Original legacy scripts/examples are retained. Start with
 [the HPC guide](../hpc/README.md).
@@ -147,7 +188,7 @@ The cluster environment starts from the existing pinned repository requirements.
 
 PBS syntax checks are not scheduler execution. GPU training, GPU serialization,
 and model-backed region/WSI inference remain unverified until those jobs run.
-# Gleason2019 feasibility and HPC preparation (2026-10-06)
+## Gleason2019 feasibility inspection (historical preparation policy)
 
 Inspection downloaded all 244 official training JPEGs (997,451,947 bytes).
 The annotation mirror is 49,635,529 bytes with SHA256

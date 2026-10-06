@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from .gleason import (dataset,read_rows,verify_cache,load_model,gpu_setup,
                       write_csv,write_json,provenance,CLASSES,sha,
-                      select_training,assert_training_isolated,mining_decision)
+                      select_training,assert_training_isolated,mining_decision,manifest_datasets)
 
 
 def mining_candidates(manifests, prepared, meta):
@@ -16,15 +16,18 @@ def mining_candidates(manifests, prepared, meta):
         raise ValueError('Mining manifests differ from the initial model provenance')
     if not prepared.get('region_grade_sha256') or meta.get('region_grade_sha256') != prepared['region_grade_sha256']:
         raise ValueError('Mining requires frozen source primary/secondary grade metadata')
-    train = sum([read_rows(manifests,d,'train') for d in ('crowd','sicap')],[])
+    sources = manifest_datasets(prepared)
+    if meta.get('datasets', ['crowd', 'sicap']) != sources:
+        raise ValueError('Cross-track mining teacher is forbidden')
+    train = sum([read_rows(manifests,d,'train',allow_unlabelled=True) for d in sources],[])
     candidates = [r for r in train if r.get('region_role') == 'mixed'
-                  and str(r.get('region_primary')) in ('3','4','5')
+                  and (r['dataset'] == 'gleason2019' or (str(r.get('region_primary')) in ('3','4','5')
                   and str(r.get('region_secondary')) in ('3','4','5')
-                  and str(r['region_primary']) != str(r['region_secondary'])]
+                  and str(r['region_primary']) != str(r['region_secondary'])))]
     if not candidates:
         raise ValueError('No documented multipattern training candidates')
-    heldout = sum([read_rows(manifests,d,s) for d in ('crowd','sicap')
-                   for s in ('validation','test')],[])
+    heldout = sum([read_rows(manifests,d,s) for d in sources
+                   for s in ('validation','test') if f'{d}_{s}.csv' in prepared['manifests']],[])
     assert_training_isolated(select_training(train,'pure') + candidates, heldout)
     return candidates
 
@@ -91,6 +94,7 @@ def main():
     if args.batch_size < 1:
         p.error('Positive batch required')
     prepared = json.loads((args.manifests.parent/'prepared.json').read_text())
+    sources = manifest_datasets(prepared)
     if prepared['sample_only'] and not args.smoke:
         raise ValueError('Sample manifests cannot support mining or final evaluation')
     if args.mine:
@@ -98,14 +102,17 @@ def main():
         return
     gpu_setup(42)
     model,meta = load_model(args.model_dir,allow_smoke=args.smoke)
+    if meta.get('datasets', ['crowd', 'sicap']) != sources:
+        raise ValueError('Cross-track evaluation model is forbidden')
     if meta['manifests'] != prepared['manifests']:
         raise ValueError('Evaluation manifests differ from frozen training provenance')
     args.output.mkdir(parents=True,exist_ok=False)
     import numpy as np
     from sklearn.metrics import classification_report,confusion_matrix,cohen_kappa_score
     metrics = {}
-    for source in ('crowd','sicap'):
-        rows = read_rows(args.manifests,source,'validation' if args.smoke else 'test')
+    evaluation_split = 'validation' if args.smoke else prepared.get('evaluation_split', 'test')
+    for source in sources:
+        rows = read_rows(args.manifests,source,evaluation_split)
         if args.smoke:
             rows = rows[:32]
         verify_cache(args.cache,rows)
@@ -124,7 +131,7 @@ def main():
                                report=classification_report(y,pred,labels=[0,1,2],target_names=CLASSES,
                                                             output_dict=True,zero_division=0))
     write_json(args.output/'evaluation.json',dict(provenance(),model_sha256=meta['model_sha256'],
-               class_order=CLASSES,metrics=metrics,smoke=args.smoke,complete=True))
+               class_order=CLASSES,metrics=metrics,split=evaluation_split,smoke=args.smoke,complete=True))
 
 
 if __name__ == '__main__':

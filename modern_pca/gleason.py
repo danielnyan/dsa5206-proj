@@ -52,7 +52,14 @@ def write_csv(path, rows, fields=None):
         writer.writerows(rows)
 
 
-def read_rows(manifests, dataset, split):
+def manifest_datasets(prepared):
+    names = prepared.get('datasets', ['crowd', 'sicap'])
+    if names not in (['crowd', 'sicap'], ['gleason2019']):
+        raise ValueError('Tracks must stay separate; invalid dataset combination')
+    return names
+
+
+def read_rows(manifests, dataset, split, allow_unlabelled=False):
     root = Path(manifests)
     complete = json.loads((root.parent / 'prepared.json').read_text())
     filename = f'{dataset}_{split}.csv'
@@ -61,6 +68,11 @@ def read_rows(manifests, dataset, split):
     with (root / filename).open(newline='') as stream:
         rows = list(csv.DictReader(stream))
     for row in rows:
+        if allow_unlabelled and row['label'] == '' and dataset == 'gleason2019':
+            if row['dataset'] != dataset or row['split'] != split or row['status'] != 'mixed' or row['class_name']:
+                raise ValueError('Invalid unlabelled mining row')
+            row['label'] = None
+            continue
         label = int(row['label'])
         if row['dataset'] != dataset or row['split'] != split or not 0 <= label < 3:
             raise ValueError('Invalid manifest class/dataset/split')
@@ -90,7 +102,7 @@ def select_training(rows, cohort):
     if any(r['split'] != 'train' for r in rows):
         raise ValueError('Only training rows may enter training or mining')
     if cohort == 'published':
-        return rows
+        return [r for r in rows if r['label'] not in (None, '')]
     return [r for r in rows if r.get('region_role') == 'pure'
             and str(r.get('region_primary')) == str(r.get('region_secondary'))
             and str(r.get('region_primary')) == str(int(r['label']) + 3)]
@@ -125,8 +137,11 @@ def mining_decision(probabilities):
 
 def dataset(rows, cache, batch, training=False, seed=42):
     import tensorflow as tf
+    if training and any(r['label'] is None for r in rows):
+        raise ValueError('Unlabelled mining rows cannot enter supervised training')
     paths = [str(cache_path(cache, row)) for row in rows]
-    ds = tf.data.Dataset.from_tensor_slices((paths, [r['label'] for r in rows]))
+    # Dummy targets are ignored by predict(); never substitute training labels.
+    ds = tf.data.Dataset.from_tensor_slices((paths, [0 if r['label'] is None else r['label'] for r in rows]))
     if training:
         ds = ds.shuffle(len(rows), seed=seed, reshuffle_each_iteration=True)
     def decode(path, label):

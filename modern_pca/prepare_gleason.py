@@ -328,7 +328,7 @@ def download_gleason2019(root):
 def consensus_mask(masks):
     """Vote among available masks, including background; ties unresolved.
 
-    Raw value 6 is unsupported and remains unresolved (no silent remapping).
+    Raw value 6 abstains at that pixel; it never invalidates other experts.
     This is an explicit preparation policy, not an asserted challenge ground truth.
     """
     import numpy as np
@@ -337,15 +337,27 @@ def consensus_mask(masks):
         raise ValueError('Unexpected mask encoding')
     counts = np.stack([(values == label).sum(axis=0) for label in (0, 1, 3, 4, 5)])
     maxima = counts.max(axis=0)
-    valid = (maxima > 0) & ((counts == maxima).sum(axis=0) == 1) & ~(values == 6).any(axis=0)
+    valid = (maxima > 0) & ((counts == maxima).sum(axis=0) == 1)
     output = np.zeros(values.shape[1:], dtype=np.uint8)
     output[valid] = np.array([0, 1, 3, 4, 5], dtype=np.uint8)[counts.argmax(axis=0)[valid]]
     unresolved = (values != 0).any(axis=0) & ~valid
     return output, unresolved
 
 
+def grouped_core_split(cores, seed=42):
+    """Freeze an approximately 80/20 split by filename slide, never by patch."""
+    import random
+    groups = sorted({core.split('_core')[0] for core in cores})
+    if len(groups) < 2:
+        raise ValueError('Need at least two slide groups for train/validation')
+    random.Random(seed).shuffle(groups)
+    heldout = set(groups[:max(1, round(len(groups) * .2))])
+    return {core: 'validation' if core.split('_core')[0] in heldout else 'train'
+            for core in sorted(cores)}
+
+
 def prepare_gleason2019(args):
-    """Prepare an unsplit, audited corpus; do not invent patient/slide grades."""
+    """Prepare independent Gleason2019 manifests with a single-pattern-core proxy."""
     import numpy as np
     from PIL import Image
     from .evaluate_paper import create_legacy_normalizer
@@ -381,18 +393,24 @@ def prepare_gleason2019(args):
     if sha(args.stain_reference) != REFERENCE_SHA:
         raise ValueError('Stain reference checksum mismatch')
     normalizers = None if args.audit_only else create_legacy_normalizer(args.stain_reference)
-    rows, counts, failures = [], Counter(), []
+    rows, counts, failures, core_records = [], Counter(), [], []
     number = 0
     paths = sorted(images.glob('*.jpg'))
     if not paths:
         raise ValueError('No Gleason2019 training images')
     orphan_masks = sorted(set(index) - {p.stem for p in paths})
+    split = grouped_core_split([p.stem for p in paths], getattr(args, 'seed', 42))
+    write_json(destination / 'split.json', dict(seed=getattr(args, 'seed', 42),
+               grouping='filename slide identifier; patient independence unverified', cores=split))
     try:
         for number, path in enumerate(paths, 1):
             core = path.stem
             masks = sorted(index.get(core, []))
             if not masks:
-                raise ValueError(f'No expert masks for {core}')
+                counts['cores_without_masks'] += 1
+                core_records.append(dict(core=core, split=split[core], experts=0, patterns=[],
+                                         region_role='unknown', excluded_reason='no masks'))
+                continue
             with Image.open(path) as original:
                 original.load()
                 arrays = []
@@ -405,25 +423,45 @@ def prepare_gleason2019(args):
                 mask_shas = json.dumps({str(p.relative_to(mask_root)): sha(p) for p in masks}, sort_keys=True)
                 width, height = original.size
                 counts['discarded_edge_pixels'] += width * height - (width // 600 * 600) * (height // 600 * 600)
+                # Core eligibility includes the edge regions, not just cached tiles.
+                core_patterns, core_unresolved, invalid_votes = set(), 0, 0
+                for y in range(0, height, 600):
+                    for x in range(0, width, 600):
+                        tiles = [m[y:y+600, x:x+600] for m in arrays]
+                        voted, unresolved = consensus_mask(tiles)
+                        core_patterns.update(int(gp) for gp in (3, 4, 5) if (voted == gp).any())
+                        core_unresolved += int(unresolved.sum())
+                        invalid_votes += sum(int((m == 6).sum()) for m in tiles)
+                role = 'pure' if len(core_patterns) == 1 else 'mixed' if core_patterns else 'unknown'
+                grade = next(iter(core_patterns)) if role == 'pure' else ''
+                core_records.append(dict(core=core, split=split[core], experts=len(masks),
+                    patterns=sorted(core_patterns), region_role=role, unresolved_pixels=core_unresolved,
+                    invalid_value6_votes=invalid_votes, image_sha256=image_sha, mask_sha256=mask_shas))
                 for y in range(0, height - 599, 600):
                     for x in range(0, width - 599, 600):
                         voted, unresolved = consensus_mask([m[y:y+600, x:x+600] for m in arrays])
                         hist = np.bincount(voted.ravel(), minlength=7)
                         patterns = [gp for gp in (3, 4, 5) if hist[gp]]
-                        status = ('unresolved' if unresolved.any() else
-                                  'mixed' if len(patterns) > 1 else 'single_gp' if patterns else 'non_tumour')
+                        status = ('mixed' if len(patterns) > 1 else 'single_gp' if patterns else
+                                  'unresolved' if unresolved.any() else 'non_tumour')
                         counts[status] += 1
                         name = f'{core}_x{x}_y{y}'
-                        row = dict(sample_id='gleason2019:' + name, source_core=core,
-                            source_slide=core.split('_core')[0], split='unassigned', region_role='unknown',
+                        row = dict(sample_id='gleason2019:' + name, dataset='gleason2019', source_core=core,
+                            source_slide=core.split('_core')[0], source_wsi=core.split('_core')[0],
+                            split=split[core], region_role=role, region_primary=grade, region_secondary=grade,
+                            region_grade_source='consensus_single_pattern_core_proxy', patient_id='',
                             x=x, y=y, native_size=600, output_size=350, experts=len(masks),
                             status=status, class_name=f'GP{patterns[0]}' if status == 'single_gp' else '',
+                            label=patterns[0]-3 if status == 'single_gp' else '',
+                            label_source='available_expert_pixel_plurality',
                             gp3_pixels=int(hist[3]), gp4_pixels=int(hist[4]), gp5_pixels=int(hist[5]),
                             benign_pixels=int(hist[1]), background_pixels=int(hist[0]),
-                            unresolved_pixels=int(unresolved.sum()), image_sha256=image_sha,
+                            unresolved_pixels=int(unresolved.sum()), unresolved_fraction=float(unresolved.mean()),
+                            invalid_value6_votes=sum(int((m[y:y+600, x:x+600] == 6).sum()) for m in arrays),
+                            image_sha256=image_sha, file_sha256=image_sha,
                             mask_sha256=mask_shas, cache_file='', cache_sha256='')
-                        # Exclude non-tumour/uncertain tiles; retain mixed tumour tiles
-                        # without targets, so a future approved pure teacher can mine them.
+                        # Partial uncertainty does not veto resolved tumour evidence.
+                        # Multiple GPs are cached without a supervised target.
                         if status in ('single_gp', 'mixed') and not args.audit_only:
                             tile = original.crop((x, y, x+600, y+600))
                             pixels = preprocess_image(tile, normalizers)
@@ -444,8 +482,37 @@ def prepare_gleason2019(args):
             mask_archive_sha256=GLEASON_MASK_SHA, reference_sha256=REFERENCE_SHA,
             geometry='native 600x600, stride 600, discard incomplete edges; image LANCZOS 350x350',
             voting='all available expert labels including background; unique plurality; ties and raw 6 unresolved',
-            training_ready=False, reason='No verified patient split or pure-case grades; no invented labels',
+            training_ready=False, reason='See prepared.json for eligibility and class coverage',
             preprocessing='existing legacy brightness + StainTools Macenko; no stromal decontamination'))
+    write_json(destination / 'cores.json', core_records)
+    metadata = json.loads((destination / 'gleason2019.json').read_text())
+    metadata['voting'] = 'unique plurality including background; ties unresolved; value 6 abstains'
+    eligible = [r for r in rows if r['status'] in ('single_gp', 'mixed')]
+    manifests = destination / 'manifests'
+    manifests.mkdir()
+    hashes = {}
+    fields = list(rows[0]) if rows else ['dataset', 'split', 'label', 'class_name']
+    for partition in ('train', 'validation'):
+        selected = [r for r in eligible if r['split'] == partition and
+                    (partition == 'train' or r['status'] == 'single_gp')]
+        path = manifests / f'gleason2019_{partition}.csv'
+        write_csv(path, selected, fields)
+        hashes[path.name] = sha(path)
+    from .gleason import select_training, assert_training_isolated
+    seed_rows = select_training([r for r in eligible if r['split'] == 'train'], 'pure')
+    validation = [r for r in eligible if r['split'] == 'validation' and r['status'] == 'single_gp']
+    assert_training_isolated([r for r in eligible if r['split'] == 'train'], validation)
+    ready = not args.audit_only and {r['label'] for r in seed_rows} == {0, 1, 2} and bool(validation)
+    metadata.update(training_ready=ready, reason='ready' if ready else 'Need all three seed GP classes and validation; audit-only cannot train',
+        seed_class_counts=dict(Counter(r['class_name'] for r in seed_rows)),
+        validation_class_counts=dict(Counter(r['class_name'] for r in validation)),
+        datasets=['gleason2019'], manifests=hashes, class_order=CLASSES, sample_only=args.audit_only,
+        region_grade_sha256=sha(destination / 'cores.json'), split_sha256=sha(destination / 'split.json'),
+        prenormalized_sources_accepted=False, reference_sha256=REFERENCE_SHA,
+        evaluation_split='validation', seed_definition='single-pattern-core consensus proxy, not verified pure patient cases')
+    write_json(destination / 'gleason2019.json', metadata)
+    write_json(destination / 'prepared.json', metadata)
+    print(f'Gleason2019 training-ready: {ready}; seed classes: {metadata["seed_class_counts"]}', flush=True)
 
 
 def main():

@@ -10,18 +10,24 @@ source "$VENV_DIR/bin/activate"
 cd "$REPO_DIR"
 args=()
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+case "${DATASET:-crowd-sicap}" in crowd-sicap|gleason2019) ;; *) echo 'Invalid DATASET' >&2; exit 2;; esac
 if [[ "${DATASET:-crowd-sicap}" == gleason2019 ]]; then
+  bash hpc/download_data.sh "$DATA_ROOT" weights-only
   python -u -m modern_pca.prepare_gleason --gleason2019-root "$DATA_ROOT/gleason2019" \
-    --output "$PREPARED_DIR" --workers "${PREP_WORKERS:-8}"
+    --output "$PREPARED_DIR" --workers "${PREP_WORKERS:-8}" --seed "${SEED:-42}"
+  python -c 'import json,sys; p=json.load(open(sys.argv[1])); sys.exit(0 if p.get("training_ready") else "Preparation retained for audit, but seed class coverage is insufficient; GPU dependency will not run.")' "$PREPARED_DIR/prepared.json"
   exit 0
 fi
 if [[ -n "${SICAP_WSI_LABELS:-}" ]]; then args+=(--sicap-wsi-labels "$SICAP_WSI_LABELS"); fi
 if [[ -n "${CROWD_IMAGES:-}" ]]; then
+  bash hpc/download_data.sh "$DATA_ROOT" weights-only
   args+=(--crowd-images "$CROWD_IMAGES" --crowd-annotations "${CROWD_ANNOTATIONS:?}" \
          --sicap-images "${SICAP_IMAGES:?}" --sicap-annotations "${SICAP_ANNOTATIONS:?}")
 else
+  bash hpc/download_data.sh "$DATA_ROOT" "${DATA_VARIANT:-raw-crowd}"
   args+=(--archives "$DATA_ROOT/archives" --extracted "$DATA_ROOT/extracted" --variant "${DATA_VARIANT:-raw-crowd}")
+  # The automatic release contains normalized SICAP; record that deviation.
+  args+=(--allow-prenormalized)
 fi
 if [[ "${ALLOW_PRENORMALIZED:-0}" == 1 ]]; then args+=(--allow-prenormalized); fi
-export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
-python -u -m modern_pca.prepare_gleason "${args[@]}" --output "$PREPARED_DIR" --workers "${PREP_WORKERS:-8}"
+python -u -m modern_pca.prepare_gleason "${args[@]}" --output "$PREPARED_DIR" --workers "${PREP_WORKERS:-8}" --seed "${SEED:-42}"

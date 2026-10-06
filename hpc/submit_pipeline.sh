@@ -1,22 +1,50 @@
 #!/usr/bin/env bash
-# Invoke from a login node. Downloads must have completed first.
+# Lightweight login-node submission only; downloads/processing stay in PBS.
 set -euo pipefail
 : "${PIPELINE_CONFIG:?Set absolute site.env path}"
+requested_dataset=${1:-${DATASET:-crowd-sicap}}
+action=${2:-${MODE:-smoke}}
+case "$requested_dataset" in crowd-sicap|gleason2019) ;; *) echo 'Dataset must be crowd-sicap or gleason2019' >&2; exit 2;; esac
+export DATASET="$requested_dataset"
 source "$PIPELINE_CONFIG"
-if [[ "${DATASET:-crowd-sicap}" == gleason2019 ]]; then
-  qsub -v "PIPELINE_CONFIG=$PIPELINE_CONFIG" "$REPO_DIR/hpc/pbs/prepare_gleason.pbs"
-  echo "Gleason2019 preparation only: inspect corpus and establish splits before training."
-  exit 0
+if [[ "$DATASET" != "$requested_dataset" ]]; then
+  echo 'Old configuration overrides DATASET. Refresh from hpc/site.env.example.' >&2; exit 2
 fi
-mode=${MODE:-smoke}
-case "$mode" in smoke|production) ;; *) exit 2;; esac
+case "$action" in prepare|smoke|train|production|evaluate|mine) ;; *) echo 'Action: prepare, smoke, train, evaluate, mine' >&2; exit 2;; esac
+[[ "$PIPELINE_CONFIG" == /* && "$PIPELINE_CONFIG" != *,* ]] || { echo 'Use an absolute config path without commas' >&2; exit 2; }
+[[ -x "$VENV_DIR/bin/python" ]] || { echo 'Run hpc/bootstrap_env.sh once first' >&2; exit 2; }
+mkdir -p "$RUN_ROOT"
+if [[ -f "$PREPARED_DIR/prepared.json" ]]; then
+  "$VENV_DIR/bin/python" -c 'import json,sys; p=json.load(open(sys.argv[1])); ok=p.get("complete") and not p.get("sample_only") and (sys.argv[2]!="gleason2019" or p.get("training_ready")); sys.exit(0 if ok else "Existing preparation is incomplete/audit-only or lacks seed classes; choose a new PREPARED_DIR or inspect the audit.")' "$PREPARED_DIR/prepared.json" "$DATASET"
+fi
 base="$REPO_DIR/hpc/pbs"
+vars="PIPELINE_CONFIG=$PIPELINE_CONFIG,DATASET=$DATASET"
+case "$action" in
+  evaluate|mine)
+    : "${MODEL_DIR:?Set MODEL_DIR to a completed production model from the selected track}"
+    mode=production
+    [[ "$action" == mine ]] && mode=mine
+    qsub -v "$vars,MODE=$mode,MODEL_DIR=$MODEL_DIR" "$base/evaluate_gleason.pbs"
+    exit 0;;
+  train|production)
+    [[ -f "$PREPARED_DIR/prepared.json" ]] || { echo 'Run preparation/smoke first' >&2; exit 2; }
+    qsub -v "$vars,MODE=production" "$base/train_gleason.pbs"
+    exit 0;;
+esac
 dependency=()
-if [[ "${SKIP_PREP:-0}" != 1 ]]; then
-  prep_id=$(qsub -v "PIPELINE_CONFIG=$PIPELINE_CONFIG" "$base/prepare_gleason.pbs")
+if [[ -f "$PREPARED_DIR/prepared.json" ]]; then
+  echo "Reusing preparation: $PREPARED_DIR"
+elif [[ -e "$PREPARED_DIR" ]]; then
+  echo "Incomplete preparation: choose a new PREPARED_DIR; existing files are preserved." >&2; exit 2
+else
+  if [[ "$DATASET" == crowd-sicap && "${TRAINING_COHORT:-pure}" == pure ]]; then
+    [[ -f "${SICAP_WSI_LABELS:-}" ]] || { echo 'Stage SICAP wsi_labels.xlsx and set SICAP_WSI_LABELS first' >&2; exit 2; }
+  fi
+  prep_id=$(qsub -v "$vars" "$base/prepare_gleason.pbs")
   dependency=(-W "depend=afterok:$prep_id")
   echo "Preparation job: $prep_id"
 fi
-train_id=$(qsub "${dependency[@]}" -v "PIPELINE_CONFIG=$PIPELINE_CONFIG,MODE=$mode" "$base/train_gleason.pbs")
-echo "Training job: $train_id"
-echo "Inspect $RUN_ROOT/${train_id}-${mode} before scheduling evaluation."
+[[ "$action" == prepare ]] && exit 0
+train_id=$(qsub "${dependency[@]}" -v "$vars,MODE=smoke" "$base/train_gleason.pbs")
+echo "GPU smoke job: $train_id"
+echo "Inspect $RUN_ROOT/${train_id}-smoke before submitting train."

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Run on a login/data-transfer node with outbound internet and scratch space.
 set -euo pipefail
-data_root=${1:?Usage: download_data.sh DATA_ROOT [raw-crowd|normalized]}
+data_root=${1:?Usage: download_data.sh DATA_ROOT [raw-crowd|normalized|weights-only]}
 variant=${2:-raw-crowd}
-case "$variant" in raw-crowd|normalized) ;; *) exit 2;; esac
+case "$variant" in raw-crowd|normalized|weights-only) ;; *) exit 2;; esac
 mkdir -p "$data_root/archives" "$data_root/keras/models"
 fetch() {
   local name=$1 expected=$2 target="$data_root/archives/$1"
@@ -12,6 +12,7 @@ fetch() {
     "https://zenodo.org/records/14178894/files/$name?download=1" --output "$target"
   echo "$expected  $target" | md5sum -c -
 }
+if [[ "$variant" != weights-only ]]; then
 fetch Annotations.zip 7dc40c923f77a251ae564977647938b1
 if [[ "$variant" == raw-crowd ]]; then
   fetch Patches.zip dd7c63e595793aad46c07b0f0578e0b1
@@ -20,6 +21,7 @@ else
 fi
 fetch NormalizedSICAPv2_Annotations.zip 0cbd85834d5ba72cdceb2d76066c1914
 fetch NormalizedSICAPv2.zip 61be06796ede2d8c48f01b45b7306a16
+fi
 weights="$data_root/keras/models/nasnet_large_no_top.h5"
 # This is the NASNetLarge no-top MD5 used by Keras applications.
 if ! [[ -f "$weights" ]] || ! echo "d81d89dc07e6e56530c4e77faddd61b5  $weights" | md5sum -c - >/dev/null 2>&1; then
@@ -28,5 +30,7 @@ if ! [[ -f "$weights" ]] || ! echo "d81d89dc07e6e56530c4e77faddd61b5  $weights" 
     --output "$weights"
 fi
 echo "d81d89dc07e6e56530c4e77faddd61b5  $weights" | md5sum -c -
-echo 'Downloads complete. Submit extraction/preprocessing through PBS.'
-echo 'Pure-cohort training/mining also requires SICAP wsi_labels.xlsx; set SICAP_WSI_LABELS in site.env.'
+echo 'Downloads verified.'
+if [[ "$variant" != weights-only ]]; then
+  echo 'Pure Crowd/SICAP training requires the separately staged wsi_labels.xlsx.'
+fi

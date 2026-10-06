@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from .gleason import (CLASSES, SCHEDULE, dataset, gpu_setup, read_rows, verify_cache,
-                       provenance, write_json, sha, select_training, assert_training_isolated)
+                       provenance, write_json, sha, select_training, assert_training_isolated, manifest_datasets)
 
 
 def main():
@@ -25,20 +25,24 @@ def main():
     if args.batch_size < 1 or args.max_train_samples < 3:
         p.error('Batch size must be positive and smoke sample limit at least 3')
     prepared = json.loads((args.manifests.parent/'prepared.json').read_text())
+    sources = manifest_datasets(prepared)
+    if sources == ['gleason2019'] and not prepared.get('training_ready'):
+        raise ValueError('Gleason2019 preparation is not training-ready: ' + prepared.get('reason', ''))
     if prepared['sample_only'] and not args.smoke:
         raise ValueError('Sample preparation cannot be used for production')
     if args.training_cohort == 'pure' and not prepared.get('region_grade_sha256'):
-        raise ValueError('Pure training requires re-preparation with SICAP wsi_labels.xlsx')
-    train = sum([read_rows(args.manifests,d,'train') for d in ('crowd','sicap')],[])
-    validation = sum([read_rows(args.manifests,d,'validation') for d in ('crowd','sicap')],[])
+        raise ValueError('Pure training requires frozen source eligibility metadata')
+    train = sum([read_rows(args.manifests,d,'train',allow_unlabelled=True) for d in sources],[])
+    validation = sum([read_rows(args.manifests,d,'validation') for d in sources],[])
     train = select_training(train, args.training_cohort)
     if args.training_cohort == 'pure':
-        heldout = validation + sum([read_rows(args.manifests,d,'test') for d in ('crowd','sicap')],[])
+        heldout = validation + sum([read_rows(args.manifests,d,'test') for d in sources
+                                   if f'{d}_test.csv' in prepared['manifests']],[])
         assert_training_isolated(train, heldout)
     if args.smoke:
         # Deterministic interleaving covers all represented classes and datasets.
         groups = [[r for r in train if r['dataset']==d and r['label']==k]
-                  for d in ('crowd','sicap') for k in range(3)]
+                  for d in sources for k in range(3)]
         import itertools
         train = [r for group in itertools.zip_longest(*groups) for r in group if r][:args.max_train_samples]
         validation = validation[:args.max_train_samples]
@@ -46,6 +50,7 @@ def main():
         raise ValueError('Need train classes GP3/GP4/GP5 and nonempty validation')
     verify_cache(args.cache, train+validation)
     settings = dict(manifests=prepared['manifests'], class_order=CLASSES,
+                    datasets=sources, seed_definition=prepared.get('seed_definition', 'SICAP same-pattern slide proxy'),
                     training_cohort=args.training_cohort,
                     region_grade_sha256=prepared.get('region_grade_sha256'),
                     batch_size=args.batch_size, seed=args.seed, smoke=args.smoke,
