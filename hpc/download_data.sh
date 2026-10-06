@@ -29,3 +29,4 @@ if ! [[ -f "$weights" ]] || ! echo "d81d89dc07e6e56530c4e77faddd61b5  $weights" 
 fi
 echo "d81d89dc07e6e56530c4e77faddd61b5  $weights" | md5sum -c -
 echo 'Downloads complete. Submit extraction/preprocessing through PBS.'
+echo 'Pure-cohort training/mining also requires SICAP wsi_labels.xlsx; set SICAP_WSI_LABELS in site.env.'

@@ -23,4 +23,4 @@ if [[ "${RESUME:-0}" == 1 ]]; then
 fi
 python -u -m modern_pca.train_gleason --manifests "$PREPARED_DIR/manifests" \
   --cache "$PREPARED_DIR/cache" --output "$output" --batch-size "$batch" \
-  --seed "${SEED:-42}" "${extra[@]}"
+  --seed "${SEED:-42}" --training-cohort "${TRAINING_COHORT:-pure}" "${extra[@]}"

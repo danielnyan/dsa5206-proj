@@ -9,6 +9,13 @@ if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
 source "$VENV_DIR/bin/activate"
 cd "$REPO_DIR"
 args=()
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+if [[ "${DATASET:-crowd-sicap}" == gleason2019 ]]; then
+  python -u -m modern_pca.prepare_gleason --gleason2019-root "$DATA_ROOT/gleason2019" \
+    --output "$PREPARED_DIR" --workers "${PREP_WORKERS:-8}"
+  exit 0
+fi
+if [[ -n "${SICAP_WSI_LABELS:-}" ]]; then args+=(--sicap-wsi-labels "$SICAP_WSI_LABELS"); fi
 if [[ -n "${CROWD_IMAGES:-}" ]]; then
   args+=(--crowd-images "$CROWD_IMAGES" --crowd-annotations "${CROWD_ANNOTATIONS:?}" \
          --sicap-images "${SICAP_IMAGES:?}" --sicap-annotations "${SICAP_ANNOTATIONS:?}")

@@ -1,10 +1,79 @@
-"""Evaluate frozen three-output models on the supplied tumour-only test splits."""
+"""Evaluate frozen models, or mine training-only multipattern patches (>0.95)."""
 from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
 from .gleason import (dataset,read_rows,verify_cache,load_model,gpu_setup,
-                      write_csv,write_json,provenance,CLASSES)
+                      write_csv,write_json,provenance,CLASSES,sha,
+                      select_training,assert_training_isolated,mining_decision)
+
+
+def mining_candidates(manifests, prepared, meta):
+    if (prepared['sample_only'] or meta.get('smoke') or not meta.get('complete')
+            or meta.get('training_cohort') != 'pure'):
+        raise ValueError('Mining requires a complete, non-smoke initial pure-cohort model and full data')
+    if meta['manifests'] != prepared['manifests']:
+        raise ValueError('Mining manifests differ from the initial model provenance')
+    if not prepared.get('region_grade_sha256') or meta.get('region_grade_sha256') != prepared['region_grade_sha256']:
+        raise ValueError('Mining requires frozen source primary/secondary grade metadata')
+    train = sum([read_rows(manifests,d,'train') for d in ('crowd','sicap')],[])
+    candidates = [r for r in train if r.get('region_role') == 'mixed'
+                  and str(r.get('region_primary')) in ('3','4','5')
+                  and str(r.get('region_secondary')) in ('3','4','5')
+                  and str(r['region_primary']) != str(r['region_secondary'])]
+    if not candidates:
+        raise ValueError('No documented multipattern training candidates')
+    heldout = sum([read_rows(manifests,d,s) for d in ('crowd','sicap')
+                   for s in ('validation','test')],[])
+    assert_training_isolated(select_training(train,'pure') + candidates, heldout)
+    return candidates
+
+
+def mining_records(rows, probabilities, model_sha):
+    import numpy as np
+    probabilities = np.asarray(probabilities)
+    if probabilities.shape != (len(rows),3):
+        raise ValueError('Prediction count/class shape does not match candidates')
+    predictions, retained = [], []
+    for row, values in zip(rows, probabilities):
+        if row['split'] != 'train' or row.get('region_role') != 'mixed':
+            raise ValueError('Only documented multipattern training rows may be mined')
+        label = mining_decision(values)
+        evidence = dict(p_gp3=float(values[0]),p_gp4=float(values[1]),p_gp5=float(values[2]),
+                        mining_model_sha256=model_sha, mining_threshold=0.95,
+                        annotation_label=row['label'], annotation_class_name=row['class_name'],
+                        annotation_label_source=row['label_source'])
+        predictions.append(dict(row, **evidence, selected=label is not None,
+                                mined_label=label if label is not None else ''))
+        if label is not None:
+            retained.append(dict(row, **evidence, label=label, class_name=CLASSES[label],
+                                 label_source='initial_pure_model_probability_gt_0.95'))
+    return predictions, retained
+
+
+def mine(args, prepared):
+    # Inspect teacher provenance and candidate identities before allocating a GPU.
+    meta = json.loads((args.model_dir/'run.json').read_text())
+    candidates = mining_candidates(args.manifests, prepared, meta)
+    verify_cache(args.cache,candidates)
+    gpu_setup(42)
+    model,meta = load_model(args.model_dir)
+    args.output.mkdir(parents=True,exist_ok=False)
+    probabilities = model.predict(dataset(candidates,args.cache,args.batch_size),verbose=2)
+    predictions,retained = mining_records(candidates,probabilities,meta['model_sha256'])
+    write_csv(args.output/'candidate_predictions.csv',predictions)
+    fields = list(candidates[0]) + ['p_gp3','p_gp4','p_gp5','mining_model_sha256',
+                                  'mining_threshold','annotation_label','annotation_class_name',
+                                  'annotation_label_source']
+    write_csv(args.output/'mined_train.csv',retained,fields)
+    write_json(args.output/'mining.json',dict(provenance(),complete=True,
+               initial_model_sha256=meta['model_sha256'],initial_run_sha256=sha(args.model_dir/'run.json'),
+               manifests=prepared['manifests'],region_grade_sha256=prepared['region_grade_sha256'],
+               class_order=CLASSES,threshold=0.95,comparison='strictly greater than',
+               candidates=len(candidates),retained=len(retained),
+               retained_by_class={k:sum(r['class_name']==k for r in retained) for k in CLASSES},
+               artifacts={name:sha(args.output/name) for name in ('candidate_predictions.csv','mined_train.csv')},
+               subsequent_training='not run; requires an explicitly supported training procedure'))
 
 
 def main():
@@ -14,14 +83,19 @@ def main():
     p.add_argument('--cache',type=Path,required=True)
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--batch-size',type=int,default=4)
-    p.add_argument('--smoke',action='store_true',help='Validation-only bounded execution; never reads test images')
-    p.add_argument('--final-evaluation',action='store_true')
+    mode = p.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--smoke',action='store_true',help='Validation-only bounded execution; never reads test images')
+    mode.add_argument('--final-evaluation',action='store_true')
+    mode.add_argument('--mine',action='store_true',help='Frozen initial pure-model inference on multipattern training patches only')
     args = p.parse_args()
-    if args.batch_size < 1 or args.smoke == args.final_evaluation:
-        p.error('Choose exactly one of --smoke and --final-evaluation; positive batch required')
+    if args.batch_size < 1:
+        p.error('Positive batch required')
     prepared = json.loads((args.manifests.parent/'prepared.json').read_text())
     if prepared['sample_only'] and not args.smoke:
-        raise ValueError('Sample manifests cannot support final evaluation')
+        raise ValueError('Sample manifests cannot support mining or final evaluation')
+    if args.mine:
+        mine(args, prepared)
+        return
     gpu_setup(42)
     model,meta = load_model(args.model_dir,allow_smoke=args.smoke)
     if meta['manifests'] != prepared['manifests']:

@@ -1,6 +1,6 @@
-"""Join released labels, exclude NC, audit splits and cache legacy StainTools.
+"""Prepare published Crowd/SICAP labels or an unsplit Gleason2019 tile corpus.
 
-No model construction, pseudo-labels, purity filters, or subpatch relabelling.
+No model construction, pseudo-labels, purity thresholds, or invented case grades.
 """
 from __future__ import annotations
 import argparse
@@ -11,6 +11,10 @@ import importlib.metadata
 import json
 from pathlib import Path
 import zipfile
+import io
+import hashlib
+import re
+import urllib.request
 
 from .gleason import CLASSES, REFERENCE, REFERENCE_SHA, sha, write_json, write_csv, provenance
 
@@ -102,6 +106,50 @@ def sicap_labels(root):
             workbook.close()
 
 
+def slide_grades(path):
+    """Read SICAP slide-level grades; these are not per-patch target pairs."""
+    from openpyxl import load_workbook
+    workbook = load_workbook(path, read_only=True, data_only=True)
+    result = {}
+    try:
+        rows = workbook.active.iter_rows(values_only=True)
+        header = next(rows)
+        required = {'slide_id', 'patient_id', 'Gleason_primary', 'Gleason_secondary'}
+        if not required.issubset(header):
+            raise ValueError('Missing SICAP slide-grade columns')
+        for cells in rows:
+            row = dict(zip(header, cells))
+            if row.get('slide_id') is None:
+                continue
+            name = str(row['slide_id']).strip()
+            pair = (row['Gleason_primary'], row['Gleason_secondary'])
+            if any(v not in (0, 3, 4, 5) for v in pair):
+                raise ValueError(f'Invalid SICAP slide grade for {name}: {pair}')
+            if name in result:
+                raise ValueError(f'Duplicate SICAP slide grade: {name}')
+            result[name] = dict(region_primary=int(pair[0]), region_secondary=int(pair[1]),
+                                patient_id='' if row['patient_id'] is None else str(row['patient_id']),
+                                region_grade_source='SICAP wsi_labels')
+    finally:
+        workbook.close()
+    return result
+
+
+def assign_region_role(row, grades):
+    metadata = grades.get(row['source_wsi'], {}) if row['dataset'] == 'sicap' else {}
+    result = dict(row, region_primary='', region_secondary='', patient_id='',
+                  region_grade_source='', region_role='unknown')
+    result.update(metadata)
+    if metadata:
+        primary, secondary = metadata['region_primary'], metadata['region_secondary']
+        if primary in (3, 4, 5) and secondary in (3, 4, 5):
+            result['region_role'] = ('mixed' if primary != secondary else
+                                     'pure' if row['source_label'] == primary - 2 else 'conflict')
+        elif row['source_label'] != 0:
+            result['region_role'] = 'conflict'
+    return result
+
+
 def image_index(root):
     index = {}
     for path in sorted(root.rglob('*')):
@@ -158,14 +206,260 @@ def prepare_image(row):
     return dict(row, cache_file=target.name, cache_sha256=sha(target))
 
 
+GLEASON_MASK_URL = ('https://data.mendeley.com/public-files/datasets/s384w7kv78/files/'
+                   '4d3b905f-8b97-4b5d-bd24-915823501f7f/file_downloaded')
+GLEASON_MASK_SHA = 'feba9d1620d4dec1926ae142ced7afaa91d028630a6fb160b0c110e36b95625a'
+
+
+def download_gleason2019(root):
+    """Official public training JPEGs plus checksum-pinned public mask mirror.
+
+    Sync's public-link transport is encrypted; no account credentials are used.
+    Fail closed if its public client protocol changes. Never log signed URLs/keys.
+    """
+    import base64
+    import time
+    import urllib.parse
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import padding
+    root.mkdir(parents=True, exist_ok=True)
+    ua = 'Mozilla/5.0 Gleason2019-dataset-inspection'
+    def request(url, body=None):
+        return urllib.request.urlopen(urllib.request.Request(url,
+            data=None if body is None else json.dumps(body).encode(),
+            headers={'User-Agent': ua, 'Content-Type': 'application/json'}), timeout=90)
+    def post(command, body):
+        with request('https://ln.sync.com/api/v1/' + command, body) as response:
+            value = json.load(response)
+        if value.get('success') != 1:
+            raise RuntimeError(f'Public Sync API failed: {command}')
+        return value
+    def decrypt(value, key):
+        raw = base64.b64decode(value.split(':', 1)[-1])
+        cipher = Cipher(algorithms.AES(key), modes.GCM(raw[:12], raw[-12:], min_tag_length=12)).decryptor()
+        return cipher.update(raw[12:-12]) + cipher.finalize()
+    archive = root / 'masks.zip'
+    if not archive.exists() or sha(archive) != GLEASON_MASK_SHA:
+        partial = archive.with_suffix('.part')
+        with request(GLEASON_MASK_URL) as response, partial.open('wb') as output:
+            while chunk := response.read(1024 * 1024):
+                output.write(chunk)
+        if sha(partial) != GLEASON_MASK_SHA:
+            raise ValueError('Gleason2019 mask archive checksum mismatch')
+        partial.replace(archive)
+    link_id, public_key_text = '2312d2d50', 'gtv9skii-qsj4j74i-72vhbxm8-2fzjztz7'
+    with request('https://ln.sync.com') as response:
+        html = response.read().decode()
+    match = re.search(r'src="([^"]*main\.[^"]+\.js)', html)
+    if not match:
+        raise RuntimeError('Sync public frontend changed: cannot locate client')
+    with request(urllib.parse.urljoin('https://ln.sync.com/', match.group(1))) as response:
+        client = response.read().decode()
+    begin = client.index('compatDatakeyEncrypt(a){')
+    end = client.index(']:[', begin)
+    pem = '\n'.join(s for s in re.findall(r'"([^"\n]+)"', client[begin:end])
+                    if not s.startswith('compat')) + '\n'
+    rsa_key = serialization.load_pem_public_key(pem.encode())
+    def rsa(value):
+        return base64.b64encode(rsa_key.encrypt(value.encode(), padding.PKCS1v15())).decode().rstrip('=')
+    metadata = post('linkpathlist', dict(publink_id=link_id, sync_id=0, passwordlock=''))
+    key = hashlib.pbkdf2_hmac('sha256', public_key_text.encode(), bytes.fromhex(metadata['salt']),
+                            metadata['iterations'], 64)
+    items = metadata['pathitems']
+    names = set()
+    for item in items:
+        item['filename'] = decrypt(item['enc_share_name'], key[32:]).decode()
+        if not re.fullmatch(r'slide\d+_core\d+\.jpg', item['filename']) or item['filename'] in names:
+            raise ValueError('Unexpected or duplicate public training image name')
+        names.add(item['filename'])
+    public = [dict({k: r[k] for k in ('share_id', 'blob_id', 'sync_id', 'size')},
+                   ext=base64.b64encode(b'jpg').decode(), link_cachekey=link_id, user_id=0) for r in items]
+    data = post('pathdata', dict(pathitems=public))
+    images = root / 'images'
+    images.mkdir(exist_ok=True)
+    ledger_path = root / 'downloads.json'
+    old = json.loads(ledger_path.read_text()).get('images', {}) if ledger_path.exists() else {}
+    ledger = {}
+    from PIL import Image
+    for count, item in enumerate(items, 1):
+        name = item['filename']
+        target = images / name
+        if not (target.exists() and target.stat().st_size == item['size'] and
+                old.get(name, {}).get('sha256') == sha(target)):
+            file_key = decrypt(data['datakeys'][str(item['sync_id'])]['enc_data_key'], key[:32])
+            params = dict(sharelink_id=item['sync_id'], linkoid=metadata['oid'], linkcachekey=link_id,
+                mode=101, datakey=rsa(base64.b64encode(file_key).decode()),
+                header1=base64.b64encode(b'Content-Type: image/jpeg').decode().rstrip('='),
+                header2=base64.b64encode(f'Content-Disposition: attachment; filename="{name}";'.encode()).decode().rstrip('='),
+                uagent=hashlib.sha1(ua.encode()).hexdigest(), ipaddress='s',
+                errurl=rsa(base64.b64encode(f'https://ln.sync.com/dl/{link_id}/{public_key_text}'.encode()).decode()),
+                timestamp=int(time.time() * 1000), engine='ln-3.1.38')
+            signed = post('linksignrequest', dict(req=params))
+            params = signed['response']
+            params['cachekey'] = item['cachekey']
+            if signed.get('pltoken'):
+                params['pltoken'] = signed['pltoken']
+            host = metadata['servers_compat'][0]
+            if not re.fullmatch(r'[A-Za-z0-9.-]+\.syncusercontent[0-9]*\.com', host):
+                raise ValueError('Unexpected Sync download host')
+            # The public client signs literal query values, not urlencode output.
+            url = f'https://{host}/p/{name}?' + '&'.join(f'{k}={v}' for k, v in params.items())
+            partial = target.with_suffix('.part')
+            with request(url) as response, partial.open('wb') as output:
+                if 'image' not in response.headers.get('Content-Type', ''):
+                    raise ValueError('Public download did not return an image')
+                while chunk := response.read(1024 * 1024):
+                    output.write(chunk)
+            if partial.stat().st_size != item['size']:
+                raise ValueError(f'Download byte count mismatch: {name}')
+            with Image.open(partial) as image:
+                if image.format != 'JPEG':
+                    raise ValueError(f'Not a JPEG: {name}')
+                image.verify()
+            partial.replace(target)
+        ledger[name] = dict(bytes=item['size'], sha256=sha(target))
+        write_json(ledger_path, dict(images={**old, **ledger}, mask_sha256=GLEASON_MASK_SHA,
+                                    client_sha256=hashlib.sha256(client.encode()).hexdigest()))
+        print(f'Downloaded/verified {count}/{len(items)} cores', flush=True)
+    return images, archive
+
+
+def consensus_mask(masks):
+    """Vote among available masks, including background; ties unresolved.
+
+    Raw value 6 is unsupported and remains unresolved (no silent remapping).
+    This is an explicit preparation policy, not an asserted challenge ground truth.
+    """
+    import numpy as np
+    values = np.stack(masks)
+    if not np.isin(values, [0, 1, 3, 4, 5, 6]).all():
+        raise ValueError('Unexpected mask encoding')
+    counts = np.stack([(values == label).sum(axis=0) for label in (0, 1, 3, 4, 5)])
+    maxima = counts.max(axis=0)
+    valid = (maxima > 0) & ((counts == maxima).sum(axis=0) == 1) & ~(values == 6).any(axis=0)
+    output = np.zeros(values.shape[1:], dtype=np.uint8)
+    output[valid] = np.array([0, 1, 3, 4, 5], dtype=np.uint8)[counts.argmax(axis=0)[valid]]
+    unresolved = (values != 0).any(axis=0) & ~valid
+    return output, unresolved
+
+
+def prepare_gleason2019(args):
+    """Prepare an unsplit, audited corpus; do not invent patient/slide grades."""
+    import numpy as np
+    from PIL import Image
+    from .evaluate_paper import create_legacy_normalizer
+    from .gleason_regions import preprocess_image
+    root = args.gleason2019_root.resolve()
+    destination = args.output.resolve()
+    if destination.exists():
+        raise ValueError('Prepared output already exists; select a new output directory')
+    if root == destination or root.is_relative_to(destination) or destination.is_relative_to(root):
+        raise ValueError('Gleason2019 raw and prepared roots must be separate')
+    images, archive = download_gleason2019(root)
+    if sha(archive) != GLEASON_MASK_SHA:
+        raise ValueError('Mask checksum mismatch')
+    mask_root = root / 'masks'
+    with zipfile.ZipFile(archive) as outer:
+        archives = [n for n in outer.namelist() if n.endswith('.zip')]
+        if len(archives) != 6:
+            raise ValueError('Expected six expert mask archives')
+        for member in archives:
+            expert = int(re.search(r'Maps(\d)', member).group(1))
+            target = mask_root / f'expert{expert}'
+            nested = root / f'expert{expert}.zip'
+            with nested.open('wb') as output:
+                output.write(outer.read(member))
+            extract(nested, target)
+    index = {}
+    for path in mask_root.rglob('*_classimg_nonconvex.png'):
+        core = path.name.removesuffix('_classimg_nonconvex.png')
+        index.setdefault(core, []).append(path)
+    destination.mkdir(parents=True, exist_ok=False)
+    cache = destination / 'cache'
+    cache.mkdir()
+    if sha(args.stain_reference) != REFERENCE_SHA:
+        raise ValueError('Stain reference checksum mismatch')
+    normalizers = None if args.audit_only else create_legacy_normalizer(args.stain_reference)
+    rows, counts, failures = [], Counter(), []
+    number = 0
+    paths = sorted(images.glob('*.jpg'))
+    if not paths:
+        raise ValueError('No Gleason2019 training images')
+    orphan_masks = sorted(set(index) - {p.stem for p in paths})
+    try:
+        for number, path in enumerate(paths, 1):
+            core = path.stem
+            masks = sorted(index.get(core, []))
+            if not masks:
+                raise ValueError(f'No expert masks for {core}')
+            with Image.open(path) as original:
+                original.load()
+                arrays = []
+                for mask_path in masks:
+                    with Image.open(mask_path) as mask:
+                        if mask.mode != 'L' or mask.size != original.size:
+                            raise ValueError(f'Mask geometry/encoding mismatch: {mask_path.name}')
+                        arrays.append(np.asarray(mask).copy())
+                image_sha = sha(path)
+                mask_shas = json.dumps({str(p.relative_to(mask_root)): sha(p) for p in masks}, sort_keys=True)
+                width, height = original.size
+                counts['discarded_edge_pixels'] += width * height - (width // 600 * 600) * (height // 600 * 600)
+                for y in range(0, height - 599, 600):
+                    for x in range(0, width - 599, 600):
+                        voted, unresolved = consensus_mask([m[y:y+600, x:x+600] for m in arrays])
+                        hist = np.bincount(voted.ravel(), minlength=7)
+                        patterns = [gp for gp in (3, 4, 5) if hist[gp]]
+                        status = ('unresolved' if unresolved.any() else
+                                  'mixed' if len(patterns) > 1 else 'single_gp' if patterns else 'non_tumour')
+                        counts[status] += 1
+                        name = f'{core}_x{x}_y{y}'
+                        row = dict(sample_id='gleason2019:' + name, source_core=core,
+                            source_slide=core.split('_core')[0], split='unassigned', region_role='unknown',
+                            x=x, y=y, native_size=600, output_size=350, experts=len(masks),
+                            status=status, class_name=f'GP{patterns[0]}' if status == 'single_gp' else '',
+                            gp3_pixels=int(hist[3]), gp4_pixels=int(hist[4]), gp5_pixels=int(hist[5]),
+                            benign_pixels=int(hist[1]), background_pixels=int(hist[0]),
+                            unresolved_pixels=int(unresolved.sum()), image_sha256=image_sha,
+                            mask_sha256=mask_shas, cache_file='', cache_sha256='')
+                        # Exclude non-tumour/uncertain tiles; retain mixed tumour tiles
+                        # without targets, so a future approved pure teacher can mine them.
+                        if status in ('single_gp', 'mixed') and not args.audit_only:
+                            tile = original.crop((x, y, x+600, y+600))
+                            pixels = preprocess_image(tile, normalizers)
+                            target = cache / (name + '.png')
+                            Image.fromarray(np.rint(pixels * 255).astype(np.uint8)).save(target)
+                            row.update(cache_file=target.name, cache_sha256=sha(target))
+                        rows.append(row)
+            print(f'Prepared {number}/{len(paths)} cores', flush=True)
+    except Exception as error:
+        failures.append(dict(error=type(error).__name__, message=str(error)))
+        raise
+    finally:
+        if rows:
+            write_csv(destination / 'patch_inventory.csv', rows)
+        write_json(destination / 'gleason2019.json', dict(provenance(), dataset='Gleason2019',
+            complete=not failures and number == len(paths), failures=failures, counts=dict(counts),
+            audit_only=args.audit_only, core_count=len(paths), orphan_mask_cores=orphan_masks,
+            mask_archive_sha256=GLEASON_MASK_SHA, reference_sha256=REFERENCE_SHA,
+            geometry='native 600x600, stride 600, discard incomplete edges; image LANCZOS 350x350',
+            voting='all available expert labels including background; unique plurality; ties and raw 6 unresolved',
+            training_ready=False, reason='No verified patient split or pure-case grades; no invented labels',
+            preprocessing='existing legacy brightness + StainTools Macenko; no stromal decontamination'))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--archives', type=Path)
+    p.add_argument('--gleason2019-root', type=Path,
+                   help='Automatically download and prepare official Gleason2019 training cores here')
     p.add_argument('--extracted', type=Path)
     p.add_argument('--crowd-images', type=Path)
     p.add_argument('--crowd-annotations', type=Path)
     p.add_argument('--sicap-images', type=Path)
     p.add_argument('--sicap-annotations', type=Path)
+    p.add_argument('--sicap-wsi-labels', type=Path,
+                   help='SICAP wsi_labels.xlsx; required for documented pure/mixed cohorts')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--variant', choices=['raw-crowd','normalized'], default='raw-crowd')
     p.add_argument('--allow-prenormalized', action='store_true', help='Explicitly accept source normalization before the legacy pipeline')
@@ -181,6 +475,9 @@ def main():
     args = p.parse_args()
     if args.workers < 1:
         p.error('--workers must be positive')
+    if args.gleason2019_root:
+        prepare_gleason2019(args)
+        return
     if args.archives:
         if not args.extracted or not args.allow_prenormalized:
             p.error('Archive route uses normalized SICAP; requires --extracted and --allow-prenormalized')
@@ -194,6 +491,13 @@ def main():
     sources = [args.crowd_images,args.crowd_annotations,args.sicap_images,args.sicap_annotations]
     if not all(sources):
         p.error('Provide --archives/--extracted or all four explicit image/annotation roots')
+    grade_path = args.sicap_wsi_labels
+    if grade_path is None:
+        found = list(args.sicap_annotations.rglob('wsi_labels.xlsx'))
+        if len(found) > 1:
+            p.error('Ambiguous wsi_labels.xlsx; provide --sicap-wsi-labels')
+        grade_path = found[0] if found else None
+    grades = slide_grades(grade_path) if grade_path else {}
     for source in sources:
         a,b = args.output.resolve(),source.resolve()
         if a == b or a.is_relative_to(b) or b.is_relative_to(a):
@@ -205,6 +509,7 @@ def main():
                          (sicap_labels(args.sicap_annotations),args.sicap_images)]:
         index = image_index(root)
         for item in labels:
+            item = assign_region_role(item, grades)
             counts[f"{item['dataset']}/{item['split']}/source_{item['source_label']}"] += 1
             if item['name'] not in index:
                 missing.append(item['name'])
@@ -218,12 +523,14 @@ def main():
                              path=str(path.resolve()), file_sha256=sha(path),
                              source_width=width, source_height=height, source_mode=mode))
     audit = dict(provenance(), source_counts=dict(counts), missing_images=len(missing),
+                 region_grade_sha256=sha(grade_path) if grade_path else None,
                  missing_examples=missing[:20], split_audit=audit_splits(rows),
                  sample_only=args.sample_only, prenormalized_sources_accepted=args.allow_prenormalized)
     write_json(args.output/'audit.json', audit)
     if missing and not args.sample_only:
         raise ValueError('Missing images: see audit.json; production requires complete joins')
     rows = tumour_rows(rows)
+    audit['region_role_counts'] = dict(Counter(f"{r['dataset']}/{r['split']}/{r['region_role']}" for r in rows))
     audit['retained_counts'] = dict(Counter(f"{r['dataset']}/{r['split']}/{r['class_name']}" for r in rows))
     write_json(args.output/'audit.json',audit)
     if args.audit_only:

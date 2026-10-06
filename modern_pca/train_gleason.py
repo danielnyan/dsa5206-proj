@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from .gleason import (CLASSES, SCHEDULE, dataset, gpu_setup, read_rows, verify_cache,
-                       provenance, write_json, sha)
+                       provenance, write_json, sha, select_training, assert_training_isolated)
 
 
 def main():
@@ -16,6 +16,8 @@ def main():
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--batch-size', type=int, default=100)
     p.add_argument('--seed', type=int, default=42)
+    p.add_argument('--training-cohort', choices=['pure', 'published'], default='pure',
+                   help='pure: documented single-pattern sources; published: separate labelled baseline, not a mining teacher')
     p.add_argument('--smoke', action='store_true')
     p.add_argument('--max-train-samples', type=int, default=96)
     p.add_argument('--resume', action='store_true', help='Resume last fully checkpointed stage')
@@ -25,8 +27,14 @@ def main():
     prepared = json.loads((args.manifests.parent/'prepared.json').read_text())
     if prepared['sample_only'] and not args.smoke:
         raise ValueError('Sample preparation cannot be used for production')
+    if args.training_cohort == 'pure' and not prepared.get('region_grade_sha256'):
+        raise ValueError('Pure training requires re-preparation with SICAP wsi_labels.xlsx')
     train = sum([read_rows(args.manifests,d,'train') for d in ('crowd','sicap')],[])
     validation = sum([read_rows(args.manifests,d,'validation') for d in ('crowd','sicap')],[])
+    train = select_training(train, args.training_cohort)
+    if args.training_cohort == 'pure':
+        heldout = validation + sum([read_rows(args.manifests,d,'test') for d in ('crowd','sicap')],[])
+        assert_training_isolated(train, heldout)
     if args.smoke:
         # Deterministic interleaving covers all represented classes and datasets.
         groups = [[r for r in train if r['dataset']==d and r['label']==k]
@@ -38,6 +46,8 @@ def main():
         raise ValueError('Need train classes GP3/GP4/GP5 and nonempty validation')
     verify_cache(args.cache, train+validation)
     settings = dict(manifests=prepared['manifests'], class_order=CLASSES,
+                    training_cohort=args.training_cohort,
+                    region_grade_sha256=prepared.get('region_grade_sha256'),
                     batch_size=args.batch_size, seed=args.seed, smoke=args.smoke,
                     max_train_samples=args.max_train_samples if args.smoke else None,
                     initialization='imagenet', batchnorm='legacy trainable after stage boundary',
@@ -77,7 +87,7 @@ def main():
     run = dict(provenance(), **settings, complete=False, counts={'train':len(train),'validation':len(validation)},
                tensorflow=tf.__version__, parameters=model.count_params(),
                deviations=['replacement dataset labels and field of view', 'no stromal decontamination',
-                           'no unreleased confidence-expansion training'],
+                           'initial model only; optional mining is a separate frozen-model operation'],
                resume_semantics='completed-stage restart; interrupted stage is repeated; no bitwise continuation claim')
     if args.batch_size != 100:
         run['deviations'].append(f'physical batch {args.batch_size} instead of legacy 100')

@@ -14,7 +14,9 @@ def main():
     args=parser.parse_args()
     root=Path(__file__).resolve().parents[1]
     files=subprocess.check_output(['git','-C',str(root),'ls-files','--cached','--others','--exclude-standard','-z']).decode().split('\0')
-    files=sorted(set(f for f in files if f))
+    # RELEASE.json belongs to the built archive, never to its own source list.
+    # Respect tracked deletions when packaging an uncommitted working tree.
+    files=sorted(set(f for f in files if f and f != 'RELEASE.json' and (root/f).exists()))
     manifest={}
     args.output.parent.mkdir(parents=True,exist_ok=True)
     with zipfile.ZipFile(args.output,'x',compression=zipfile.ZIP_DEFLATED,compresslevel=6) as archive:

@@ -3,6 +3,11 @@
 set -euo pipefail
 : "${PIPELINE_CONFIG:?Set absolute site.env path}"
 source "$PIPELINE_CONFIG"
+if [[ "${DATASET:-crowd-sicap}" == gleason2019 ]]; then
+  qsub -v "PIPELINE_CONFIG=$PIPELINE_CONFIG" "$REPO_DIR/hpc/pbs/prepare_gleason.pbs"
+  echo "Gleason2019 preparation only: inspect corpus and establish splits before training."
+  exit 0
+fi
 mode=${MODE:-smoke}
 case "$mode" in smoke|production) ;; *) exit 2;; esac
 base="$REPO_DIR/hpc/pbs"

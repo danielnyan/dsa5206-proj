@@ -10,6 +10,9 @@ The tumour-only CrowdGleason/SICAPv2 adaptation and PBS jobs are documented in
 [`hpc/README.md`](hpc/README.md). They reuse the legacy NASNetLarge training
 schedule and established StainTools adapter; local verification is recorded in
 [`reports/gleason_implementation.md`](reports/gleason_implementation.md).
+The Gleason workflow separates the published-label baseline from a documented
+pure-source initial model and optional training-only multipattern mining at
+strict GP probability >0.95. Subsequent expansion retraining is not automated.
 
 ---
 

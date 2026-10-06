@@ -84,6 +84,45 @@ def verify_cache(cache, rows):
             raise ValueError(f"Cache checksum mismatch: {row['sample_id']}")
 
 
+def select_training(rows, cohort):
+    if cohort not in ('published', 'pure'):
+        raise ValueError('Unknown training cohort')
+    if any(r['split'] != 'train' for r in rows):
+        raise ValueError('Only training rows may enter training or mining')
+    if cohort == 'published':
+        return rows
+    return [r for r in rows if r.get('region_role') == 'pure'
+            and str(r.get('region_primary')) == str(r.get('region_secondary'))
+            and str(r.get('region_primary')) == str(int(r['label']) + 3)]
+
+
+def assert_training_isolated(training, heldout):
+    """Protect training/mining from known held-out sample, content and source overlap."""
+    if any(r['split'] != 'train' for r in training):
+        raise ValueError('Mining/training pool contains non-training rows')
+    def identities(row):
+        yield ('sample', row['sample_id'])
+        yield ('content', row['file_sha256'])
+        for key in ('source_wsi', 'patient_id'):
+            if row.get(key):
+                yield (key, row['dataset'], row[key])
+    protected = {key for row in heldout for key in identities(row)}
+    if any(key in protected for row in training for key in identities(row)):
+        raise ValueError('Training/mining overlaps held-out sample, content, slide or patient')
+
+
+def mining_decision(probabilities):
+    """Strict >0.95, no rounding before selection, no mixed-score targets."""
+    import numpy as np
+    values = np.asarray(probabilities, dtype=float)
+    if (values.shape != (3,) or not np.isfinite(values).all()
+            or (values < 0).any() or (values > 1).any()
+            or not np.isclose(values.sum(), 1., atol=1e-5, rtol=0)):
+        raise ValueError('Expected three finite softmax probabilities summing to one')
+    label = int(values.argmax())
+    return label if values[label] > .95 else None
+
+
 def dataset(rows, cache, batch, training=False, seed=42):
     import tensorflow as tf
     paths = [str(cache_path(cache, row)) for row in rows]

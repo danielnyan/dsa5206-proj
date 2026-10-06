@@ -9,8 +9,12 @@ source "${PIPELINE_CONFIG:?Supply absolute site.env path}"
 if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
 source "$VENV_DIR/bin/activate"
 cd "$REPO_DIR"
-extra=(--final-evaluation)
-if [[ "${MODE:-production}" == smoke ]]; then extra=(--smoke); fi
+case "${MODE:-production}" in
+  production) extra=(--final-evaluation); suffix=evaluation;;
+  smoke) extra=(--smoke); suffix=validation;;
+  mine) extra=(--mine); suffix=mining;;
+  *) echo 'MODE must be production, smoke or mine' >&2; exit 2;;
+esac
 python -u -m modern_pca.evaluate_gleason --model-dir "$MODEL_DIR" \
   --manifests "$PREPARED_DIR/manifests" --cache "$PREPARED_DIR/cache" \
-  --output "$RUN_ROOT/${PBS_JOBID}-evaluation" "${extra[@]}"
+  --output "$RUN_ROOT/${PBS_JOBID}-${suffix}" "${extra[@]}"
