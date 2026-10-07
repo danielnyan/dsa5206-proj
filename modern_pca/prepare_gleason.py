@@ -15,6 +15,7 @@ import io
 import hashlib
 import re
 import urllib.request
+import warnings
 
 from .gleason import CLASSES, REFERENCE, REFERENCE_SHA, sha, write_json, write_csv, provenance
 
@@ -393,7 +394,7 @@ def prepare_gleason2019(args):
     if sha(args.stain_reference) != REFERENCE_SHA:
         raise ValueError('Stain reference checksum mismatch')
     normalizers = None if args.audit_only else create_legacy_normalizer(args.stain_reference)
-    rows, counts, failures, core_records = [], Counter(), [], []
+    rows, counts, failures, core_records, exclusions = [], Counter(), [], [], []
     number = 0
     paths = sorted(images.glob('*.jpg'))
     if not paths:
@@ -459,12 +460,34 @@ def prepare_gleason2019(args):
                             unresolved_pixels=int(unresolved.sum()), unresolved_fraction=float(unresolved.mean()),
                             invalid_value6_votes=sum(int((m[y:y+600, x:x+600] == 6).sum()) for m in arrays),
                             image_sha256=image_sha, file_sha256=image_sha,
-                            mask_sha256=mask_shas, cache_file='', cache_sha256='')
+                            mask_sha256=mask_shas, cache_file='', cache_sha256='',
+                            normalization_error_type='', normalization_error='')
                         # Partial uncertainty does not veto resolved tumour evidence.
                         # Multiple GPs are cached without a supervised target.
                         if status in ('single_gp', 'mixed') and not args.audit_only:
                             tile = original.crop((x, y, x+600, y+600))
-                            pixels = preprocess_image(tile, normalizers)
+                            try:
+                                pixels = preprocess_image(tile, normalizers)
+                            except (np.linalg.LinAlgError, FloatingPointError, OverflowError,
+                                    ZeroDivisionError, ValueError) as error:
+                                # Only numerical normalization failures are eligible for exclusion.
+                                # Geometry, library, decoding, and configuration errors still abort.
+                                if (isinstance(error, ValueError) and
+                                        not isinstance(error, np.linalg.LinAlgError) and
+                                        str(error) != 'Nonfinite normalized pixels'):
+                                    raise
+                                row.update(status='stain_failure', normalization_error_type=type(error).__name__,
+                                           normalization_error=str(error))
+                                exclusions.append(dict(sample_id=row['sample_id'], source_core=core,
+                                    x=x, y=y, split=row['split'], annotation_status=status,
+                                    class_name=row['class_name'], error_type=type(error).__name__,
+                                    message=str(error)))
+                                counts['stain_failure'] += 1
+                                warnings.warn(f'Excluded {name}: stain normalization failed '
+                                              f'({type(error).__name__}: {error})', RuntimeWarning,
+                                              stacklevel=2)
+                                rows.append(row)
+                                continue
                             target = cache / (name + '.png')
                             Image.fromarray(np.rint(pixels * 255).astype(np.uint8)).save(target)
                             row.update(cache_file=target.name, cache_sha256=sha(target))
@@ -474,11 +497,17 @@ def prepare_gleason2019(args):
         failures.append(dict(error=type(error).__name__, message=str(error)))
         raise
     finally:
+        write_json(destination / 'stain_exclusions.json', dict(
+            policy='exclude numerical tile normalization failures; warn and retain annotation audit',
+            count=len(exclusions), tiles=exclusions))
         if rows:
             write_csv(destination / 'patch_inventory.csv', rows)
         write_json(destination / 'gleason2019.json', dict(provenance(), dataset='Gleason2019',
             complete=not failures and number == len(paths), failures=failures, counts=dict(counts),
             audit_only=args.audit_only, core_count=len(paths), orphan_mask_cores=orphan_masks,
+            stain_exclusion_count=len(exclusions),
+            stain_exclusions_sha256=sha(destination / 'stain_exclusions.json'),
+            normalization_failure_policy='exclude numerical tile failures; other errors abort',
             mask_archive_sha256=GLEASON_MASK_SHA, reference_sha256=REFERENCE_SHA,
             geometry='native 600x600, stride 600, discard incomplete edges; image LANCZOS 350x350',
             voting='all available expert labels including background; unique plurality; ties and raw 6 unresolved',

@@ -109,8 +109,11 @@ def main():
             continue
         tf.keras.utils.set_random_seed(args.seed+stage)
         configure_fine_tuning(model,boundary)
+        # Smoke's numeric-checking ops are unsupported by XLA GPU compilation.
+        # Keep the checks and preserve Keras defaults for production runs.
+        compile_options = {'jit_compile': False} if args.smoke else {}
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
-                      loss='categorical_crossentropy',metrics=['accuracy'])
+                      loss='categorical_crossentropy',metrics=['accuracy'], **compile_options)
         train_ds = dataset(train,args.cache,args.batch_size,True,args.seed+stage)
         val_ds = dataset(validation,args.cache,args.batch_size)
         before = None

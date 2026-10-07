@@ -57,6 +57,13 @@ cuts native 600x600 tiles, and prepares 350x350 images. The weights downloader's
 `weights-only` mode avoids downloading the other track's data.
 
 Check PBS logs and the smoke run under `WORK_ROOT/runs/TRACK/JOB-smoke`.
+Smoke enables TensorFlow numerical checks and explicitly disables Keras JIT
+compilation because XLA GPU compilation does not support their debug operations.
+This applies to both tracks. Production retains Keras's default compile settings.
+A successful smoke output has `run.json` with `complete: true`, two completed
+stages in `checkpoint.json`, stage CSV metrics, and `final.keras`; completion is
+written after saved-model reload predictions match. Batch-1 smoke success does
+not establish that the default production batch of 100 fits GPU memory.
 Gleason2019 `prepared.json` records class counts and training readiness; all
 three GP classes must occur in the seed training cohort. Insufficient coverage
 fails explicitly, without silently changing the split or eligibility policy.
@@ -149,3 +156,41 @@ annotation and cohort differences prevent claiming a resolution-only causal
 comparison or exact reproduction of the published model. Full normalization,
 GPU training and actual scheduler execution must be validated on the cluster.
 See [the implementation report](../reports/gleason_implementation.md).
+
+### Gleason2019 numerical stain failures
+
+Gleason2019 preparation excludes individual tiles when Macenko normalization
+raises a numerical error or returns nonfinite normalized pixels. Each exclusion
+emits a `RuntimeWarning` naming the core and tile coordinates in the CPU PBS log.
+Valid tiles continue through the existing brightness/Macenko pipeline. No raw
+image or expert mask is deleted, and no unnormalized fallback enters training.
+Reference fitting, missing dependencies, decoding, geometry, and other unexpected
+errors still abort preparation.
+
+Inspect `PREPARED_DIR/stain_exclusions.json` for each excluded tile's original
+annotation status, class, split, coordinates, and error. `patch_inventory.csv`
+retains its annotation fields with status `stain_failure`, empty cache fields,
+and normalization error details. These rows are excluded from both training and
+validation manifests, including the mixed-tile mining pool. `prepared.json` and
+`gleason2019.json` record the exclusion count, policy, and audit-file hash.
+The original `single_gp`/`mixed` counts describe annotation categories before
+normalization; `stain_failure` counts exclusions from those categories. Seed and
+validation class counts describe retained manifest eligibility.
+
+Core eligibility and the frozen split are unchanged. Preparation can be complete
+with exclusions, but `training_ready` still requires all three seed GP classes
+and nonempty validation after exclusions. Review the exclusion audit before
+training: exclusions change the evaluated cohort and do not establish whether
+the underlying annotations align with the images.
+
+After replacing the code, use a fresh Gleason2019 `PREPARED_DIR` in `site.env`
+(or remove only the stopped, incomplete prepared output after verifying its path).
+Keep `DATA_ROOT/gleason2019`; its verified downloads are reused. Then submit once:
+
+```bash
+bash hpc/submit_pipeline.sh gleason2019 prepare
+```
+
+Review preparation warnings, `stain_exclusions.json`, and `prepared.json` before
+submitting smoke or training. This exclusion policy applies only to Gleason2019
+preparation; Crowd/SICAP behavior is unchanged.
