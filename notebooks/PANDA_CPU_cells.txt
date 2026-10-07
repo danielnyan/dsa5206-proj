@@ -1,84 +1,110 @@
-# PANDA notebook A — CPU inventory and preparation — INSPECTION DRAFT
-# Copy each CELL into its own Kaggle Python code cell, in order.
-# No repository clone or separate .py file is required. All helpers are included.
-# Internet is needed for installation and the checksum-pinned stain reference.
-# Attach official PANDA data using Add Input. Select Accelerator: None.
+# %% [markdown]
+# PANDA notebook A — CPU inventory and 150 µm preparation
 #
-# First use CPU_TASK='inventory'. Review inventory_report.json before preparing.
-# After saving that successful notebook version WITH OUTPUTS, attach its output
-# in the next CPU run and set PREVIOUS_CPU_OUTPUT to its panda_prepared directory.
-# Use CPU_TASK='prepare' for caching. A run stops cooperatively after 6.5 hours
-# of total notebook time, reserving time before your 8-hour platform cutoff.
-# Completed slides/tiles are reused; an uncommitted slide can be repeated.
+# Purpose
+# -------
+# Build a deterministic Radboud-only GP3/GP4/GP5 patch cohort from PANDA while
+# matching Tolkach et al.'s physical field of view as closely as the public PANDA
+# sampling permits:
 #
-# Only when prepared.json has complete=true and training_ready=true should you
-# attach this saved CPU output to notebook B. Do not rely on an unsaved interactive
-# filesystem or on Kaggle publishing outputs after a hard timeout. Each invocation
-# must finish normally and be saved as a version with output files.
+#     ~150 µm x 150 µm physical crop -> resize to 350 x 350 ->
+#     brightness standardisation -> Macenko stain normalisation.
 #
-# Scope: Radboud GP3/GP4/GP5 patch classifier, native 600px -> 350px. Whole-slide
-# single-pattern masks define seed eligibility, matching the earlier proxy policy.
-# Patient independence is unverified. Karolinska masks cannot supply GP labels.
-# The configurable class caps make this a pilot subset, not full-cohort training.
+# IMPORTANT: the crop size is derived from each slide's OpenSlide MPP metadata.
+# It is NOT fixed at 600 native pixels. A typical Radboud PANDA slide around
+# 0.48 µm/px will therefore use a crop around 312-313 native pixels per side.
 #
-# Validation status: inspected real TIFFs and CSV; native StainTools normalization
-# passed locally. Small CPU tests have progressed, but this draft has not completed
-# all checkpoint tests or been executed in Kaggle. GPU fit/runtime are unverified.
+# Run order on Kaggle:
+#   1. Attach official PANDA competition data using Add Input.
+#   2. Accelerator=None.
+#   3. Start with CPU_TASK='inventory'. Save a successful version with outputs.
+#   4. Review inventory_report.json and pilot_plan.json.
+#   5. Reattach the saved output, set PREVIOUS_CPU_OUTPUT, switch to
+#      CPU_TASK='prepare', and save again when complete.
+#
+# This is a slide-held-out internal split. PANDA image IDs are not verified
+# patient identifiers; patient independence is therefore not claimed.
 
-# ========================================================================
-# A1 — Configuration; start session timer before installation
-# ========================================================================
-import os, time
+# %% A1 — configuration
+import os
+import time
 from pathlib import Path
+
 CPU_SESSION_STARTED = time.monotonic()
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Also choose Accelerator=None in Kaggle settings.
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 DATA_ROOT = Path('/kaggle/input/prostate-cancer-grade-assessment')
-PREP_ROOT = Path('/kaggle/working/panda_prepared')
-# Example: Path('/kaggle/input/YOUR-CPU-NOTEBOOK/panda_prepared')
+PREP_ROOT = Path('/kaggle/working/panda_prepared_150um')
+
+# Example on a resume:
+# PREVIOUS_CPU_OUTPUT = Path('/kaggle/input/YOUR-SAVED-CPU-NOTEBOOK/panda_prepared_150um')
 PREVIOUS_CPU_OUTPUT = None
-CPU_TASK = 'inventory'  # 'inventory' first; 'prepare' after reviewing the counts.
-SESSION_WORK_HOURS = 6.5  # Below the stated 8-hour cutoff, including setup time.
+
+CPU_TASK = 'inventory'  # 'inventory' first, then 'prepare'
+SESSION_WORK_HOURS = 6.5
 SEED = 42
-CAPS = {'train': 1000, 'validation': 200}  # Per GP class; max 3,600 candidate tiles.
+
+# Physical/model geometry.
+TARGET_FOV_UM = 150.0
+OUTPUT_PIXELS = 350
+
+# Fail closed if WSI scale metadata are missing or implausible.
+MIN_MPP = 0.35
+MAX_MPP = 0.65
+
+# Tolkach does not publish a tumour-area percentage threshold for Gleason seeds.
+# Keep 0.0 for the closest no-extra-threshold baseline. tumour_fraction is stored
+# for every tile so 0.10 / 0.25 / 0.50 sensitivity analyses can be performed later
+# without rescanning the masks.
+MIN_TUMOUR_FRACTION = 0.0
+
+# Per-class deterministic pilot caps. Increase only after inspecting inventory
+# counts and saved-output size. None means "all eligible" for that split.
+CAPS = {'train': 1000, 'validation': 200}
+
 MAX_CACHE_GIB = 8
-MIN_MPP, MAX_MPP = 0.35, 0.65
 CPU_DEADLINE = CPU_SESSION_STARTED + SESSION_WORK_HOURS * 3600
+
 assert CPU_TASK in ('inventory', 'prepare')
 assert 0 < SESSION_WORK_HOURS <= 7
+assert TARGET_FOV_UM > 0
+assert OUTPUT_PIXELS > 0
+assert 0.0 <= MIN_TUMOUR_FRACTION <= 1.0
 
-# ========================================================================
-# A2 — Install CPU requirements in a fresh session
-# ========================================================================
-import subprocess, sys
+# %% A2 — install CPU requirements
+import subprocess
+import sys
+
 CPU_PACKAGES = [
-    'numpy==1.26.4', 'Pillow>=10,<13',
-    'openslide-python==1.4.6', 'openslide-bin==4.0.1.2',
-    'opencv-python==4.11.0.86', 'staintools==2.1.2', 'spams-bin==2.6.14',
+    'numpy==1.26.4',
+    'Pillow>=10,<13',
+    'openslide-python==1.4.6',
+    'openslide-bin==4.0.1.2',
+    'opencv-python==4.11.0.86',
+    'staintools==2.1.2',
+    'spams-bin==2.6.14',
 ]
-subprocess.run([sys.executable, '-m', 'pip', 'install', '--quiet', *CPU_PACKAGES],
-               check=True, timeout=900)
-# If you imported NumPy/OpenCV before this cell and pip changed them, restart
-# the kernel and rerun from A1 before importing the helpers.
+subprocess.run(
+    [sys.executable, '-m', 'pip', 'install', '--quiet', *CPU_PACKAGES],
+    check=True,
+    timeout=900,
+)
 
-# ========================================================================
-# A3.1 — helper definitions (run in order)
-# ========================================================================
-"""Self-contained PANDA CPU preparation helpers. No TensorFlow imports."""
+# If NumPy/OpenCV were imported before pip changed them, restart the kernel and
+# rerun from A1 before continuing.
+
+# %% A3.1 — imports, constants, generic helpers
 import csv
 import hashlib
 import heapq
 import importlib.metadata
 import json
 import math
-import os
-from pathlib import Path
 import random
 import shutil
 import sqlite3
-import time
 import urllib.request
 import warnings
 
@@ -87,17 +113,19 @@ from PIL import Image
 import openslide
 
 REFERENCE_SHA = '1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1'
-REFERENCE_URL = ('https://raw.githubusercontent.com/gagarin37/deep_learning_pca/'
-                 'a56e44327ed191f483085691d0941512fcb8db35/'
-                 '4_WSI_pipeline/WSI_pipeline_v6/images/standard_he_stain_small.jpg')
+REFERENCE_URL = (
+    'https://raw.githubusercontent.com/gagarin37/deep_learning_pca/'
+    'a56e44327ed191f483085691d0941512fcb8db35/'
+    '4_WSI_pipeline/WSI_pipeline_v6/images/standard_he_stain_small.jpg'
+)
+
 CLASSES = ['GP3', 'GP4', 'GP5']
-SCHEDULE = [('normal_conv_1_17', 7, 1e-5)] + [
-    (f'normal_conv_1_{n}', 1, 1e-6) for n in (14, 11, 9, 7, 5, 3, 1)]
-PIPELINE_VERSION = 'panda-kaggle-v1'
+PURE_SCORE_TO_GP = {'3+3': 3, '4+4': 4, '5+5': 5}
+PIPELINE_VERSION = 'panda-150um-v2'
 
 
 class BudgetStop(Exception):
-    """Internal cooperative stop; save outputs and return normally to Kaggle."""
+    pass
 
 
 def check_deadline(deadline):
@@ -105,27 +133,9 @@ def check_deadline(deadline):
         raise BudgetStop('Configured session work budget reached')
 
 
-def restore_previous(previous, output):
-    """Copy a saved notebook output to writable working storage exactly once."""
-    output = Path(output)
-    if previous is not None:
-        previous = Path(previous)
-        if not previous.is_dir():
-            raise FileNotFoundError(f'Previous output does not exist: {previous}')
-        if not output.exists():
-            size = sum(p.stat().st_size for p in previous.rglob('*') if p.is_file())
-            output.parent.mkdir(parents=True, exist_ok=True)
-            if shutil.disk_usage(output.parent).free < size + 1024**3:
-                raise RuntimeError('Insufficient disk space to restore previous output')
-            shutil.copytree(previous, output)
-        elif not (output / 'inventory_settings.json').exists():
-            raise ValueError('Existing output is not a resumable preparation directory')
-    output.mkdir(parents=True, exist_ok=True)
-    return output
-
-
 def sha(path):
-    with Path(path).open('rb') as stream:
+    path = Path(path)
+    with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
@@ -142,7 +152,7 @@ def append_audit(path, value):
         with path.open('rb+') as stream:
             stream.seek(-1, 2)
             if stream.read(1) != b'\n':
-                stream.write(b'\n')  # Separate an interrupted final JSONL record.
+                stream.write(b'\n')
     with path.open('a', encoding='utf-8') as stream:
         stream.write(json.dumps(value, allow_nan=False) + '\n')
 
@@ -160,8 +170,10 @@ def read_jsonl(path):
 
 def versions():
     result = {}
-    for name in ('numpy', 'Pillow', 'openslide-python', 'openslide-bin', 'staintools',
-                 'spams-bin', 'opencv-python-headless', 'tensorflow', 'keras'):
+    for name in (
+        'numpy', 'Pillow', 'openslide-python', 'openslide-bin',
+        'staintools', 'spams-bin', 'opencv-python',
+    ):
         try:
             result[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
@@ -169,44 +181,95 @@ def versions():
     return result
 
 
+def restore_previous(previous, output):
+    output = Path(output)
+    if previous is not None:
+        previous = Path(previous)
+        if not previous.is_dir():
+            raise FileNotFoundError(f'Previous output does not exist: {previous}')
+        if not output.exists():
+            size = sum(p.stat().st_size for p in previous.rglob('*') if p.is_file())
+            output.parent.mkdir(parents=True, exist_ok=True)
+            if shutil.disk_usage(output.parent).free < size + 1024**3:
+                raise RuntimeError('Insufficient disk space to restore previous output')
+            shutil.copytree(previous, output)
+        elif not (output / 'inventory_settings.json').exists():
+            raise ValueError('Existing output is not a resumable preparation directory')
+    output.mkdir(parents=True, exist_ok=True)
+    return output
+
+
+# %% A3.2 — PANDA discovery and physical geometry
+
 def discover_data(root):
     root = Path(root)
     table = root / 'train.csv'
     images = root / 'train_images'
     masks = root / 'train_label_masks'
+
     if not (table.is_file() and images.is_dir() and masks.is_dir()):
-        raise FileNotFoundError('DATA_ROOT must contain train.csv, train_images/, and train_label_masks/. '
-                                'Attach the official competition data through Add Input; do not copy all TIFFs.')
+        raise FileNotFoundError(
+            'DATA_ROOT must contain train.csv, train_images/, and train_label_masks/. '
+            'Attach the official PANDA competition data with Add Input.'
+        )
+
     with table.open(newline='') as stream:
         records = list(csv.DictReader(stream))
-    if not records or not {'image_id', 'data_provider', 'gleason_score', 'isup_grade'} <= records[0].keys():
+
+    required = {'image_id', 'data_provider', 'gleason_score', 'isup_grade'}
+    if not records or not required <= records[0].keys():
         raise ValueError('train.csv lacks required PANDA columns')
+
     ids = [r['image_id'] for r in records]
-    if len(ids) != len(set(ids)) or any(not name.isalnum() for name in ids):
+    if len(ids) != len(set(ids)) or any(not x.isalnum() for x in ids):
         raise ValueError('Invalid or duplicate image IDs')
-    usable, audit = [], []
+
+    usable, excluded = [], []
     for row in records:
         reason = ''
         if row['data_provider'].lower() != 'radboud':
             reason = 'provider_has_no_GP3_GP4_GP5_pixel_labels'
-        elif not (images / (row['image_id'] + '.tiff')).is_file():
+        elif not (images / f"{row['image_id']}.tiff").is_file():
             reason = 'missing_image'
-        elif not (masks / (row['image_id'] + '_mask.tiff')).is_file():
+        elif not (masks / f"{row['image_id']}_mask.tiff").is_file():
             reason = 'missing_mask'
+
         if reason:
-            audit.append(dict(image_id=row['image_id'], data_provider=row['data_provider'], reason=reason))
+            excluded.append({
+                'image_id': row['image_id'],
+                'data_provider': row['data_provider'],
+                'reason': reason,
+            })
         else:
             usable.append(row)
+
     if not usable:
-        raise ValueError('No Radboud image/mask pairs available. The two uploaded sample files alone cannot train GP classes.')
-    return usable, audit
+        raise ValueError('No usable Radboud image/mask pairs were found')
+
+    return usable, excluded
+
+
+def physical_tile_geometry(mpp_x, mpp_y, target_fov_um=150.0):
+    """Return native level-0 crop dimensions for a target physical FOV."""
+    if not all(math.isfinite(v) and v > 0 for v in (mpp_x, mpp_y)):
+        raise ValueError(f'Invalid MPP: {mpp_x}, {mpp_y}')
+
+    width = max(1, int(round(target_fov_um / mpp_x)))
+    height = max(1, int(round(target_fov_um / mpp_y)))
+
+    actual_x = width * mpp_x
+    actual_y = height * mpp_y
+
+    return width, height, actual_x, actual_y
 
 
 def mask_region(mask_slide, x, y, width, height):
-    # PANDA mask labels are in the RED channel; RGB channels are not identical.
     rgba = np.asarray(mask_slide.read_region((x, y), 0, (width, height)))
+    if rgba.shape != (height, width, 4):
+        raise ValueError('Unexpected mask-region shape')
     if not np.all(rgba[:, :, 3] == 255):
         raise ValueError('Mask region contains transparent/out-of-bounds pixels')
+
     values = rgba[:, :, 0]
     if not np.isin(values, [0, 1, 2, 3, 4, 5]).all():
         raise ValueError('Unexpected Radboud mask encoding')
@@ -215,159 +278,375 @@ def mask_region(mask_slide, x, y, width, height):
 
 def classify_mask(values):
     hist = np.bincount(values.ravel(), minlength=6)
-    patterns = [gp for gp in (3, 4, 5) if hist[gp]]
-    status = 'single_gp' if len(patterns) == 1 else 'mixed' if patterns else 'non_tumour'
-    label = patterns[0] - 3 if status == 'single_gp' else -1
-    return hist, patterns, status, label
+    patterns = [gp for gp in (3, 4, 5) if hist[gp] > 0]
+
+    if len(patterns) == 1:
+        status = 'single_gp'
+        label = patterns[0] - 3
+    elif len(patterns) > 1:
+        status = 'mixed'
+        label = -1
+    else:
+        status = 'non_tumour'
+        label = -1
+
+    gp_pixels = int(hist[3] + hist[4] + hist[5])
+    tumour_fraction = gp_pixels / values.size
+
+    return hist, patterns, status, label, tumour_fraction
 
 
-def rgb_region(slide, x, y):
-    rgba = slide.read_region((x, y), 0, (600, 600))
+def rgb_region(slide, x, y, width, height):
+    rgba = slide.read_region((x, y), 0, (width, height))
     background = Image.new('RGBA', rgba.size, (255, 255, 255, 255))
     return Image.alpha_composite(background, rgba).convert('RGB')
 
-# ========================================================================
-# A3.2 — helper definitions (run in order)
-# ========================================================================
+
+# %% A3.3 — inventory database
+
 def init_inventory(output, signature):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     marker = output / 'inventory_settings.json'
+
     if marker.exists() and json.loads(marker.read_text()) != signature:
-        raise ValueError('Inventory settings changed. Choose a new PREP_ROOT.')
+        raise ValueError('Inventory settings changed. Use a fresh PREP_ROOT.')
+
     atomic_json(marker, signature)
+
     db = sqlite3.connect(output / 'inventory.sqlite')
     db.row_factory = sqlite3.Row
     db.executescript('''
     CREATE TABLE IF NOT EXISTS slides (
-        image_id TEXT PRIMARY KEY, split TEXT, role TEXT, patterns TEXT,
-        width INTEGER, height INTEGER, mpp_x REAL, mpp_y REAL,
-        image_bytes INTEGER, mask_bytes INTEGER, image_quickhash TEXT, mask_quickhash TEXT,
-        mask_counts TEXT, discarded_edge_pixels INTEGER, complete INTEGER);
+        image_id TEXT PRIMARY KEY,
+        split TEXT,
+        role TEXT,
+        gleason_score TEXT,
+        expected_gp INTEGER,
+        patterns TEXT,
+        width INTEGER,
+        height INTEGER,
+        mpp_x REAL,
+        mpp_y REAL,
+        tile_width INTEGER,
+        tile_height INTEGER,
+        actual_fov_um_x REAL,
+        actual_fov_um_y REAL,
+        image_bytes INTEGER,
+        mask_bytes INTEGER,
+        image_quickhash TEXT,
+        mask_quickhash TEXT,
+        mask_counts TEXT,
+        discarded_edge_pixels INTEGER,
+        complete INTEGER
+    );
+
     CREATE TABLE IF NOT EXISTS tiles (
-        tile_id TEXT PRIMARY KEY, image_id TEXT, x INTEGER, y INTEGER,
-        status TEXT, label INTEGER, gp3_pixels INTEGER, gp4_pixels INTEGER, gp5_pixels INTEGER);
+        tile_id TEXT PRIMARY KEY,
+        image_id TEXT,
+        x INTEGER,
+        y INTEGER,
+        tile_width INTEGER,
+        tile_height INTEGER,
+        status TEXT,
+        label INTEGER,
+        tumour_fraction REAL,
+        gp3_pixels INTEGER,
+        gp4_pixels INTEGER,
+        gp5_pixels INTEGER
+    );
+
     CREATE INDEX IF NOT EXISTS tiles_slide ON tiles(image_id);
+    CREATE INDEX IF NOT EXISTS tiles_status_label ON tiles(status, label);
     ''')
     return db
 
 
-def build_inventory(data_root, output, seed=42, min_mpp=.35, max_mpp=.65, deadline=None):
-    data_root, output = Path(data_root), Path(output)
+def build_inventory(
+    data_root,
+    output,
+    seed=42,
+    target_fov_um=150.0,
+    min_mpp=.35,
+    max_mpp=.65,
+    deadline=None,
+):
+    data_root = Path(data_root)
+    output = Path(output)
     records, excluded = discover_data(data_root)
+
     ids = sorted(r['image_id'] for r in records)
     shuffled = ids.copy()
     random.Random(seed).shuffle(shuffled)
     heldout = set(shuffled[:max(1, round(.2 * len(shuffled)))])
-    signature = dict(pipeline_version=PIPELINE_VERSION, train_csv_sha256=sha(data_root / 'train.csv'), image_ids=ids,
-                     seed=seed, native_tile=600, output_pixels=350, level=0,
-                     min_mpp=min_mpp, max_mpp=max_mpp,
-                     split='80/20 image-id groups; patient independence unverified', provider='radboud')
+
+    signature = {
+        'pipeline_version': PIPELINE_VERSION,
+        'train_csv_sha256': sha(data_root / 'train.csv'),
+        'image_ids': ids,
+        'seed': seed,
+        'target_fov_um': target_fov_um,
+        'output_pixels': OUTPUT_PIXELS,
+        'level': 0,
+        'min_mpp': min_mpp,
+        'max_mpp': max_mpp,
+        'split': '80/20 slide/image-id groups; patient independence unverified',
+        'provider': 'radboud',
+    }
+
     db = init_inventory(output, signature)
     atomic_json(output / 'source_exclusions.json', excluded)
-    atomic_json(output / 'split.json', {i: 'validation' if i in heldout else 'train' for i in ids})
+    atomic_json(
+        output / 'split.json',
+        {image_id: ('validation' if image_id in heldout else 'train') for image_id in ids},
+    )
+
+    by_id = {r['image_id']: r for r in records}
     started = time.monotonic()
+
     for number, image_id in enumerate(ids, 1):
-        image_path = data_root / 'train_images' / (image_id + '.tiff')
-        mask_path = data_root / 'train_label_masks' / (image_id + '_mask.tiff')
+        image_path = data_root / 'train_images' / f'{image_id}.tiff'
+        mask_path = data_root / 'train_label_masks' / f'{image_id}_mask.tiff'
+        row_csv = by_id[image_id]
+
         old = db.execute('SELECT * FROM slides WHERE image_id=?', (image_id,)).fetchone()
         if old and old['complete']:
             if old['image_bytes'] != image_path.stat().st_size or old['mask_bytes'] != mask_path.stat().st_size:
                 raise ValueError(f'Source file size changed for {image_id}')
             continue
+
         try:
             check_deadline(deadline)
+
             with openslide.OpenSlide(str(image_path)) as image, openslide.OpenSlide(str(mask_path)) as mask:
                 if image.dimensions != mask.dimensions:
                     raise ValueError('Image/mask level-0 dimensions differ')
+
                 width, height = image.dimensions
                 mpp_x = float(image.properties.get('openslide.mpp-x', 'nan'))
                 mpp_y = float(image.properties.get('openslide.mpp-y', 'nan'))
+
                 if not all(math.isfinite(v) and min_mpp <= v <= max_mpp for v in (mpp_x, mpp_y)):
-                    raise ValueError(f'Unverified/out-of-range level-0 MPP: {mpp_x}, {mpp_y}; review scale before changing limits')
+                    raise ValueError(
+                        f'Unverified/out-of-range level-0 MPP: {mpp_x}, {mpp_y}; '
+                        'review scale before changing limits'
+                    )
+
+                tile_w, tile_h, actual_fov_x, actual_fov_y = physical_tile_geometry(
+                    mpp_x, mpp_y, target_fov_um
+                )
+
                 pixel_counts = np.zeros(6, dtype=np.int64)
                 patches = []
                 patterns = set()
-                # Read only one 600px mask block at a time, including partial edges.
-                # No WSI RGB array is ever loaded into memory.
-                for y in range(0, height, 600):
-                    for x in range(0, width, 600):
+
+                # Non-overlapping physical-FOV grid. Partial edges are inspected for
+                # whole-slide pattern accounting but are not retained as training tiles.
+                for y in range(0, height, tile_h):
+                    for x in range(0, width, tile_w):
                         check_deadline(deadline)
-                        tw, th = min(600, width-x), min(600, height-y)
-                        hist, gps, status, label = classify_mask(mask_region(mask, x, y, tw, th))
+                        tw = min(tile_w, width - x)
+                        th = min(tile_h, height - y)
+
+                        hist, gps, status, label, tumour_fraction = classify_mask(
+                            mask_region(mask, x, y, tw, th)
+                        )
                         pixel_counts += hist
                         patterns.update(gps)
-                        if tw == th == 600:
-                            patches.append((f'{image_id}_x{x}_y{y}', image_id, x, y, status,
-                                            label, int(hist[3]), int(hist[4]), int(hist[5])))
-                role = 'pure' if len(patterns) == 1 else 'mixed' if patterns else 'unknown'
+
+                        if tw == tile_w and th == tile_h:
+                            patches.append((
+                                f'{image_id}_x{x}_y{y}',
+                                image_id,
+                                x,
+                                y,
+                                tile_w,
+                                tile_h,
+                                status,
+                                label,
+                                float(tumour_fraction),
+                                int(hist[3]),
+                                int(hist[4]),
+                                int(hist[5]),
+                            ))
+
+                expected_gp = PURE_SCORE_TO_GP.get(row_csv['gleason_score'])
+                pattern_list = sorted(patterns)
+
+                if expected_gp is not None and pattern_list == [expected_gp]:
+                    role = 'pure_score_and_mask_match'
+                elif expected_gp is not None:
+                    role = 'pure_score_mask_mismatch_or_mixed'
+                elif pattern_list:
+                    role = 'mixed_or_nonpure_score'
+                else:
+                    role = 'no_gp_pixels'
+
+                discarded_edge_pixels = width * height - (width // tile_w * tile_w) * (height // tile_h * tile_h)
+
                 with db:
                     db.execute('DELETE FROM tiles WHERE image_id=?', (image_id,))
-                    db.executemany('INSERT INTO tiles VALUES (?,?,?,?,?,?,?,?,?)', patches)
-                    db.execute('INSERT OR REPLACE INTO slides VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                               (image_id, 'validation' if image_id in heldout else 'train', role,
-                                json.dumps(sorted(patterns)), width, height, mpp_x, mpp_y,
-                                image_path.stat().st_size, mask_path.stat().st_size,
-                                image.properties.get('openslide.quickhash-1', ''),
-                                mask.properties.get('openslide.quickhash-1', ''),
-                                json.dumps(pixel_counts.tolist()), width*height-(width//600*600)*(height//600*600), 1))
+                    db.executemany('INSERT INTO tiles VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', patches)
+                    db.execute(
+                        'INSERT OR REPLACE INTO slides VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                        (
+                            image_id,
+                            'validation' if image_id in heldout else 'train',
+                            role,
+                            row_csv['gleason_score'],
+                            expected_gp,
+                            json.dumps(pattern_list),
+                            width,
+                            height,
+                            mpp_x,
+                            mpp_y,
+                            tile_w,
+                            tile_h,
+                            actual_fov_x,
+                            actual_fov_y,
+                            image_path.stat().st_size,
+                            mask_path.stat().st_size,
+                            image.properties.get('openslide.quickhash-1', ''),
+                            mask.properties.get('openslide.quickhash-1', ''),
+                            json.dumps(pixel_counts.tolist()),
+                            discarded_edge_pixels,
+                            1,
+                        ),
+                    )
+
         except BudgetStop:
             db.close()
-            report = inventory_report(output)
+            report = inventory_report(output, min_tumour_fraction=MIN_TUMOUR_FRACTION)
             report['stop_reason'] = 'session_budget; resume uncommitted slide next run'
             atomic_json(output / 'inventory_report.json', report)
             return report
         except Exception as error:
-            append_audit(output / 'inventory_errors.jsonl', dict(image_id=image_id, error=type(error).__name__, message=str(error)))
+            append_audit(
+                output / 'inventory_errors.jsonl',
+                {
+                    'image_id': image_id,
+                    'error': type(error).__name__,
+                    'message': str(error),
+                },
+            )
             db.close()
-            raise  # Provider/geometry/scale/reader problems must not silently change the cohort.
-        print(f'CPU inventory {number}/{len(ids)} slides; elapsed {(time.monotonic()-started)/60:.1f} min', flush=True)
+            raise
+
+        print(
+            f'CPU inventory {number}/{len(ids)} slides; '
+            f'elapsed {(time.monotonic() - started) / 60:.1f} min',
+            flush=True,
+        )
+
     db.close()
-    report = inventory_report(output)
+    report = inventory_report(output, min_tumour_fraction=MIN_TUMOUR_FRACTION)
     atomic_json(output / 'inventory_report.json', report)
     return report
 
-# ========================================================================
-# A3.3 — helper definitions (run in order)
-# ========================================================================
-def eligible_sql():
-    # Same policy as Gleason2019: train seeds from whole-slide single-pattern proxy;
-    # validation single-GP tiles may come from any held-out slide role.
-    return "t.status='single_gp' AND (s.split='validation' OR s.role='pure')"
+
+# %% A3.4 — eligibility, reporting, deterministic selection
+
+def eligibility_clause(min_tumour_fraction=0.0):
+    # Training: strict Tolkach-like pure-case proxy: published pure slide score and
+    # whole-mask GP pattern agree, plus a single-GP tile.
+    # Validation: held-out slide, single-GP tile. No claim of patient independence.
+    return (
+        "t.status='single_gp' AND t.tumour_fraction>=? AND "
+        "(s.split='validation' OR s.role='pure_score_and_mask_match')"
+    )
 
 
-def inventory_report(output):
+def inventory_report(output, min_tumour_fraction=0.0):
     db = sqlite3.connect(Path(output) / 'inventory.sqlite')
     db.row_factory = sqlite3.Row
-    counts = [dict(row) for row in db.execute('''SELECT s.split,s.role,t.status,t.label,COUNT(*) AS tiles
-                FROM tiles t JOIN slides s USING(image_id) GROUP BY s.split,s.role,t.status,t.label''')]
-    eligible = [dict(row) for row in db.execute('SELECT s.split,t.label,COUNT(*) AS tiles,COUNT(DISTINCT t.image_id) AS slides '
-                'FROM tiles t JOIN slides s USING(image_id) WHERE '+eligible_sql()+' GROUP BY s.split,t.label')]
-    patterns = [dict(row) for row in db.execute('SELECT split,role,patterns,COUNT(*) AS slides FROM slides GROUP BY split,role,patterns')]
-    scale = dict(db.execute('SELECT MIN(mpp_x) AS min_mpp,MAX(mpp_x) AS max_mpp,COUNT(*) AS slides FROM slides').fetchone())
+
+    counts = [dict(row) for row in db.execute('''
+        SELECT s.split,s.role,t.status,t.label,COUNT(*) AS tiles
+        FROM tiles t JOIN slides s USING(image_id)
+        GROUP BY s.split,s.role,t.status,t.label
+    ''')]
+
+    eligible = [dict(row) for row in db.execute(
+        'SELECT s.split,t.label,COUNT(*) AS tiles,COUNT(DISTINCT t.image_id) AS slides '
+        'FROM tiles t JOIN slides s USING(image_id) '
+        'WHERE ' + eligibility_clause(min_tumour_fraction) + ' '
+        'GROUP BY s.split,t.label',
+        (min_tumour_fraction,),
+    )]
+
+    patterns = [dict(row) for row in db.execute('''
+        SELECT split,role,patterns,COUNT(*) AS slides
+        FROM slides GROUP BY split,role,patterns
+    ''')]
+
+    scale = dict(db.execute('''
+        SELECT
+          MIN(mpp_x) AS min_mpp_x, MAX(mpp_x) AS max_mpp_x,
+          MIN(mpp_y) AS min_mpp_y, MAX(mpp_y) AS max_mpp_y,
+          MIN(actual_fov_um_x) AS min_fov_x, MAX(actual_fov_um_x) AS max_fov_x,
+          MIN(actual_fov_um_y) AS min_fov_y, MAX(actual_fov_um_y) AS max_fov_y,
+          MIN(tile_width) AS min_tile_width, MAX(tile_width) AS max_tile_width,
+          MIN(tile_height) AS min_tile_height, MAX(tile_height) AS max_tile_height,
+          COUNT(*) AS slides
+        FROM slides
+    ''').fetchone())
+
     db.close()
-    expected = len(json.loads((Path(output)/'inventory_settings.json').read_text())['image_ids'])
-    return dict(complete=scale['slides']==expected, expected_slides=expected, classes=CLASSES, annotation_counts=counts, eligible_counts=eligible,
-                whole_slide_pattern_counts=patterns, scale=scale,
-                geometry='level-0 native 600x600, stride 600, discard partial edges; RGB LANCZOS to 350',
-                seed_definition='single-pattern whole-slide mask proxy, not proven pure patient cases',
-                patient_independence='unverified: public image IDs are not patient identifiers',
-                notes=['Karolinska excluded: no GP-resolved pixel labels', 'Any resolved GP pixel contributes; no purity percentage invented'])
+
+    settings = json.loads((Path(output) / 'inventory_settings.json').read_text())
+    expected = len(settings['image_ids'])
+
+    return {
+        'complete': scale['slides'] == expected,
+        'expected_slides': expected,
+        'classes': CLASSES,
+        'annotation_counts': counts,
+        'eligible_counts': eligible,
+        'whole_slide_pattern_counts': patterns,
+        'scale': scale,
+        'target_fov_um': settings['target_fov_um'],
+        'output_pixels': settings['output_pixels'],
+        'geometry': 'level-0 MPP-aware ~150um non-overlapping crops; direct LANCZOS resize to 350',
+        'training_seed_definition': 'pure 3+3/4+4/5+5 score AND matching single-GP whole-mask proxy; single-GP tile',
+        'min_tumour_fraction_for_report': min_tumour_fraction,
+        'patient_independence': 'unverified: public image IDs are not patient identifiers',
+        'notes': [
+            'Karolinska excluded: no GP3/GP4/GP5-resolved pixel labels',
+            'tumour_fraction is stored for sensitivity analysis',
+            'source optical sampling is not identical to Tolkach even when physical FOV is matched',
+        ],
+    }
 
 
-def select_tiles(output, caps, seed=42):
+def select_tiles(output, caps, seed=42, min_tumour_fraction=0.0):
     db = sqlite3.connect(Path(output) / 'inventory.sqlite')
     db.row_factory = sqlite3.Row
     selected = []
+
     for split in ('train', 'validation'):
         for label in range(3):
-            limit = int(caps[split])
-            if limit < 1:
-                raise ValueError('Per-class caps must be positive')
+            limit = caps.get(split)
+            if limit is not None:
+                limit = int(limit)
+                if limit < 1:
+                    raise ValueError('Per-class caps must be positive or None')
+
+            query = (
+                'SELECT t.*,s.split,s.role,s.gleason_score,s.expected_gp,'
+                's.mpp_x,s.mpp_y,s.actual_fov_um_x,s.actual_fov_um_y '
+                'FROM tiles t JOIN slides s USING(image_id) '
+                'WHERE ' + eligibility_clause(min_tumour_fraction) + ' '
+                'AND s.split=? AND t.label=?'
+            )
+
+            rows = db.execute(query, (min_tumour_fraction, split, label))
+
+            if limit is None:
+                selected.extend(dict(row) for row in rows)
+                continue
+
             heap = []
-            query = ('SELECT t.*,s.split,s.role,s.mpp_x,s.mpp_y FROM tiles t JOIN slides s USING(image_id) '
-                     'WHERE '+eligible_sql()+' AND s.split=? AND t.label=?')
-            for row in db.execute(query, (split, label)):
+            for row in rows:
                 key = int(hashlib.sha256(f'{seed}:{row["tile_id"]}'.encode()).hexdigest(), 16)
                 item = (-key, row['tile_id'], dict(row))
                 if len(heap) < limit:
@@ -375,29 +654,47 @@ def select_tiles(output, caps, seed=42):
                 elif key < -heap[0][0]:
                     heapq.heapreplace(heap, item)
             selected.extend(item[2] for item in heap)
+
     db.close()
     return sorted(selected, key=lambda r: (r['image_id'], r['y'], r['x']))
 
-# ========================================================================
-# A3.4 — helper definitions (run in order)
-# ========================================================================
+
+# %% A3.5 — stain normalisation and cache
+
 def make_normalizer(reference):
     import staintools
+
     normalizer = staintools.StainNormalizer(method='macenko')
-    normalizer.fit(staintools.read_image(str(reference)))  # Raw reference, as in the legacy pipeline.
+    normalizer.fit(staintools.read_image(str(reference)))
+
     if hasattr(staintools, 'BrightnessStandardizer'):
         brightness = staintools.BrightnessStandardizer().transform
     else:
         brightness = staintools.LuminosityStandardizer.standardize
+
     return brightness, normalizer
 
 
-def normalize_tile(tile, normalizers):
+def normalize_tile(tile, normalizers, output_pixels=350):
     brightness, normalizer = normalizers
-    pixels = np.asarray(tile.convert('RGB').resize((350, 350), Image.Resampling.LANCZOS))
+
+    # Directly map the ~150 µm source crop to the model's 350x350 input.
+    pixels = np.asarray(
+        tile.convert('RGB').resize(
+            (output_pixels, output_pixels),
+            Image.Resampling.LANCZOS,
+        )
+    )
+
     output = normalizer.transform(brightness(pixels))
-    if output.dtype != np.uint8 or output.shape != (350, 350, 3) or not np.isfinite(output).all():
+
+    if (
+        output.dtype != np.uint8
+        or output.shape != (output_pixels, output_pixels, 3)
+        or not np.isfinite(output).all()
+    ):
         raise ValueError('Invalid normalized uint8 RGB output')
+
     return output
 
 
@@ -411,210 +708,401 @@ def ensure_reference(path):
         if sha(temporary) != REFERENCE_SHA:
             raise ValueError('Downloaded stain reference checksum mismatch')
         temporary.replace(path)
+
     if sha(path) != REFERENCE_SHA:
         raise ValueError('Stain reference checksum mismatch')
+
     return path
 
 
 def write_manifest(path, rows):
-    fields = ['tile_id','image_id','x','y','split','role','label','gp3_pixels','gp4_pixels','gp5_pixels',
-              'mpp_x','mpp_y','cache_file','cache_sha256']
+    fields = [
+        'tile_id', 'image_id', 'x', 'y',
+        'tile_width', 'tile_height',
+        'mpp_x', 'mpp_y', 'actual_fov_um_x', 'actual_fov_um_y',
+        'split', 'role', 'gleason_score', 'expected_gp',
+        'label', 'tumour_fraction',
+        'gp3_pixels', 'gp4_pixels', 'gp5_pixels',
+        'cache_file', 'cache_sha256',
+    ]
+
     with Path(path).open('w', newline='') as stream:
         writer = csv.DictWriter(stream, fieldnames=fields, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(rows)
 
-# ========================================================================
-# A3.5 — helper definitions (run in order)
-# ========================================================================
-def prepare_selected(data_root, output, caps, reference, max_cache_gib=8, normalizers_override=None, deadline=None):
-    data_root, output = Path(data_root), Path(output)
-    if not inventory_report(output)['complete']:
+
+def prepare_selected(
+    data_root,
+    output,
+    caps,
+    reference,
+    min_tumour_fraction=0.0,
+    max_cache_gib=8,
+    normalizers_override=None,
+    deadline=None,
+):
+    data_root = Path(data_root)
+    output = Path(output)
+
+    if not inventory_report(output, min_tumour_fraction)['complete']:
         raise ValueError('Finish the inventory before selecting a subset')
-    seed = json.loads((output/'inventory_settings.json').read_text())['seed']
-    selected = select_tiles(output, caps, seed=seed)
-    available_train = {r['label'] for r in selected if r['split']=='train'}
-    if available_train != {0, 1, 2} or not any(r['split']=='validation' for r in selected):
-        raise ValueError('Need eligible GP3/GP4/GP5 training seeds and held-out validation. Inspect inventory_report.json; '
-                         'do not relabel benign/Karolinska/mixed slides or search splits silently.')
+
+    seed = json.loads((output / 'inventory_settings.json').read_text())['seed']
+    selected = select_tiles(
+        output,
+        caps,
+        seed=seed,
+        min_tumour_fraction=min_tumour_fraction,
+    )
+
+    available_train = {r['label'] for r in selected if r['split'] == 'train'}
+    if available_train != {0, 1, 2} or not any(r['split'] == 'validation' for r in selected):
+        raise ValueError(
+            'Need eligible GP3/GP4/GP5 training seeds and held-out validation. '
+            'Inspect inventory_report.json instead of relabelling mixed/Karolinska slides.'
+        )
+
     cache = output / 'cache'
     cache.mkdir(exist_ok=True)
-    settings = dict(pipeline_version=PIPELINE_VERSION, caps=caps, reference_sha256=sha(reference), inventory_settings_sha256=sha(output/'inventory_settings.json'),
-                    normalization='legacy brightness + StainTools 2.1.2 Macenko', output_pixels=350,
-                    versions=versions())
+
+    inventory_settings = json.loads((output / 'inventory_settings.json').read_text())
+    settings = {
+        'pipeline_version': PIPELINE_VERSION,
+        'caps': caps,
+        'reference_sha256': sha(reference),
+        'inventory_settings_sha256': sha(output / 'inventory_settings.json'),
+        'normalization': 'direct resize to 350 + legacy brightness + StainTools Macenko',
+        'target_fov_um': inventory_settings['target_fov_um'],
+        'output_pixels': inventory_settings['output_pixels'],
+        'min_tumour_fraction': min_tumour_fraction,
+        'versions': versions(),
+    }
+
     marker = output / 'preparation_settings.json'
     if marker.exists() and json.loads(marker.read_text()) != settings:
         raise ValueError('Preparation settings changed; select a fresh PREP_ROOT')
     atomic_json(marker, settings)
-    # Reference fitting remains fatal. Never fall back to another normalization.
+
     normalizers = normalizers_override if normalizers_override is not None else make_normalizer(reference)
-    # Resume completed tile records only; incomplete PNG writes are safely redone.
+
     ledger_path = output / 'tile_ledger.jsonl'
-    previous = {row['tile_id']:row for row in read_jsonl(ledger_path)}
-    old_excluded = {row['tile_id']:row for row in read_jsonl(output/'stain_exclusions.jsonl')}
+    previous = {row['tile_id']: row for row in read_jsonl(ledger_path)}
+    old_excluded = {row['tile_id']: row for row in read_jsonl(output / 'stain_exclusions.jsonl')}
+
     completed, excluded = [], []
     total_bytes = sum(p.stat().st_size for p in cache.glob('*.png'))
     started = time.monotonic()
     slide = None
     current = None
     stop_reason = None
+
     try:
         for number, row in enumerate(selected, 1):
             check_deadline(deadline)
+
             if row['tile_id'] in old_excluded:
                 excluded.append(old_excluded[row['tile_id']])
                 continue
-            cached = cache / (row['tile_id'] + '.png')
+
+            cached = cache / f"{row['tile_id']}.png"
             old = previous.get(row['tile_id'])
-            if old and cached.is_file() and sha(cached)==old.get('cache_sha256'):
+            if old and cached.is_file() and sha(cached) == old.get('cache_sha256'):
                 completed.append(old)
                 continue
-            if max_cache_gib <= 0 or total_bytes + 350*350*3 > max_cache_gib*1024**3 or shutil.disk_usage(output).free < 1024**3:
-                raise RuntimeError('Cache size/free-space guard reached. Save audit and choose a smaller bounded subset.')
+
+            # Conservative guard. PNG compression means actual files are usually smaller
+            # than the raw RGB upper bound used here.
+            if (
+                max_cache_gib <= 0
+                or total_bytes + OUTPUT_PIXELS * OUTPUT_PIXELS * 3 > max_cache_gib * 1024**3
+                or shutil.disk_usage(output).free < 1024**3
+            ):
+                raise RuntimeError('Cache size/free-space guard reached; choose a smaller bounded subset')
+
             if current != row['image_id']:
                 if slide:
                     slide.close()
-                slide = openslide.OpenSlide(str(data_root/'train_images'/(row['image_id']+'.tiff')))
+                slide = openslide.OpenSlide(
+                    str(data_root / 'train_images' / f"{row['image_id']}.tiff")
+                )
                 current = row['image_id']
-            tile = rgb_region(slide, row['x'], row['y'])
+
+            tile = rgb_region(
+                slide,
+                int(row['x']),
+                int(row['y']),
+                int(row['tile_width']),
+                int(row['tile_height']),
+            )
+
             try:
-                pixels = normalize_tile(tile, normalizers)
+                pixels = normalize_tile(tile, normalizers, output_pixels=OUTPUT_PIXELS)
             except Exception as error:
-                event = dict(tile_id=row['tile_id'], image_id=row['image_id'], x=row['x'], y=row['y'],
-                             split=row['split'], label=row['label'], error=type(error).__name__, message=str(error))
-                append_audit(output/'stain_exclusions.jsonl', event)
+                event = {
+                    'tile_id': row['tile_id'],
+                    'image_id': row['image_id'],
+                    'x': row['x'],
+                    'y': row['y'],
+                    'split': row['split'],
+                    'label': row['label'],
+                    'error': type(error).__name__,
+                    'message': str(error),
+                }
+                append_audit(output / 'stain_exclusions.jsonl', event)
                 excluded.append(event)
-                warnings.warn(f'Excluded {row["tile_id"]}: {type(error).__name__}: {error}', RuntimeWarning)
+                warnings.warn(
+                    f'Excluded {row["tile_id"]}: {type(error).__name__}: {error}',
+                    RuntimeWarning,
+                )
                 continue
+
             temporary = cached.with_suffix('.tmp')
             Image.fromarray(pixels).save(temporary, format='PNG')
             old_bytes = cached.stat().st_size if cached.exists() else 0
             temporary.replace(cached)
-            total_bytes += cached.stat().st_size-old_bytes
+            total_bytes += cached.stat().st_size - old_bytes
+
             item = dict(row, cache_file=cached.name, cache_sha256=sha(cached))
             append_audit(ledger_path, item)
             completed.append(item)
+
             if number % 100 == 0:
-                print(f'CPU cache {number}/{len(selected)} tiles; {total_bytes/1024**3:.2f} GiB', flush=True)
+                print(
+                    f'CPU cache {number}/{len(selected)} tiles; '
+                    f'{total_bytes / 1024**3:.2f} GiB',
+                    flush=True,
+                )
+
     except BudgetStop:
         stop_reason = 'session_budget; resume cached tiles from ledger'
     finally:
         if slide:
             slide.close()
-        atomic_json(output/'preparation_progress.json', dict(selected=len(selected), retained=len(completed),
-                    excluded=len(excluded), cache_bytes=total_bytes, elapsed_seconds=time.monotonic()-started))
+        atomic_json(
+            output / 'preparation_progress.json',
+            {
+                'selected': len(selected),
+                'retained': len(completed),
+                'excluded': len(excluded),
+                'cache_bytes': total_bytes,
+                'elapsed_seconds': time.monotonic() - started,
+            },
+        )
+
     if stop_reason:
-        report = dict(complete=False, training_ready=False, stop_reason=stop_reason,
-                      selected=len(selected), retained=len(completed), excluded=len(excluded), settings=settings)
-        atomic_json(output/'prepared.json', report)
+        report = {
+            'complete': False,
+            'training_ready': False,
+            'stop_reason': stop_reason,
+            'selected': len(selected),
+            'retained': len(completed),
+            'excluded': len(excluded),
+            'settings': settings,
+        }
+        atomic_json(output / 'prepared.json', report)
         return report
-    manifests = output/'manifests'
+
+    manifests = output / 'manifests'
     manifests.mkdir(exist_ok=True)
+
     counts = {}
-    for split in ('train','validation'):
-        rows = [r for r in completed if r['split']==split]
-        write_manifest(manifests/(split+'.csv'), rows)
-        counts[split] = {CLASSES[k]:sum(r['label']==k for r in rows) for k in range(3)}
-    ready = all(counts['train'][c]>0 for c in CLASSES) and sum(counts['validation'].values())>0
-    atomic_json(output/'stain_exclusions.json', dict(count=len(excluded), tiles=excluded,
-                log='stain_exclusions.jsonl', policy='exclude tile preprocessing exceptions; other operations abort'))
-    report = dict(complete=True, training_ready=ready, counts=counts, selected=len(selected), retained=len(completed),
-                  sample_only=True, sampling='deterministic per-class capped pilot; no automatic replacement after exclusions',
-                  settings=settings, versions=versions(), native_tile=600, output_pixels=350,
-                  cache_bytes=total_bytes, patient_independence='unverified',
-                  elapsed_seconds=time.monotonic()-started,
-                  manifests={name:sha(manifests/name) for name in ('train.csv','validation.csv')})
-    report['stain_exclusion_count'] = len(excluded)
-    report['audit_hashes'] = {name:sha(output/name) for name in
-                            ('split.json','inventory_settings.json','stain_exclusions.json')}
-    atomic_json(output/'prepared.json',report)
+    for split in ('train', 'validation'):
+        rows = [r for r in completed if r['split'] == split]
+        write_manifest(manifests / f'{split}.csv', rows)
+        counts[split] = {
+            CLASSES[k]: sum(r['label'] == k for r in rows)
+            for k in range(3)
+        }
+
+    ready = all(counts['train'][c] > 0 for c in CLASSES) and sum(counts['validation'].values()) > 0
+
+    atomic_json(
+        output / 'stain_exclusions.json',
+        {
+            'count': len(excluded),
+            'tiles': excluded,
+            'log': 'stain_exclusions.jsonl',
+            'policy': 'exclude tile preprocessing exceptions; other operations abort',
+        },
+    )
+
+    report = {
+        'complete': True,
+        'training_ready': ready,
+        'counts': counts,
+        'selected': len(selected),
+        'retained': len(completed),
+        'sample_only': any(v is not None for v in caps.values()),
+        'sampling': 'deterministic per-class cap; no automatic replacement after exclusions',
+        'settings': settings,
+        'versions': versions(),
+        'target_fov_um': TARGET_FOV_UM,
+        'output_pixels': OUTPUT_PIXELS,
+        'cache_bytes': total_bytes,
+        'patient_independence': 'unverified',
+        'elapsed_seconds': time.monotonic() - started,
+        'manifests': {
+            name: sha(manifests / name)
+            for name in ('train.csv', 'validation.csv')
+        },
+        'stain_exclusion_count': len(excluded),
+    }
+
+    report['audit_hashes'] = {
+        name: sha(output / name)
+        for name in ('split.json', 'inventory_settings.json', 'stain_exclusions.json')
+    }
+
+    atomic_json(output / 'prepared.json', report)
+
     if not ready:
-        raise ValueError('After exclusions, preparation lacks seed-class coverage or validation. Inspect audits.')
+        raise ValueError('After exclusions, preparation lacks training-class coverage or validation')
+
     return report
 
 
+# %% A3.6 — load/verify prepared output
+
 def load_prepared(root):
     root = Path(root)
-    report = json.loads((root/'prepared.json').read_text())
+    report = json.loads((root / 'prepared.json').read_text())
+
     if not report.get('complete') or not report.get('training_ready'):
         raise ValueError('Prepared input is incomplete/not training-ready')
-    records = {}
-    for split in ('train','validation'):
-        path=root/'manifests'/(split+'.csv')
-        if sha(path)!=report['manifests'][path.name]:
-            raise ValueError('Manifest hash changed')
-        with path.open(newline='') as stream:
-            records[split]=list(csv.DictReader(stream))
-        for row in records[split]:
-            if Path(row['cache_file']).name!=row['cache_file']:
-                raise ValueError('Unsafe cache file name')
-            if sha(root/'cache'/row['cache_file'])!=row['cache_sha256']:
-                raise ValueError(f'Cache checksum mismatch: {row["tile_id"]}')
-            row['label']=int(row['label'])
-    if set(r['image_id'] for r in records['train']) & set(r['image_id'] for r in records['validation']):
-        raise ValueError('Slide leakage across split')
-    if {r['label'] for r in records['train']}!={0,1,2} or not records['validation']:
-        raise ValueError('Missing training classes or validation')
-    return report,records
 
-# ========================================================================
-# A4 — Restore prior saved output and inspect the slide label table
-# ========================================================================
+    if abs(float(report['target_fov_um']) - TARGET_FOV_UM) > 1e-9:
+        raise ValueError('Unexpected target physical FOV')
+    if int(report['output_pixels']) != OUTPUT_PIXELS:
+        raise ValueError('Unexpected model input size')
+
+    records = {}
+    for split in ('train', 'validation'):
+        path = root / 'manifests' / f'{split}.csv'
+        if sha(path) != report['manifests'][path.name]:
+            raise ValueError('Manifest hash changed')
+
+        with path.open(newline='') as stream:
+            records[split] = list(csv.DictReader(stream))
+
+        for row in records[split]:
+            if Path(row['cache_file']).name != row['cache_file']:
+                raise ValueError('Unsafe cache file name')
+            if sha(root / 'cache' / row['cache_file']) != row['cache_sha256']:
+                raise ValueError(f'Cache checksum mismatch: {row["tile_id"]}')
+            row['label'] = int(row['label'])
+
+    train_ids = {r['image_id'] for r in records['train']}
+    val_ids = {r['image_id'] for r in records['validation']}
+    if train_ids & val_ids:
+        raise ValueError('Slide leakage across split')
+
+    if {r['label'] for r in records['train']} != {0, 1, 2} or not records['validation']:
+        raise ValueError('Missing training classes or validation')
+
+    return report, records
+
+
+# %% A4 — restore prior output and inspect source table
 from collections import Counter
+
 restore_previous(PREVIOUS_CPU_OUTPUT, PREP_ROOT)
+
 with (DATA_ROOT / 'train.csv').open(newline='') as stream:
     source_rows = list(csv.DictReader(stream))
+
 provider_counts = dict(Counter(r['data_provider'] for r in source_rows))
-score_counts = {p: dict(sorted(Counter(r['gleason_score'] for r in source_rows
-                                    if r['data_provider'] == p).items()))
-                for p in sorted(provider_counts)}
-source_summary = {'slides': len(source_rows), 'providers': provider_counts,
-                  'slide_scores_by_provider': score_counts,
-                  'note': 'Slide scores do not establish eligible patch counts.'}
+score_counts = {
+    provider: dict(sorted(Counter(
+        r['gleason_score'] for r in source_rows if r['data_provider'] == provider
+    ).items()))
+    for provider in sorted(provider_counts)
+}
+
+source_summary = {
+    'slides': len(source_rows),
+    'providers': provider_counts,
+    'slide_scores_by_provider': score_counts,
+    'note': 'Slide scores do not establish eligible patch counts.',
+}
 atomic_json(PREP_ROOT / 'source_summary.json', source_summary)
 print(json.dumps(source_summary, indent=2))
 print('Working output:', PREP_ROOT)
 
-# ========================================================================
-# A5 — Resumable CPU mask inventory (no GPU model)
-# ========================================================================
-inventory = build_inventory(DATA_ROOT, PREP_ROOT, seed=SEED,
-                            min_mpp=MIN_MPP, max_mpp=MAX_MPP, deadline=CPU_DEADLINE)
+# %% A5 — resumable MPP-aware mask inventory
+inventory = build_inventory(
+    DATA_ROOT,
+    PREP_ROOT,
+    seed=SEED,
+    target_fov_um=TARGET_FOV_UM,
+    min_mpp=MIN_MPP,
+    max_mpp=MAX_MPP,
+    deadline=CPU_DEADLINE,
+)
 print(json.dumps(inventory, indent=2))
-if inventory['complete']:
-    selected = select_tiles(PREP_ROOT, CAPS, seed=SEED)
-    planned = {split: {CLASSES[k]: sum(r['split']==split and r['label']==k for r in selected)
-                       for k in range(3)} for split in ('train', 'validation')}
-    print('Planned capped pilot candidates:', json.dumps(planned, indent=2))
-    print('Uncompressed RGB cache payload estimate (GiB):',
-          round(len(selected)*350*350*3/1024**3, 3))
-    atomic_json(PREP_ROOT / 'pilot_plan.json', {'caps': CAPS, 'counts': planned,
-                'selected': len(selected), 'sampling': 'deterministic class-capped subset',
-                'not_yet_normalized': True})
-else:
-    print('Inventory paused. Save this version with outputs and attach it to the next CPU run.')
 
-# ========================================================================
-# A6 — Optional CPU cache preparation, only after reviewing counts
-# ========================================================================
+if inventory['complete']:
+    selected = select_tiles(
+        PREP_ROOT,
+        CAPS,
+        seed=SEED,
+        min_tumour_fraction=MIN_TUMOUR_FRACTION,
+    )
+    planned = {
+        split: {
+            CLASSES[k]: sum(r['split'] == split and r['label'] == k for r in selected)
+            for k in range(3)
+        }
+        for split in ('train', 'validation')
+    }
+
+    print('Planned candidates:', json.dumps(planned, indent=2))
+    print(
+        'Raw RGB upper-bound payload estimate (GiB):',
+        round(len(selected) * OUTPUT_PIXELS * OUTPUT_PIXELS * 3 / 1024**3, 3),
+    )
+
+    atomic_json(
+        PREP_ROOT / 'pilot_plan.json',
+        {
+            'caps': CAPS,
+            'counts': planned,
+            'selected': len(selected),
+            'sampling': 'deterministic class-capped subset',
+            'target_fov_um': TARGET_FOV_UM,
+            'output_pixels': OUTPUT_PIXELS,
+            'min_tumour_fraction': MIN_TUMOUR_FRACTION,
+            'not_yet_normalized': True,
+        },
+    )
+else:
+    print('Inventory paused. Save this version with outputs and resume it next run.')
+
+# %% A6 — optional cache preparation
 if CPU_TASK == 'prepare' and inventory['complete'] and time.monotonic() < CPU_DEADLINE:
     reference = ensure_reference(PREP_ROOT / 'standard_he_stain_small.jpg')
-    preparation = prepare_selected(DATA_ROOT, PREP_ROOT, CAPS, reference,
-                                   max_cache_gib=MAX_CACHE_GIB, deadline=CPU_DEADLINE)
+    preparation = prepare_selected(
+        DATA_ROOT,
+        PREP_ROOT,
+        CAPS,
+        reference,
+        min_tumour_fraction=MIN_TUMOUR_FRACTION,
+        max_cache_gib=MAX_CACHE_GIB,
+        deadline=CPU_DEADLINE,
+    )
     print(json.dumps(preparation, indent=2))
     if not preparation['complete']:
-        print('Cache paused. Save outputs and resume with the same settings.')
+        print('Cache paused. Save outputs and resume with identical settings.')
 else:
-    print('No cache work this run. Review inventory, then choose CPU_TASK=prepare in the next run.')
+    print('No cache work this run. Review inventory, then use CPU_TASK=prepare.')
 
-# ========================================================================
-# A7 — Handoff checklist (finish normally and save this version)
-# ========================================================================
+# %% A7 — handoff checklist
 bytes_written = sum(p.stat().st_size for p in PREP_ROOT.rglob('*') if p.is_file())
-print(f'Saved-output directory: {PREP_ROOT}; size: {bytes_written/1024**3:.2f} GiB')
+print(f'Saved-output directory: {PREP_ROOT}; size: {bytes_written / 1024**3:.2f} GiB')
+
 marker = PREP_ROOT / 'prepared.json'
 ready = marker.is_file() and json.loads(marker.read_text()).get('training_ready', False)
 print('Ready for GPU notebook:', ready)
 print('Save Version with outputs; attach that saved version using Add Input in notebook B.')
-print('For CPU resume, attach this version and set PREVIOUS_CPU_OUTPUT to its panda_prepared folder.')
-print('Keep the same seed, class caps, software and source dataset version when resuming.')
+print('For CPU resume, attach this version and set PREVIOUS_CPU_OUTPUT to its panda_prepared_150um folder.')
+print('Keep the same seed, geometry, class caps, software and source-data version when resuming.')

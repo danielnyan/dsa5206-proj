@@ -99,7 +99,16 @@ def check_prepared(root):
     meta=json.loads((root/'prepared.json').read_text())
     if not meta.get('complete') or not meta.get('training_ready'):
         raise ValueError('CPU preparation is not complete and training-ready')
-    if meta.get('native_tile')!=600 or meta.get('output_pixels')!=350:
+    # Preserve the original GPU/model/training contract.  The revised CPU
+    # preparation may describe geometry physically (target_fov_um=150) rather
+    # than with the legacy fixed native_tile=600 flag.  Accept either metadata
+    # convention, while requiring the same 350x350 model input.
+    if meta.get('output_pixels')!=350:
+        raise ValueError('Unexpected preparation geometry')
+    if 'target_fov_um' in meta:
+        if abs(float(meta['target_fov_um'])-150.0)>1e-6:
+            raise ValueError('Unexpected preparation geometry')
+    elif meta.get('native_tile')!=600:
         raise ValueError('Unexpected preparation geometry')
     rows={}
     for split in ('train','validation'):
