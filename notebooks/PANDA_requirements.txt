@@ -1,0 +1,128 @@
+PANDA TWO-NOTEBOOK REQUIREMENTS AND HANDOFF — INSPECTION DRAFT
+
+Files
+  PANDA_CPU_cells.txt: notebook A, CPU inventory and stain-normalized cache.
+  PANDA_GPU_cells.txt: notebook B, GPU benchmark/training/internal validation.
+Each text file contains numbered Python cells; copy one CELL at a time.
+All workflow code is included; there is no repository/module upload requirement.
+No GPU training has been run by this VM. This is a review draft, not a validated
+Kaggle release. Do not launch a long job before reviewing configuration and limits.
+
+Inputs and verified observations
+  Attach the official PANDA competition data after accepting its rules.
+  train.csv: 10,616 slides; Radboud 5,160; Karolinska 5,456.
+  Radboud CSV counts: 3+3=852; 4+4=660; 5+5=111. These are slide scores, not
+  guaranteed pure-mask patch counts or post-normalization class coverage.
+  First uploaded sample is Karolinska, 0+0, ISUP 0; its mask contains 0/1.
+  Second sample is Radboud, 4+4, ISUP 4; its red channel contains 0/1/2/4.
+  The new mask has 82 full 600px tiles with GP4 pixels, before normalization.
+
+Label/geometry policy
+  Use Radboud mask RED channel: 0 background/unknown; 1 stroma; 2 benign;
+  3/4/5 malignant epithelium GP3/4/5. Karolinska's 0/1/2 scheme has no GP labels.
+  Native level-0, stride-600, full 600x600 tiles; discard partial edge tiles.
+  Edges still contribute to whole-slide pattern eligibility. Resize RGB to
+  350x350 using Lanczos, then legacy brightness + StainTools Macenko, cache PNG.
+  No whole WSI is decoded into a RAM array. Mask scan is blockwise.
+  MPP is checked (default accepted range 0.35–0.65); missing/out-of-range metadata
+  stops preparation. 600px therefore does not mean identical physical FOV on
+  every scanner. The two supplied files have about 0.452 and 0.480 um/pixel.
+  The training split is frozen at image/slide level before patch selection.
+  Training seeds require a single GP across the slide's mask; validation uses
+  single-GP tiles from held-out slides. Patient independence is not established.
+  Default caps: 1,000 training and 200 validation candidates per GP class.
+  This is a deterministic capped pilot, not all of PANDA. Inspect counts before
+  choosing larger caps. Changing caps after preparation requires a fresh output.
+  Tile-normalization exceptions are warned and audited; no unnormalized fallback.
+  Reader, scale, mask-schema, reference and cache-write failures remain fatal.
+
+Notebook A environment
+  Accelerator=None (CPU only), internet enabled for installation/reference.
+  Python 3.11 or 3.12 recommended; installation is tested locally on 3.11.
+  Its installation cell requests:
+    numpy==1.26.4
+    Pillow>=10,<13
+    openslide-python==1.4.6
+    openslide-bin==4.0.1.2
+    opencv-python==4.11.0.86
+    staintools==2.1.2
+    spams-bin==2.6.14
+  StainTools also pulls its standard dependencies. Use a fresh kernel; restart
+  after pip if you had already imported a library whose version changed.
+  It downloads the original reference JPEG from a pinned upstream Git commit
+  and verifies SHA-256. Offline users can attach that exact file and place it at
+  PREP_ROOT/standard_he_stain_small.jpg before the preparation cell.
+
+Notebook B environment
+  Use Kaggle's existing TensorFlow/Keras GPU runtime; do not install the CPU-only
+  TensorFlow wheel there. NumPy and Pillow are already in the Kaggle runtime.
+  TensorFlow 2.20 / Keras 3.15.1 are used for local tiny CPU checkpoint tests,
+  but actual Kaggle NASNet GPU execution is not yet verified in this draft.
+  Avoid upgrading TensorFlow/CUDA packages blindly. Runtime versions are bound
+  into checkpoint settings; a changed runtime requires review/new run.
+  NASNetLarge ImageNet weights download automatically (internet required), or
+  set WEIGHTS to an attached compatible no-top weights file.
+  Default batch 1, float32, single GPU, JIT disabled. The 14-epoch staged schedule,
+  original Flatten/Dense256 head, /255 convention, and flips are retained.
+
+Handoff and resumption
+  1. CPU notebook: CPU_TASK=inventory. Save Version with output files after it
+     finishes normally. If incomplete, attach the saved version as Add Input,
+     set PREVIOUS_CPU_OUTPUT to its panda_prepared folder, and run again.
+  2. Review inventory_report.json and pilot_plan.json. Set CPU_TASK=prepare,
+     resume the same CPU output, and preserve the same parameters. Repeat as
+     needed until prepared.json says complete=true AND training_ready=true.
+  3. Save that completed CPU version with outputs. Add its output to notebook B;
+     point PREPARED_INPUT directly at its read-only panda_prepared folder.
+  4. GPU_TASK=benchmark first. Enter actual remaining quota hours. Review the
+     deepest-stage GPU fit and runtime estimate. Save the benchmark output.
+  5. Attach saved benchmark output via PREVIOUS_GPU_OUTPUT, use GPU_TASK=train,
+     START_TRAINING=True. Training writes checkpoint files and state.json.
+  6. Save every completed invocation with outputs. To resume, attach the latest
+     GPU output and the SAME CPU version. Set PREVIOUS_GPU_OUTPUT accordingly.
+  7. After run.json complete=true, GPU_TASK=evaluate produces internal-validation
+     predictions and metrics. It is not the PANDA hidden-test/ISUP evaluation.
+
+Time/storage limits
+  You reported an 8-hour background cutoff. Both notebooks default to a 6.5-hour
+  work deadline measured from cell 1, leaving time for setup/commit/save delays.
+  A long library operation/checkpoint cannot be interrupted safely mid-call;
+  the cutoff is cooperative, not a guarantee against a forced platform kill.
+  GPU checkpoints are periodic (15 minutes) and at epoch ends, with Adam state,
+  metric totals and the next-batch cursor. The previous checkpoint is preserved
+  during an alternating save. Unsaved in-flight batches can repeat after a kill.
+  CPU saves inventory per slide and cache records per tile. On interruption,
+  only uncommitted work is redone. Same parameter/data versions are required.
+  Local checkpoints do not guarantee Kaggle will publish outputs of a killed
+  session. Use successful, normally completed saved versions as durable handoffs.
+  Official docs describe up to 20 GB saved output, and a variable weekly GPU
+  quota (commonly 30 hours or more), not a universal 100-hour free trial.
+  Enter the quota shown in your account. Idle GPU session time may count too.
+  CPU cache defaults to an 8 GiB limit; the initial 3,600-tile pilot is smaller.
+  Do not also ZIP the cache inside /kaggle/working: that duplicates storage.
+  GPU output includes two optimizer checkpoints and a final model; actual sizes
+  must be checked on Kaggle before scaling up. The CPU cache stays read-only
+  under /kaggle/input, so it is not duplicated in GPU saved output.
+
+Artifacts to preserve
+  CPU: entire panda_prepared folder, especially prepared.json, manifests/,
+       cache/, inventory.sqlite, split.json, inventory_report.json,
+       source_summary.json, tile_ledger.jsonl and stain_exclusions.jsonl/json.
+  GPU: entire panda_gpu folder for resume; final.keras, run.json, history.csv,
+       benchmark.json and evaluation files for reporting.
+  Never edit a frozen prepared cache/manifest after starting its training run.
+
+Validation at draft export
+  TIFFs inspected at native resolution; provider interpretation confirmed with
+  uploaded train.csv. One real StainTools normalization produced finite uint8
+  RGB (350,350,3). Syntax checks pass. Four small CPU tests completed; the tiny
+  TensorFlow checkpoint test was still running when this draft was requested.
+  No full-cohort preparation, Kaggle background handoff, or real NASNet GPU run
+  has been verified. Exact scaling equivalence to Tolkach is not claimed.
+
+Primary references
+  PANDA labels/data: https://www.kaggle.com/c/prostate-cancer-grade-assessment/data?select=train.csv
+  Kaggle output handoff: https://www.kaggle.com/docs/notebooks
+  Kaggle GPU quota: https://www.kaggle.com/docs/efficient-gpu-usage
+  OpenSlide region reads: https://openslide.org/api/python/
+  Keras compile/save behavior: https://keras.io/api/models/model_training_apis/

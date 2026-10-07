@@ -1,0 +1,542 @@
+# PANDA notebook B — GPU benchmark, resumable training, validation — INSPECTION DRAFT
+# Copy each CELL into its own Kaggle Python code cell, in order. All code is included.
+# Attach a COMPLETE saved notebook-A output through Add Input. Raw PANDA TIFFs
+# are not required here. Select one supported GPU accelerator in Kaggle settings.
+#
+# First run GPU_TASK='benchmark'. Review benchmark.json and the CPU inventory.
+# Save that version with outputs. Attach it on the next run and set
+# PREVIOUS_GPU_OUTPUT to its panda_gpu folder; then use GPU_TASK='train'.
+# A resume also uses PREVIOUS_GPU_OUTPUT, now pointing to the latest saved training
+# version. Keep the same prepared input version, batch size, seed and TF/Keras runtime.
+# The notebook copies previous model outputs to writable /kaggle/working/panda_gpu;
+# it reads the prepared cache directly from /kaggle/input without copying it.
+#
+# The work deadline is below 8 hours. Checkpoints include model, Adam state, phase,
+# epoch, next-batch cursor and metric totals, and alternate between two files.
+# Stateless flips and deterministic epoch ordering keep the resumed input sequence.
+# A hard kill can repeat batches since the last checkpoint. Exact bitwise GPU
+# continuation is not claimed. Save a normally finished version WITH OUTPUTS;
+# do not assume an aborted platform job publishes its last local checkpoint.
+#
+# Architecture: NASNetLarge ImageNet -> Flatten -> Dense(256 ReLU) -> 3-way softmax.
+# Legacy /255 scaling, flips, staged unfreezing and 14-epoch schedule are retained.
+# Float32, batch 1 default, one GPU, JIT off. Batch size and capped data are recorded
+# deviations. This predicts GP patches, not slide ISUP or an official PANDA score.
+#
+# Validation status: inspection draft. Full Kaggle execution and NASNet GPU memory,
+# throughput and checkpoint timing remain unverified. Test notes are in requirements.
+
+# ========================================================================
+# B1 — Configuration and budget (edit paths before running)
+# ========================================================================
+import os, time
+from pathlib import Path
+GPU_SESSION_STARTED = time.monotonic()
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['KERAS_HOME'] = '/tmp/panda_keras'  # Download cache need not inflate saved outputs.
+
+PREPARED_INPUT = Path('/kaggle/input/YOUR-CPU-NOTEBOOK/panda_prepared')
+RUN_ROOT = Path('/kaggle/working/panda_gpu')
+# Point to the saved benchmark/training output on later runs, otherwise None.
+PREVIOUS_GPU_OUTPUT = None
+GPU_TASK = 'benchmark'  # 'benchmark', 'train', or 'evaluate'
+BATCH_SIZE = 1  # Fit the deepest stage in the benchmark before increasing this.
+SEED = 42
+SESSION_WORK_HOURS = 6.5
+REMAINING_QUOTA_HOURS = 0.0  # Enter the remaining hours actually shown in Kaggle.
+CHECKPOINT_MINUTES = 15
+# Train only after inspecting the estimate; False keeps the training cell inactive.
+START_TRAINING = False
+WEIGHTS = 'imagenet'  # Or an attached NASNetLarge no-top ImageNet .h5 path for offline use.
+GPU_DEADLINE = GPU_SESSION_STARTED + min(SESSION_WORK_HOURS, REMAINING_QUOTA_HOURS)*3600
+assert GPU_TASK in ('benchmark', 'train', 'evaluate')
+assert 0 < SESSION_WORK_HOURS <= 7
+assert BATCH_SIZE >= 1
+assert REMAINING_QUOTA_HOURS > 0, 'Enter your actual remaining Kaggle GPU quota.'
+
+# ========================================================================
+# B2.1 — helper definitions (run in order)
+# ========================================================================
+"""Self-contained GPU helpers; TensorFlow is imported only by initialize_gpu()."""
+import csv
+import gc
+import hashlib
+import importlib.metadata
+import json
+import math
+from pathlib import Path
+import shutil
+import time
+
+import numpy as np
+
+GPU_PIPELINE_VERSION = 'panda-kaggle-v1'
+GPU_CLASSES = ['GP3', 'GP4', 'GP5']
+GPU_SCHEDULE = [('normal_conv_1_17', 7, 1e-5)] + [
+    (f'normal_conv_1_{n}', 1, 1e-6) for n in (14, 11, 9, 7, 5, 3, 1)]
+
+
+def file_sha(path):
+    with Path(path).open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def save_json(path, value):
+    path = Path(path)
+    tmp = path.with_name(path.name+'.tmp')
+    tmp.write_text(json.dumps(value, indent=2, allow_nan=False)+'\n')
+    tmp.replace(path)
+
+
+def epoch_plan():
+    return [(stage, boundary, lr) for stage,(boundary,epochs,lr) in enumerate(GPU_SCHEDULE)
+            for _ in range(epochs)]
+
+
+def check_prepared(root):
+    root=Path(root)
+    meta=json.loads((root/'prepared.json').read_text())
+    if not meta.get('complete') or not meta.get('training_ready'):
+        raise ValueError('CPU preparation is not complete and training-ready')
+    if meta.get('native_tile')!=600 or meta.get('output_pixels')!=350:
+        raise ValueError('Unexpected preparation geometry')
+    rows={}
+    for split in ('train','validation'):
+        file=root/'manifests'/(split+'.csv')
+        if file_sha(file)!=meta['manifests'][file.name]:
+            raise ValueError('Manifest hash mismatch')
+        with file.open(newline='') as stream:
+            rows[split]=list(csv.DictReader(stream))
+        for item in rows[split]:
+            if Path(item['cache_file']).name!=item['cache_file']:
+                raise ValueError('Unsafe cache filename')
+            if file_sha(root/'cache'/item['cache_file'])!=item['cache_sha256']:
+                raise ValueError(f'Cache changed: {item["tile_id"]}')
+            item['label']=int(item['label'])
+            if item['label'] not in (0,1,2) or item['split']!=split:
+                raise ValueError('Invalid label or split')
+    train_ids={r['image_id'] for r in rows['train']}
+    val_ids={r['image_id'] for r in rows['validation']}
+    if train_ids & val_ids:
+        raise ValueError('Slide leakage across splits')
+    if {r['label'] for r in rows['train']}!={0,1,2} or not rows['validation']:
+        raise ValueError('Need all train classes and nonempty validation')
+    for name,digest in meta.get('audit_hashes',{}).items():
+        if Path(name).name!=name or file_sha(root/name)!=digest:
+            raise ValueError('Preparation audit changed')
+    return meta,rows
+
+
+def restore_training(previous, output):
+    output=Path(output)
+    if previous is not None and not output.exists():
+        previous=Path(previous)
+        if not ((previous/'state.json').is_file() or (previous/'benchmark.json').is_file()):
+            raise ValueError('Previous GPU output must contain a benchmark or a committed checkpoint state')
+        size=sum(p.stat().st_size for p in previous.rglob('*') if p.is_file())
+        output.parent.mkdir(parents=True,exist_ok=True)
+        if shutil.disk_usage(output.parent).free<size+2*1024**3:
+            raise RuntimeError('Insufficient space to restore GPU output')
+        shutil.copytree(previous,output)
+    output.mkdir(parents=True,exist_ok=True)
+    return output
+
+# ========================================================================
+# B2.2 — helper definitions (run in order)
+# ========================================================================
+def initialize_gpu(seed):
+    import tensorflow as tf
+    gpus=tf.config.list_physical_devices('GPU')
+    if not gpus:
+        raise RuntimeError('Enable a GPU accelerator for notebook B')
+    # One GPU, no silent change to distributed batch semantics.
+    tf.config.set_visible_devices(gpus[0],'GPU')
+    tf.config.experimental.set_memory_growth(gpus[0],True)
+    tf.keras.mixed_precision.set_global_policy('float32')
+    tf.keras.utils.set_random_seed(seed)
+    info=dict(tensorflow=tf.__version__,keras=tf.keras.__version__,
+              numpy=np.__version__,gpu=tf.config.experimental.get_device_details(gpus[0]),
+              policy='float32',visible_gpu_count=1)
+    print(json.dumps(info,indent=2,default=str))
+    return tf,info
+
+
+def build_model(tf,weights='imagenet'):
+    inputs=tf.keras.Input((350,350,3),name='image')
+    backbone=tf.keras.applications.NASNetLarge(include_top=False,weights=weights,
+                                              input_shape=(350,350,3))
+    x=backbone(inputs)  # Training mode propagates, preserving legacy batchnorm behavior.
+    x=tf.keras.layers.Flatten(name='paper_flatten')(x)
+    x=tf.keras.layers.Dense(256,activation='relu',name='paper_dense_256')(x)
+    output=tf.keras.layers.Dense(3,activation='softmax',name='class_probabilities')(x)
+    model=tf.keras.Model(inputs,output,name='nasnetlarge_original')
+    return model
+
+
+def configure_stage(tf,model,boundary,lr):
+    candidates=[layer for layer in model.layers if isinstance(layer,tf.keras.Model)]
+    if len(candidates)!=1:
+        raise ValueError('Expected one nested NASNet backbone')
+    backbone=candidates[0]
+    if boundary not in [layer.name for layer in backbone.layers]:
+        raise ValueError(f'Missing NASNet stage boundary: {boundary}')
+    backbone.trainable=True
+    release=False
+    for layer in backbone.layers:
+        if layer.name==boundary:
+            release=True
+        layer.trainable=release
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
+                  loss='categorical_crossentropy',metrics=['accuracy'],jit_compile=False)
+
+# ========================================================================
+# B2.3 — helper definitions (run in order)
+# ========================================================================
+def make_batches(tf,rows,prepared,batch_size,epoch,seed,training,skip_batches=0):
+    order=np.arange(len(rows))
+    if training:
+        np.random.default_rng(seed+epoch).shuffle(order)
+    start=skip_batches*batch_size
+    indices=np.arange(len(order),dtype=np.int64)[start:]
+    order=order[start:]
+    paths=[str(Path(prepared)/'cache'/rows[i]['cache_file']) for i in order]
+    labels=[rows[i]['label'] for i in order]
+    ds=tf.data.Dataset.from_tensor_slices((paths,np.asarray(labels,np.int32),indices))
+    def decode(path,label,position):
+        pixels=tf.io.decode_png(tf.io.read_file(path),channels=3)
+        pixels=tf.ensure_shape(pixels,(350,350,3))
+        pixels=tf.cast(pixels,tf.float32)/255.  # Legacy convention; not application preprocess_input.
+        if training:
+            key=tf.stack([tf.cast(seed+epoch,tf.int32),tf.cast(position,tf.int32)])
+            pixels=tf.image.stateless_random_flip_left_right(pixels,key)
+            pixels=tf.image.stateless_random_flip_up_down(pixels,key+tf.constant([0,104729]))
+        return pixels,tf.one_hot(label,3)
+    options=tf.data.Options()
+    options.experimental_deterministic=True
+    options.threading.private_threadpool_size=2
+    return ds.with_options(options).map(decode,num_parallel_calls=2).batch(batch_size).prefetch(1)
+
+
+def workload_estimate(counts,batch_size,seconds_train,seconds_val,remaining_hours,spent_hours=0,
+                      checkpoint_minutes=15):
+    train_steps=math.ceil(counts['train']/batch_size)
+    val_steps=math.ceil(counts['validation']/batch_size)
+    epoch_seconds=(train_steps*seconds_train+val_steps*seconds_val)*1.3
+    hours=14*epoch_seconds/3600
+    # Conservative checkpoint allowance: full optimizer checkpoints can be several GB.
+    checkpoint_hours=(14+math.ceil(hours*60/checkpoint_minutes))*120/3600
+    return dict(train_images=counts['train'],validation_images=counts['validation'],
+                train_steps_per_epoch=train_steps,validation_steps_per_epoch=val_steps,
+                seconds_per_epoch_with_30pct_margin=epoch_seconds,
+                estimated_14_epoch_hours=hours+checkpoint_hours,
+                assumed_checkpoint_seconds_per_epoch=120,
+                checkpoint_minutes=checkpoint_minutes,
+                remaining_quota_hours=remaining_hours,session_hours_already_spent=spent_hours,
+                fits_entered_quota=hours+checkpoint_hours+spent_hours<=remaining_hours,
+                caution='Measured estimate, not a runtime guarantee; quota charges may include idle and setup time')
+
+
+def benchmark(tf,rows,prepared,output,batch_size,seed,remaining_hours,session_started,weights='imagenet',steps=3,
+              checkpoint_minutes=15):
+    output=Path(output)
+    model=build_model(tf,weights)
+    example=next(iter(make_batches(tf,rows['train'],prepared,batch_size,0,seed,True)))
+    val_example=next(iter(make_batches(tf,rows['validation'],prepared,batch_size,0,seed,False)))
+    measurements=[]
+    for boundary,_,lr in (GPU_SCHEDULE[0],GPU_SCHEDULE[-1]):
+        configure_stage(tf,model,boundary,lr)
+        for _ in range(2):
+            model.reset_metrics()
+            result=model.train_on_batch(*example,return_dict=True)
+            if not all(math.isfinite(float(v)) for v in result.values()):
+                raise FloatingPointError('Nonfinite benchmark training metrics')
+        started=time.monotonic()
+        for _ in range(steps):
+            model.reset_metrics()
+            result=model.train_on_batch(*example,return_dict=True)
+        train_seconds=(time.monotonic()-started)/steps
+        model.test_on_batch(*val_example)
+        started=time.monotonic()
+        for _ in range(steps):
+            model.reset_metrics()
+            result=model.test_on_batch(*val_example,return_dict=True)
+        measurements.append(dict(boundary=boundary,train_seconds_per_batch=train_seconds,
+                                 validation_seconds_per_batch=(time.monotonic()-started)/steps))
+        gc.collect()
+    report=workload_estimate({k:len(v) for k,v in rows.items()},batch_size,
+                 max(r['train_seconds_per_batch'] for r in measurements),
+                 max(r['validation_seconds_per_batch'] for r in measurements),remaining_hours,
+                 (time.monotonic()-session_started)/3600,checkpoint_minutes)
+    report.update(measurements=measurements,batch_size=batch_size,seed=seed,
+                  gpu=tf.config.experimental.get_device_details(tf.config.list_physical_devices('GPU')[0]),
+                  manifests=json.loads((Path(prepared)/'prepared.json').read_text())['manifests'])
+    save_json(output/'benchmark.json',report)
+    del model,example,val_example
+    tf.keras.backend.clear_session()
+    gc.collect()
+    return report  # Benchmark updates are discarded; training creates a fresh ImageNet model.
+
+# ========================================================================
+# B2.4 — helper definitions (run in order)
+# ========================================================================
+def new_state(settings):
+    return dict(settings=settings,complete=False,epoch=0,phase='train',next_batch=0,
+                active_stage=None,train_totals=dict(loss=0.,accuracy=0.,n=0),
+                val_totals=dict(loss=0.,accuracy=0.,n=0),history=[],sequence=0,
+                training_seconds=0.)
+
+
+def accumulate(totals,metrics,count):
+    for name in ('loss','accuracy'):
+        value=float(metrics[name])
+        if not math.isfinite(value):
+            raise FloatingPointError(f'Nonfinite {name}')
+        totals[name]+=value*count
+    totals['n']+=count
+
+
+def commit_checkpoint(model,output,state):
+    output=Path(output)
+    sequence=state['sequence']+1
+    name=f'checkpoint-{sequence%2}.keras'
+    temporary=output/f'pending-{sequence%2}.keras'
+    # Model weights + Adam slots + optimizer iteration are saved together.
+    model.save(temporary)
+    temporary.replace(output/name)
+    new=dict(state,sequence=sequence,checkpoint=name,checkpoint_sha256=file_sha(output/name))
+    save_json(output/'state.json',new)
+    state.update(new)
+    return state
+
+
+def restore_checkpoint(tf,output,settings):
+    output=Path(output)
+    state=json.loads((output/'state.json').read_text())
+    if state['settings']!=settings:
+        raise ValueError('Training settings/runtime or prepared data changed. Use a new RUN_ROOT; do not silently resume.')
+    if Path(state['checkpoint']).name!=state['checkpoint']:
+        raise ValueError('Unsafe checkpoint filename')
+    checkpoint=output/state['checkpoint']
+    if file_sha(checkpoint)!=state['checkpoint_sha256']:
+        raise ValueError('Checkpoint checksum mismatch')
+    model=tf.keras.models.load_model(checkpoint,compile=True)
+    if state['active_stage'] is not None and getattr(model,'optimizer',None) is None:
+        raise ValueError('Optimizer was not restored')
+    if model.input_shape!=(None,350,350,3) or model.output_shape!=(None,3):
+        raise ValueError('Checkpoint model shape mismatch')
+    return model,state
+
+# ========================================================================
+# B2.5 — helper definitions (run in order)
+# ========================================================================
+def train_interruptible(tf,rows,prepared,output,settings,deadline,checkpoint_minutes=15,weights='imagenet'):
+    output=Path(output)
+    if checkpoint_minutes<=0:
+        raise ValueError('Checkpoint interval must be positive')
+    if (output/'state.json').exists():
+        model,state=restore_checkpoint(tf,output,settings)
+    else:
+        model=build_model(tf,weights)
+        state=new_state(settings)
+    plan=epoch_plan()
+    clock_start=time.monotonic()
+    previous_seconds=state['training_seconds']
+    last_saved=time.monotonic()
+    def persist(reason):
+        state['training_seconds']=previous_seconds+time.monotonic()-clock_start
+        state['stop_reason']=reason
+        commit_checkpoint(model,output,state)
+        # A small, human-readable status record even before final completion.
+        save_json(output/'run.json',dict(settings,complete=state['complete'],smoke=False,
+                  completed_epochs=state['epoch'],phase=state['phase'],next_batch=state['next_batch'],
+                  history=state['history'],stop_reason=reason,training_seconds=state['training_seconds'],
+                  resume_semantics='optimizer and next-batch cursor restored; stateless flips; no bitwise-continuation claim'))
+    try:
+        while state['epoch']<len(plan):
+            if time.monotonic()>=deadline:
+                persist('session_budget')
+                return state
+            stage,boundary,lr=plan[state['epoch']]
+            if state['active_stage']!=stage:
+                configure_stage(tf,model,boundary,lr)  # Reset Adam only at original stage boundaries.
+                state['active_stage']=stage
+                gc.collect()
+            train_phase=state['phase']=='train'
+            phase='train' if train_phase else 'validation'
+            totals=state['train_totals'] if train_phase else state['val_totals']
+            iterator=make_batches(tf,rows[phase],prepared,settings['batch_size'],state['epoch'],
+                                  settings['seed'],train_phase,state['next_batch'])
+            for images,labels in iterator:
+                if time.monotonic()>=deadline:
+                    persist('session_budget')
+                    return state
+                model.reset_metrics()
+                metrics=(model.train_on_batch(images,labels,return_dict=True) if train_phase else
+                         model.test_on_batch(images,labels,return_dict=True))
+                accumulate(totals,metrics,int(images.shape[0]))
+                state['next_batch']+=1
+                if state['next_batch']%100==0:
+                    print(f'Epoch {state["epoch"]+1}/14 {phase} batch {state["next_batch"]}; '
+                          f'loss {totals["loss"]/totals["n"]:.4f}',flush=True)
+                if time.monotonic()-last_saved>=checkpoint_minutes*60:
+                    persist('periodic_checkpoint')
+                    last_saved=time.monotonic()
+            if train_phase:
+                state.update(phase='validation',next_batch=0)
+            else:
+                if not state['train_totals']['n'] or not state['val_totals']['n']:
+                    raise ValueError('Epoch has no training/validation observations')
+                history=dict(epoch=state['epoch']+1,stage=stage,boundary=boundary,
+                             loss=state['train_totals']['loss']/state['train_totals']['n'],
+                             accuracy=state['train_totals']['accuracy']/state['train_totals']['n'],
+                             val_loss=state['val_totals']['loss']/state['val_totals']['n'],
+                             val_accuracy=state['val_totals']['accuracy']/state['val_totals']['n'])
+                state['history'].append(history)
+                print(json.dumps(history),flush=True)
+                state.update(epoch=state['epoch']+1,phase='train',next_batch=0,
+                             train_totals=dict(loss=0.,accuracy=0.,n=0),
+                             val_totals=dict(loss=0.,accuracy=0.,n=0))
+                persist('epoch_complete')
+                last_saved=time.monotonic()
+        # Export remains resumable: epoch=14 checkpoint is already committed.
+        if time.monotonic()>=deadline:
+            persist('session_budget_before_export')
+            return state
+        model.save(output/'pending-final.keras')
+        (output/'pending-final.keras').replace(output/'final.keras')
+        final_sha=file_sha(output/'final.keras')
+        sample=next(iter(make_batches(tf,rows['validation'],prepared,1,0,settings['seed'],False)))[0]
+        expected=model(sample,training=False).numpy()
+        del model
+        tf.keras.backend.clear_session()
+        gc.collect()
+        restored=tf.keras.models.load_model(output/'final.keras',compile=False)
+        np.testing.assert_allclose(expected,restored(sample,training=False).numpy(),rtol=1e-5,atol=1e-6)
+        del restored
+        tf.keras.backend.clear_session()
+        state.update(complete=True,stop_reason='complete')
+        # Keep last training checkpoint to resume export if needed; mark completion only after reload check.
+        save_json(output/'state.json',state)
+        save_json(output/'run.json',dict(settings,complete=True,smoke=False,completed_epochs=14,
+                  history=state['history'],model_sha256=final_sha,training_seconds=state['training_seconds']))
+        with (output/'history.csv').open('w',newline='') as stream:
+            writer=csv.DictWriter(stream,fieldnames=list(state['history'][0]))
+            writer.writeheader(); writer.writerows(state['history'])
+        return state
+    except KeyboardInterrupt:
+        # A signal can arrive inside an optimizer update; do not checkpoint uncertain in-flight state.
+        print('Interrupted. Resume the last committed state.json checkpoint; unfinished batches may repeat.',flush=True)
+        raise
+
+# ========================================================================
+# B2.6 — helper definitions (run in order)
+# ========================================================================
+def evaluate_pilot(tf,rows,prepared,output,deadline):
+    """Internal held-out validation, not PANDA challenge ISUP evaluation."""
+    output=Path(output)
+    run=json.loads((output/'run.json').read_text())
+    if not run.get('complete') or file_sha(output/'final.keras')!=run['model_sha256']:
+        raise ValueError('Need a complete verified final model')
+    model=tf.keras.models.load_model(output/'final.keras',compile=False)
+    confusion=np.zeros((3,3),dtype=np.int64)
+    records=[]
+    batches=make_batches(tf,rows['validation'],prepared,run['batch_size'],0,run['seed'],False)
+    cursor=0
+    for images,labels in batches:
+        if time.monotonic()>=deadline:
+            print('Evaluation deferred to the next saved-output session.',flush=True)
+            return None
+        probabilities=model(images,training=False).numpy()
+        if not np.isfinite(probabilities).all():
+            raise FloatingPointError('Nonfinite predictions')
+        for values in probabilities:
+            row=rows['validation'][cursor]
+            predicted=int(values.argmax()); truth=row['label']
+            confusion[truth,predicted]+=1
+            records.append(dict(tile_id=row['tile_id'],image_id=row['image_id'],truth=truth,predicted=predicted,
+                                p_gp3=float(values[0]),p_gp4=float(values[1]),p_gp5=float(values[2])))
+            cursor+=1
+    result=dict(complete=True,split='internal_validation',class_order=GPU_CLASSES,
+                model_sha256=run['model_sha256'],count=cursor,confusion=confusion.tolist(),
+                accuracy=float(np.trace(confusion)/max(1,confusion.sum())),
+                limitation='Capped patch cohort; patient independence unverified; no slide-level ISUP claim')
+    with (output/'validation_predictions.csv').open('w',newline='') as stream:
+        writer=csv.DictWriter(stream,fieldnames=list(records[0]))
+        writer.writeheader();writer.writerows(records)
+    save_json(output/'evaluation.json',result)
+    del model
+    tf.keras.backend.clear_session()
+    return result
+
+# ========================================================================
+# B3 — Verify CPU handoff and restore previous GPU output
+# ========================================================================
+prepared_meta, rows = check_prepared(PREPARED_INPUT)
+restore_training(PREVIOUS_GPU_OUTPUT, RUN_ROOT)
+print('Prepared class counts:', prepared_meta['counts'])
+print('Training tiles:', len(rows['train']), 'Validation tiles:', len(rows['validation']))
+print('Normalization exclusions:', prepared_meta.get('stain_exclusion_count'))
+print('Source: capped Radboud patch pilot; see CPU inventory for full eligible counts.')
+print('GPU run output:', RUN_ROOT)
+
+# ========================================================================
+# B4 — Initialize GPU only after data verification
+# ========================================================================
+tf, runtime = initialize_gpu(SEED)
+settings = dict(pipeline_version=GPU_PIPELINE_VERSION, batch_size=BATCH_SIZE, seed=SEED,
+                classes=GPU_CLASSES, schedule=[list(stage) for stage in GPU_SCHEDULE],
+                manifests=prepared_meta['manifests'],
+                prepared_sha256=file_sha(PREPARED_INPUT/'prepared.json'),
+                tensorflow=runtime['tensorflow'], keras=runtime['keras'], numpy=runtime['numpy'],
+                architecture='NASNetLarge/Flatten/Dense256/softmax3', weights=str(WEIGHTS),
+                float_policy='float32', jit_compile=False,
+                cohort='Radboud single-pattern-slide mask proxy',
+                counts={key:len(value) for key,value in rows.items()},
+                deviations=['PANDA replacement dataset', 'capped per-class pilot',
+                            f'physical batch {BATCH_SIZE} instead of legacy 100',
+                            'patient independence unverified'])
+save_json(RUN_ROOT/'session_runtime.json', runtime)
+
+# ========================================================================
+# B5 — Benchmark first and deepest unfreezing stages
+# ========================================================================
+if GPU_TASK == 'benchmark':
+    estimate = benchmark(tf, rows, PREPARED_INPUT, RUN_ROOT, BATCH_SIZE, SEED,
+                         REMAINING_QUOTA_HOURS, GPU_SESSION_STARTED, weights=WEIGHTS,
+                         checkpoint_minutes=CHECKPOINT_MINUTES)
+    print(json.dumps(estimate, indent=2))
+    print('Save this version with outputs. Inspect the estimate before starting training.')
+else:
+    benchmark_path = RUN_ROOT/'benchmark.json'
+    estimate = json.loads(benchmark_path.read_text()) if benchmark_path.exists() else None
+    if estimate is not None:
+        print(json.dumps(estimate, indent=2))
+
+# ========================================================================
+# B6 — Train or resume (inactive unless explicitly enabled)
+# ========================================================================
+if GPU_TASK == 'train' and START_TRAINING:
+    assert estimate is not None, 'Run/save a benchmark and attach its output first.'
+    assert estimate['batch_size']==BATCH_SIZE and estimate['manifests']==prepared_meta['manifests'], 'Benchmark/data settings differ.'
+    if not (RUN_ROOT/'state.json').exists():
+        needed = estimate['estimated_14_epoch_hours'] + (time.monotonic()-GPU_SESSION_STARTED)/3600
+        assert needed <= REMAINING_QUOTA_HOURS, 'Estimate exceeds entered quota; review a smaller pilot or more quota.'
+    state = train_interruptible(tf, rows, PREPARED_INPUT, RUN_ROOT, settings,
+                               GPU_DEADLINE, checkpoint_minutes=CHECKPOINT_MINUTES, weights=WEIGHTS)
+    print('Complete:', state['complete'], 'Completed epochs:', state['epoch'],
+          'Phase:', state['phase'], 'Next batch:', state['next_batch'])
+    print('Save this version with outputs. Resume from this output if complete is false.')
+else:
+    print('Training not started. Set GPU_TASK=train and START_TRAINING=True after reviewing the benchmark.')
+
+# ========================================================================
+# B7 — Optional internal validation after final training
+# ========================================================================
+if GPU_TASK == 'evaluate':
+    result = evaluate_pilot(tf, rows, PREPARED_INPUT, RUN_ROOT, GPU_DEADLINE)
+    if result is not None:
+        print(json.dumps(result, indent=2))
+print('Preserve the entire panda_gpu output folder for resume or export.')
+print('Final success requires run.json complete=true and final.keras with matching SHA-256.')
+print('Internal patch validation is not a slide-level ISUP challenge submission.')
