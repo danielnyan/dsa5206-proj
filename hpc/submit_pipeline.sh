@@ -7,6 +7,7 @@ action=${2:-${MODE:-smoke}}
 case "$requested_dataset" in crowd-sicap|gleason2019) ;; *) echo 'Dataset must be crowd-sicap or gleason2019' >&2; exit 2;; esac
 export DATASET="$requested_dataset"
 source "$PIPELINE_CONFIG"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
 if [[ "$DATASET" != "$requested_dataset" ]]; then
   echo 'Old configuration overrides DATASET. Refresh from hpc/site.env.example.' >&2; exit 2
 fi
