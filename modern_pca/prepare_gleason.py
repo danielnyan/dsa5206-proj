@@ -468,20 +468,18 @@ def prepare_gleason2019(args):
                             tile = original.crop((x, y, x+600, y+600))
                             try:
                                 pixels = preprocess_image(tile, normalizers)
-                            except (np.linalg.LinAlgError, FloatingPointError, OverflowError,
-                                    ZeroDivisionError, ValueError) as error:
-                                # Only numerical normalization failures are eligible for exclusion.
-                                # Geometry, library, decoding, and configuration errors still abort.
-                                if (isinstance(error, ValueError) and
-                                        not isinstance(error, np.linalg.LinAlgError) and
-                                        str(error) != 'Nonfinite normalized pixels'):
-                                    raise
+                            except Exception as error:
+                                # Scope is deliberately limited to this tile's preprocessing.
+                                # Reference fitting, mask handling, and cache writes remain fatal.
                                 row.update(status='stain_failure', normalization_error_type=type(error).__name__,
                                            normalization_error=str(error))
                                 exclusions.append(dict(sample_id=row['sample_id'], source_core=core,
                                     x=x, y=y, split=row['split'], annotation_status=status,
                                     class_name=row['class_name'], error_type=type(error).__name__,
                                     message=str(error)))
+                                # Persist before continuing, even if a later job is interrupted.
+                                with (destination / 'stain_exclusions.jsonl').open('a', encoding='utf-8') as audit:
+                                    audit.write(json.dumps(exclusions[-1]) + '\n')
                                 counts['stain_failure'] += 1
                                 warnings.warn(f'Excluded {name}: stain normalization failed '
                                               f'({type(error).__name__}: {error})', RuntimeWarning,
@@ -498,7 +496,7 @@ def prepare_gleason2019(args):
         raise
     finally:
         write_json(destination / 'stain_exclusions.json', dict(
-            policy='exclude numerical tile normalization failures; warn and retain annotation audit',
+            policy='exclude tile preprocessing exceptions; warn and retain annotation audit',
             count=len(exclusions), tiles=exclusions))
         if rows:
             write_csv(destination / 'patch_inventory.csv', rows)
@@ -507,7 +505,7 @@ def prepare_gleason2019(args):
             audit_only=args.audit_only, core_count=len(paths), orphan_mask_cores=orphan_masks,
             stain_exclusion_count=len(exclusions),
             stain_exclusions_sha256=sha(destination / 'stain_exclusions.json'),
-            normalization_failure_policy='exclude numerical tile failures; other errors abort',
+            normalization_failure_policy='exclude tile preprocessing exceptions; errors outside tile preprocessing abort',
             mask_archive_sha256=GLEASON_MASK_SHA, reference_sha256=REFERENCE_SHA,
             geometry='native 600x600, stride 600, discard incomplete edges; image LANCZOS 350x350',
             voting='all available expert labels including background; unique plurality; ties and raw 6 unresolved',
@@ -541,6 +539,7 @@ def prepare_gleason2019(args):
         evaluation_split='validation', seed_definition='single-pattern-core consensus proxy, not verified pure patient cases')
     write_json(destination / 'gleason2019.json', metadata)
     write_json(destination / 'prepared.json', metadata)
+    print(f'Gleason2019 excluded {len(exclusions)} tiles; audit: {destination / "stain_exclusions.json"}', flush=True)
     print(f'Gleason2019 training-ready: {ready}; seed classes: {metadata["seed_class_counts"]}', flush=True)
 
 

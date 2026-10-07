@@ -157,15 +157,19 @@ comparison or exact reproduction of the published model. Full normalization,
 GPU training and actual scheduler execution must be validated on the cluster.
 See [the implementation report](../reports/gleason_implementation.md).
 
-### Gleason2019 numerical stain failures
+### Gleason2019 stain preprocessing failures
 
-Gleason2019 preparation excludes individual tiles when Macenko normalization
-raises a numerical error or returns nonfinite normalized pixels. Each exclusion
+Gleason2019 preparation excludes individual tiles when the tile preprocessing
+call raises an exception, including empty tissue masks, numerical errors, or
+nonfinite normalized pixels. Each exclusion
 emits a `RuntimeWarning` naming the core and tile coordinates in the CPU PBS log.
 Valid tiles continue through the existing brightness/Macenko pipeline. No raw
 image or expert mask is deleted, and no unnormalized fallback enters training.
-Reference fitting, missing dependencies, decoding, geometry, and other unexpected
-errors still abort preparation.
+The catch is limited to `preprocess_image(tile, normalizers)`. Reference fitting,
+raw image decoding, mask handling, cache writes, and other operations outside
+that call still abort on error. KeyboardInterrupt and SystemExit are not caught.
+Review repeated errors: this broad tile policy can exclude tiles for a backend
+problem as well as an unsuitable image.
 
 Inspect `PREPARED_DIR/stain_exclusions.json` for each excluded tile's original
 annotation status, class, split, coordinates, and error. `patch_inventory.csv`
@@ -173,6 +177,10 @@ retains its annotation fields with status `stain_failure`, empty cache fields,
 and normalization error details. These rows are excluded from both training and
 validation manifests, including the mixed-tile mining pool. `prepared.json` and
 `gleason2019.json` record the exclusion count, policy, and audit-file hash.
+Each exclusion is also appended immediately to `stain_exclusions.jsonl`, so
+completed audit records survive a later interruption. The JSON summary and CSV
+inventory are finalized on normal completion or a handled preparation error;
+they may be absent or incomplete if the scheduler forcibly kills the job.
 The original `single_gp`/`mixed` counts describe annotation categories before
 normalization; `stain_failure` counts exclusions from those categories. Seed and
 validation class counts describe retained manifest eligibility.
