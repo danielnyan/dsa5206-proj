@@ -2,6 +2,9 @@
 
 ## 1. One-time setup
 
+Run `cd "/scratch/USER"`, where USER is your student ID (starting with eXXXXXXX), 
+lowercase, and clone this repository using 
+`git clone -b gleason https://github.com/danielnyan/dsa5206-proj`. 
 From the extracted repository, copy the example config outside it:
 
 ```bash
@@ -10,7 +13,15 @@ export PIPELINE_CONFIG=/scratch/USER/site.env
 ```
 
 Edit only `REPO_DIR`, `WORK_ROOT`, site module commands if needed, and the
-Crowd/SICAP `SICAP_WSI_LABELS` path. Other paths are derived automatically and
+Crowd/SICAP `SICAP_WSI_LABELS` path to replace USER with your student ID. 
+Additionally, stage `wsi_labels.xlsx` by running the following while you are in 
+`/scratch/USER`: 
+```bash
+mkdir raw/SICAPv2
+cp dsa5206-proj/supplementary-data/wsi_labels.xlsx raw/SICAPv2/wsi_labels.xlsx
+```
+
+Other paths are derived automatically and
 track-specific. If upgrading, refresh your old configuration from this example:
 hardcoded old dataset/output paths would defeat automatic track selection.
 
