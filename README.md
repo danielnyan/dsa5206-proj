@@ -23,12 +23,12 @@ The released Zenodo validation datasets are therefore used for a carefully contr
 | Stage 2E | Performance profiling and preprocessing-cache validation | **COMPLETE** |
 | Stage 2F | CPU/GPU numerical-gradient investigation | **COMPLETE** |
 | Stage 2G | Full VAL1 cache, integrity/parity audits and trainer dry run | **PASS** |
-| Production training | 14-epoch constrained reimplementation | **NOT STARTED** |
-| VAL2 evaluation | Final external evaluation | **NOT STARTED** |
+| Stage 2H | Production training, checkpoint / OOM investigation, and validation verification | **WORK PERFORMED — final metrics awaiting report reconciliation** |
+| Stage 2I | Frozen-checkpoint external VAL2 evaluation, contract and readiness verification | **WORK PERFORMED — evaluation outputs awaiting verification** |
 
-> **Stage 2G recommends GO for production readiness; production training has not started.** Stage 2F strict CPU/GPU parity remains FAIL under its original tolerance; its separate material-equivalence assessment supports GPU training on numerical grounds.
+> **Stage 2G recommended GO for production readiness as of the Stage 2G checkpoint.** Stage 2H work followed. This README does not yet claim an epoch-14 completion, a final VAL2 score, or a validated final checkpoint until the Stage 2H run records are supplied. Stage 2F strict CPU/GPU parity remains FAIL under its original tolerance; its separate material-equivalence assessment supports GPU training on numerical grounds.
 
-> **VAL2 has remained untouched during model development, profiling, performance optimization and hyperparameter decisions.**
+> **VAL2 was held out during development through Stage 2G.** Stage 2I covers the final VAL2 evaluation workflow after checkpoint selection; its outcome and evidence must be documented separately from internal VAL1 validation.
 
 ---
 
@@ -461,6 +461,71 @@ Detailed Stage 2G evidence:
 
 ---
 
+## Stage 2H — Production Run, Troubleshooting, and Validation
+
+Stage 2H follows the verified Stage 2G training readiness milestone. The local working tree contains Stage 2H-specific test and diagnostic materials, including files named:
+
+- `tests/test_stage2h_readiness.py` and `tests/test_stage2h_oom_candidates.py`
+- `tools/stage2h_epoch12_probe.py`, `tools/report_stage2h_epoch12.py`, and `tools/verify_stage2h_validation.py`
+- `reports/stage2h_epoch12_oom_investigation.md` and `.json`
+- `reports/stage2h_validation_batch2_verification.json` and `.log`
+- `reports/stage2h_epoch12_full_tests.log` and `reports/stage2h_validation_full_tests.log`
+
+These files are identified from the local Git status but **their contents were not supplied for this README revision**. Their existence alone does not establish that tests passed, that a full 14-epoch run finished, or that the model achieved particular VAL2 metrics.
+
+### Stage 2H results to insert from verified run records
+
+| Measurement | Verified result |
+|---|---|
+| Training epochs completed | Pending Stage 2H run log / checkpoint metadata |
+| Final checkpoint identifier and SHA-256 | Pending |
+| Training runtime and hardware | Pending |
+| Internal VAL1 validation loss / accuracy / AUROC | Pending |
+| Epoch-12 memory investigation and resolution | Pending Stage 2H OOM report |
+| Full test-suite pass count | Pending Stage 2H test log |
+
+
+**Interpretation safeguard:** An external VAL2 result should be reported only for the frozen, explicitly identified checkpoint. Do not use VAL2 to choose the checkpoint, optimize batch size, tune thresholds or revise hyperparameters and still describe it as an untouched external test.
+
+**Git scope:** Include reviewed Stage 2H work and Stage 2I files specifically supporting the frozen-checkpoint VAL2 evaluation. Stage 2J and the separate SICAPv2 work remain excluded. Select artifacts individually; avoid committing large datasets, caches or checkpoints.
+
+---
+
+## Stage 2I — Final External VAL2 Evaluation and Verification
+
+Stage 2I is included **only for the final held-out VAL2 evaluation of the constrained binary reimplementation**, plus the associated evaluation contract, readiness checks, and evidence. This is distinct from Stage 2H internal VAL1 validation and from subsequent Stage 2J or SICAPv2 work.
+
+The local Git status supplied for this update identifies Stage 2I-related files:
+
+- `modern_pca/stage2i_contract.py` — Stage 2I evaluation contract (content not yet reviewed)
+- `tests/test_stage2i_readiness.py` — readiness tests
+- `tools/stage2i_readiness.py` — readiness verification utility
+- `reports/stage2i_readiness.md` and `.json` — readiness reports
+- `reports/stage2i_inference_verification.json` — inference verification
+- `reports/stage2i_report_verification.json` — report verification
+- `reports/stage2i_restore_verification.json` — restore verification
+- `reports/stage2i_tests_verification.json` — test verification
+- `reports/stage2i_focused_tests.log` and `reports/stage2i_full_tests.log` — test logs
+
+`modern_pca/evaluate_reimplementation.py` also has uncommitted changes; review its diff to identify changes required for Stage 2I VAL2 evaluation before staging it. Some of the files above can establish readiness and integrity but **do not themselves establish final VAL2 classification performance**.
+
+### External VAL2 results — pending evidence review
+
+| Measurement | Result / evidence status |
+|---|---|
+| Evaluated checkpoint (epoch, path and hash) | Not yet supplied / verified |
+| VAL2 evaluation run status and timestamp | Not yet supplied / verified |
+| VAL2 sample coverage (expected 34,103) | Verify from evaluation run and manifest |
+| Confusion matrix (benign / tumour) | Not yet supplied / verified |
+| Sensitivity, specificity, accuracy, precision, F1 | Not yet supplied / verified |
+| AUROC and applicable uncertainty intervals | Not yet supplied / verified |
+| Evaluation preprocessing / checkpoint restore parity | Verify from Stage 2I reports |
+| Stage 2I focused and full test totals | Verify from Stage 2I test logs |
+
+**Evaluation boundary:** VAL2 is an external test cohort, not a training or tuning cohort. Report results for the preselected, frozen checkpoint without using VAL2 to tune model weights, thresholds, hyperparameters, or checkpoint selection. This remains a constrained binary reimplementation, not an exact paper reproduction.
+
+---
+
 ## Repository Layout
 
 Important project components:
@@ -552,7 +617,7 @@ Run the repository test suite before production work:
 python -m pytest -q
 ```
 
-Latest verified test status:
+Latest verified test status available in the supplied README (through Stage 2G):
 
 ```text
 Stage 2E: 183 tests passed
@@ -561,7 +626,7 @@ Stage 2G: 213 tests passed
 git diff --check passed
 ```
 
-Stage 2G also reran 23 focused cache/integration tests successfully.
+Stage 2G also reran 23 focused cache/integration tests successfully. Stage 2H and Stage 2I test counts must be inserted from their actual test logs; they are not verified by this README alone.
 
 ---
 
@@ -624,18 +689,9 @@ The original repository should still be consulted when comparing legacy training
 
 ## Current Next Step
 
-```text
-Stage 2G PASS
-Full VAL1 cache verified; trainer integration and one-update dry run passed
-        |
-        v
-14-epoch production training (not started; separate authorization)
-        |
-        v
-Freeze epoch-14 checkpoint
-        |
-        v
-Final untouched VAL2 evaluation
-```
+1. Reconcile Stage 2H training/checkpoint status, OOM investigation, and test results with original run artifacts.
+2. Review Stage 2I readiness/evaluation logs and final VAL2 outputs for the **frozen checkpoint**. Insert numerical metrics only after verifying them.
+3. Commit reviewed Stage 2H and Stage 2I VAL2 evaluation code, tests, README and compact evidence. Keep Stage 2J and SICAPv2 work uncommitted.
+4. On NUS Vanda, validate a separate PBS two-A40 allocation and training-step benchmark before a new production run.
 
-Stage 2G verified all 145,819 cached samples (116,655 training; 29,164 internal validation), exact online parity on 590 representative and 1,000 deterministic random samples, and checkpoint reload/resume. The revised training-only forecast is approximately 22.09 hours, with a conservative serial-input estimate of 26.48 hours. See the Stage 2G report for timing limitations. VAL2 must remain unused for development.
+Stage 2G verified all 145,819 cached VAL1 samples (116,655 training; 29,164 internal validation), exact online parity on 590 representative and 1,000 deterministic random samples, and checkpoint reload/resume. Its training-only time forecasts (~22.09 hours, conservative ~26.48 hours) are **pre-Stage 2H estimates**, not measured final training runtime.

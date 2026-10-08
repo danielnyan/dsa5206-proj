@@ -180,3 +180,77 @@ def test_epoch13_uses_normal_resume_path_without_executing_training(recovery, mo
     with pytest.raises(TrainingPathReached): cli.main(x['argv'])
     assert not (x['output'] / 'epoch14.keras').exists()
     assert x['stages'] == [r.SCHEDULE[-1][0], r.SCHEDULE[-2][0], r.SCHEDULE[-1][0]]
+
+
+def test_validation_batch_cli_default_override_and_invalid():
+    argv = ['--train-production', '--cache', 'cache', '--batch-size', '4', '--output', 'new']
+    assert cli.parse_args(argv).validation_batch_size == 1
+    for size in (1, 2, 4):
+        args = cli.parse_args(argv + ['--validation-batch-size', str(size)])
+        assert args.batch_size == 4 and args.validation_batch_size == size
+    for size in (0, -1, 3):
+        with pytest.raises(SystemExit): cli.parse_args(argv + ['--validation-batch-size', str(size)])
+
+
+@pytest.mark.parametrize('size', [1, 2, 4])
+def test_batch_adapter_keeps_training_four_and_validation_unaugmented(monkeypatch, size):
+    from types import SimpleNamespace
+    reader = SimpleNamespace(indices=lambda split, epoch: list(range(9)))
+    calls = []
+    monkeypatch.setattr(t.c, 'dataset', lambda reader, ids, **kw: calls.append((ids, kw)))
+    t.batches(reader, 'train', 9, validation_batch_size=size)
+    t.batches(reader, 'internal_validation', 9, validation_batch_size=size)
+    assert calls[0][0] == calls[1][0] == list(range(9))
+    assert calls[0][1]['batch_size'] == 4 and calls[0][1]['augment'] is True
+    assert calls[1][1]['batch_size'] == size and calls[1][1]['augment'] is False
+    assert calls[0][1]['epoch'] == calls[1][1]['epoch'] == 9
+
+
+def test_validation_always_inference_only_and_keeps_partial_batch():
+    import tensorflow as tf
+    calls = []
+    def model(images, training):
+        calls.append((len(images), training))
+        return tf.stack([1 - images[:, 0], images[:, 0]], axis=1)
+    def dataset(size):
+        for offset in range(0, 7, size):
+            ids = tf.range(offset, min(offset + size, 7))
+            yield tf.cast(ids[:, None], tf.float32) / 8, tf.cast(ids % 2, tf.int64), ids
+    assert t.validation(model, dataset(1)) == t.validation(model, dataset(4))
+    assert calls == [(1, False)] * 7 + [(4, False), (3, False)]
+
+
+@pytest.mark.parametrize('completed,stage_index', [(8, 1), (11, 4)])
+def test_resume_repeats_next_epoch_and_appends_history_once(recovery, monkeypatch, completed, stage_index):
+    """Exercise production orchestration/strict restore with no training updates."""
+    from types import SimpleNamespace
+    x = recovery; path = x['resume'] / 'checkpoint.json'; value = f.read(path)
+    original_history = deepcopy(x['state']['history'][:completed])
+    value['state'].update(completed_epochs=completed, boundary=r.SCHEDULE[stage_index][0], history=original_history)
+    f.atomic_json(path, value)
+    original_bytes = path.read_bytes()
+    restored = []; calls = []; saved = []
+    real_restore = t.restore_checkpoint
+    def restore(*args):
+        state = real_restore(*args); restored.append(state['completed_epochs']); return state
+    monkeypatch.setattr(t, 'restore_checkpoint', restore)
+    monkeypatch.setattr(r, 'Accumulator', lambda model, optimizer: SimpleNamespace(count=0))
+    class NextEpochReached(Exception): pass
+    def batches(reader, split, epoch, **kwargs):
+        if epoch == completed + 2: raise NextEpochReached
+        assert epoch == completed + 1 and restored == [completed]
+        calls.append((split, epoch, kwargs))
+        return split
+    monkeypatch.setattr(t, 'batches', batches)
+    monkeypatch.setattr(t, 'train_batches', lambda acc, data: dict(samples=116655, loss=.2, updates=1167))
+    labels = [0] * 18602 + [1] * 10562
+    monkeypatch.setattr(t, 'validation', lambda model, data: dict(labels=labels, scores=labels))
+    monkeypatch.setattr(t, 'save_checkpoint', lambda model, opt, acc, output, state, sha: saved.append(deepcopy(state)))
+    with pytest.raises(NextEpochReached): cli.main(x['argv'])
+    assert calls == [('train', completed + 1, {}), ('internal_validation', completed + 1, {'validation_batch_size': 1})]
+    epochs = f.read(x['output'] / 'history.json')['epochs']
+    assert [entry['epoch'] for entry in epochs] == list(range(1, completed + 2))
+    assert epochs[:completed] == original_history and epochs[completed]['boundary'] == r.SCHEDULE[stage_index + 1][0]
+    assert len(saved) == 1 and saved[0]['completed_epochs'] == completed + 1
+    assert saved[0]['history'] == epochs and saved[0]['validation_batch_size'] == 1
+    assert path.read_bytes() == original_bytes
