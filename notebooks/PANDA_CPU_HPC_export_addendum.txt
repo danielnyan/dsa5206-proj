@@ -1,0 +1,495 @@
+# PANDA CPU addendum — export a PBS/HPC training bundle
+#
+# APPEND THIS AS THE FINAL CELL of PANDA_CPU_150um_prepare.py / the corresponding
+# Kaggle CPU notebook, AFTER preparation has completed successfully.
+#
+# Purpose
+# -------
+# Export a deterministic 5,000-train / 1,000-validation subset (configurable)
+# from the already-normalized 350x350 PANDA cache into a single ZIP suitable for
+# transfer to the dsa5206-proj HPC environment.
+#
+# IMPORTANT
+# ---------
+# 1. This addendum does NOT retrain, renormalize, or alter image pixels.
+# 2. It preserves the PANDA provenance: manifest rows use dataset="panda".
+# 3. The ZIP is a TRANSFER ARCHIVE. The current PBS training job reads normal
+#    directories/files; it cannot train directly from inside a ZIP.
+# 4. A one-line repository compatibility change is required on the gleason
+#    branch so manifest_datasets() accepts ['panda']; see the handoff notes
+#    printed by this cell and the comments at the end of this file.
+# 5. The existing NASNetLarge architecture, ImageNet initialization, class order,
+#    14-epoch schedule, optimizer behavior, and train_gleason.pbs remain untouched.
+#
+# BEFORE PREPARATION FOR A 5,000 / 1,000 EXPORT:
+# The current CPU script default CAPS={'train': 1000, 'validation': 200} is
+# PER CLASS, so it can cache at most 3,000 train + 600 validation images.
+# After inspecting inventory counts, use a larger preparation allowance, e.g.
+#
+#     CAPS = {'train': 2000, 'validation': 400}
+#
+# which permits up to 6,000 train + 1,200 validation candidates. The exporter
+# below then deterministically selects exactly 5,000 + 1,000. If a class has
+# insufficient eligible tiles or stain exclusions reduce the retained cohort,
+# the exporter fails rather than silently changing the requested cohort.
+#
+# Expected prior definitions from the CPU script:
+#   PREP_ROOT, CLASSES, REFERENCE_SHA, TARGET_FOV_UM, OUTPUT_PIXELS,
+#   load_prepared(), sha()
+#
+# ---------------------------------------------------------------------------
+# A8 — HPC export configuration
+# ---------------------------------------------------------------------------
+
+import csv
+import hashlib
+import json
+import math
+import tempfile
+import zipfile
+from collections import Counter
+from pathlib import Path
+
+HPC_EXPORT_TRAIN = 5000
+HPC_EXPORT_VALIDATION = 1000
+HPC_EXPORT_SEED = SEED
+
+# The archive contains this one top-level directory.
+HPC_BUNDLE_NAME = 'panda-150um'
+HPC_ARCHIVE = Path('/kaggle/working/panda_150um_hpc_5000train_1000val.zip')
+HPC_ARCHIVE_SHA = HPC_ARCHIVE.with_suffix(HPC_ARCHIVE.suffix + '.sha256.txt')
+
+
+# ---------------------------------------------------------------------------
+# Deterministic proportional subsampling
+# ---------------------------------------------------------------------------
+
+def _stable_rank(seed, split, row):
+    key = f'{seed}:{split}:{row["tile_id"]}'.encode('utf-8')
+    return hashlib.sha256(key).hexdigest()
+
+
+def _class_targets(rows, n):
+    """
+    Allocate exactly n observations across the available GP classes approximately
+    in proportion to their frequencies in `rows`, while retaining every class.
+
+    This exporter does not introduce class balancing beyond whatever distribution
+    already exists in the prepared cohort.
+    """
+    counts = Counter(int(r['label']) for r in rows)
+    labels = sorted(counts)
+
+    if labels != [0, 1, 2]:
+        raise ValueError(f'Expected prepared GP3/GP4/GP5 classes, got {labels}')
+    if n < len(labels):
+        raise ValueError('Requested export is too small to retain all GP classes')
+    if n > len(rows):
+        raise ValueError(
+            f'Requested {n:,} rows but only {len(rows):,} prepared rows are available'
+        )
+
+    total = len(rows)
+    ideal = {k: n * counts[k] / total for k in labels}
+    target = {
+        k: min(counts[k], max(1, int(math.floor(ideal[k]))))
+        for k in labels
+    }
+
+    # If enforcing at least one pushed the total above n, reduce classes that are
+    # most above their ideal allocation, never dropping a represented class.
+    while sum(target.values()) > n:
+        candidates = [k for k in labels if target[k] > 1]
+        if not candidates:
+            raise RuntimeError('Unable to construct requested class-preserving subset')
+        k = max(candidates, key=lambda j: (target[j] - ideal[j], target[j], -j))
+        target[k] -= 1
+
+    # Largest-remainder/capacity allocation until the requested total is exact.
+    while sum(target.values()) < n:
+        candidates = [k for k in labels if target[k] < counts[k]]
+        if not candidates:
+            raise RuntimeError('Insufficient class capacity for requested export size')
+        k = max(candidates, key=lambda j: (ideal[j] - target[j], counts[j] - target[j], -j))
+        target[k] += 1
+
+    assert sum(target.values()) == n
+    return target
+
+
+def _select_exact(rows, n, split, seed):
+    rows = list(rows)
+    target = _class_targets(rows, n)
+    selected = []
+
+    for label in (0, 1, 2):
+        group = [r for r in rows if int(r['label']) == label]
+        group.sort(key=lambda r: _stable_rank(seed, split, r))
+        selected.extend(group[:target[label]])
+
+    # Stable final ordering makes manifests byte-for-byte reproducible.
+    selected.sort(key=lambda r: (r['image_id'], int(r['y']), int(r['x']), r['tile_id']))
+
+    if len(selected) != n:
+        raise RuntimeError('Exact export selection failed')
+    return selected, target
+
+
+# ---------------------------------------------------------------------------
+# Convert PANDA manifest rows to the existing Gleason trainer's row contract
+# ---------------------------------------------------------------------------
+
+def _hpc_row(row, split):
+    label = int(row['label'])
+    gp = label + 3
+
+    # file_sha256 is used by the current HPC isolation check as a content identity.
+    # The normalized cache file is the actual object passed to training, so its
+    # checksum is the appropriate available content identity here.
+    cache_digest = row['cache_sha256']
+
+    return {
+        'dataset': 'panda',
+        'split': split,
+        'sample_id': f'panda:{row["tile_id"]}',
+        'class_name': CLASSES[label],
+        'label': label,
+
+        # Existing "pure" cohort selector contract. The PANDA CPU preparation has
+        # already enforced a single-pattern pure-source proxy before these rows
+        # reach this exporter.
+        'region_role': 'pure' if split == 'train' else 'heldout_single_gp',
+        'region_primary': gp,
+        'region_secondary': gp,
+
+        # Existing overlap/isolation contract.
+        'source_wsi': row['image_id'],
+        'patient_id': '',
+        'file_sha256': cache_digest,
+
+        # Existing cache contract.
+        'cache_file': row['cache_file'],
+        'cache_sha256': cache_digest,
+
+        # PANDA/FOV provenance retained as extra manifest fields.
+        'tile_id': row['tile_id'],
+        'image_id': row['image_id'],
+        'x': row['x'],
+        'y': row['y'],
+        'tile_width': row['tile_width'],
+        'tile_height': row['tile_height'],
+        'mpp_x': row['mpp_x'],
+        'mpp_y': row['mpp_y'],
+        'actual_fov_um_x': row['actual_fov_um_x'],
+        'actual_fov_um_y': row['actual_fov_um_y'],
+        'tumour_fraction': row['tumour_fraction'],
+        'gleason_score': row.get('gleason_score', ''),
+        'expected_gp': row.get('expected_gp', ''),
+    }
+
+
+def _write_csv(path, rows):
+    if not rows:
+        raise ValueError(f'Cannot write empty manifest: {path}')
+    fields = list(rows[0])
+    with Path(path).open('w', newline='') as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+# ---------------------------------------------------------------------------
+# Build the transfer archive without duplicating the cache into another saved
+# directory. Temporary metadata files are written under /tmp; PNGs are streamed
+# directly from PREP_ROOT/cache into the ZIP.
+# ---------------------------------------------------------------------------
+
+def export_hpc_bundle(
+    prepared_root,
+    archive_path,
+    train_n=5000,
+    validation_n=1000,
+    seed=42,
+    bundle_name='panda-150um',
+):
+    prepared_root = Path(prepared_root)
+    archive_path = Path(archive_path)
+
+    source_meta, source_rows = load_prepared(prepared_root)
+
+    train_selected, train_targets = _select_exact(
+        source_rows['train'], int(train_n), 'train', seed
+    )
+    val_selected, val_targets = _select_exact(
+        source_rows['validation'], int(validation_n), 'validation', seed
+    )
+
+    train_rows = [_hpc_row(r, 'train') for r in train_selected]
+    val_rows = [_hpc_row(r, 'validation') for r in val_selected]
+
+    # Guard the same slide-level split separation before export.
+    train_slides = {r['source_wsi'] for r in train_rows}
+    val_slides = {r['source_wsi'] for r in val_rows}
+    if train_slides & val_slides:
+        raise ValueError('Slide leakage detected during HPC export')
+
+    # Guard normalized-content overlap as well.
+    train_hashes = {r['file_sha256'] for r in train_rows}
+    val_hashes = {r['file_sha256'] for r in val_rows}
+    if train_hashes & val_hashes:
+        raise ValueError('Identical normalized image content crosses train/validation')
+
+    with tempfile.TemporaryDirectory(prefix='panda_hpc_export_') as tmp:
+        tmp = Path(tmp)
+
+        train_manifest = tmp / 'panda_train.csv'
+        val_manifest = tmp / 'panda_validation.csv'
+        eligibility_file = tmp / 'panda_source_eligibility.json'
+        prepared_file = tmp / 'prepared.json'
+        handoff_file = tmp / 'HPC_HANDOFF.txt'
+
+        _write_csv(train_manifest, train_rows)
+        _write_csv(val_manifest, val_rows)
+
+        eligibility = {
+            'dataset': 'PANDA',
+            'provider': 'radboud',
+            'export_seed': seed,
+            'target_fov_um': float(source_meta['target_fov_um']),
+            'output_pixels': int(source_meta['output_pixels']),
+            'training_seed_definition': (
+                'PANDA CPU preparation pure-source proxy: published pure '
+                '3+3/4+4/5+5 score and matching single-GP whole-mask pattern, '
+                'plus single-GP tile'
+            ),
+            'validation_definition': 'held-out-slide single-GP tiles',
+            'patient_independence': source_meta.get(
+                'patient_independence',
+                'unverified: public PANDA image IDs are not patient identifiers',
+            ),
+            'source_prepared_sha256': sha(prepared_root / 'prepared.json'),
+            'selection': {
+                'train_requested': int(train_n),
+                'validation_requested': int(validation_n),
+                'train_by_label': train_targets,
+                'validation_by_label': val_targets,
+                'method': 'deterministic SHA-256 ranked proportional subsample',
+            },
+        }
+        eligibility_file.write_text(
+            json.dumps(eligibility, indent=2, allow_nan=False) + '\n'
+        )
+        eligibility_sha = sha(eligibility_file)
+
+        manifests = {
+            'panda_train.csv': sha(train_manifest),
+            'panda_validation.csv': sha(val_manifest),
+        }
+
+        # Contract consumed by modern_pca.train_gleason on the gleason branch.
+        # "region_grade_sha256" is retained because the existing training signature
+        # expects this compatibility key for pure-cohort provenance. Here it hashes
+        # the frozen PANDA source-eligibility record above; it is NOT a claim that
+        # PANDA has the SICAP region-grade workbook.
+        hpc_prepared = {
+            'complete': True,
+            'training_ready': True,
+            'sample_only': False,
+            'datasets': ['panda'],
+            'class_order': CLASSES,
+            'manifests': manifests,
+            'counts': {
+                'train': {CLASSES[k]: train_targets[k] for k in (0, 1, 2)},
+                'validation': {CLASSES[k]: val_targets[k] for k in (0, 1, 2)},
+            },
+            'seed_definition': eligibility['training_seed_definition'],
+            'region_grade_sha256': eligibility_sha,
+            'reference_sha256': REFERENCE_SHA,
+            'preprocessing': (
+                'PANDA level-0 MPP-aware ~150um crop -> LANCZOS 350 -> '
+                'legacy brightness -> StainTools Macenko -> uint8 PNG cache '
+                '-> float32 /255 during training'
+            ),
+            'prenormalized_sources_accepted': False,
+            'source_dataset': 'PANDA/Radboud',
+            'target_fov_um': float(source_meta['target_fov_um']),
+            'output_pixels': int(source_meta['output_pixels']),
+            'sampling': (
+                f'deterministic export subset: {train_n} train / '
+                f'{validation_n} validation'
+            ),
+            'patient_independence': eligibility['patient_independence'],
+            'source_prepared_sha256': eligibility['source_prepared_sha256'],
+        }
+        prepared_file.write_text(
+            json.dumps(hpc_prepared, indent=2, allow_nan=False) + '\n'
+        )
+
+        handoff_file.write_text(
+            f"""PANDA -> dsa5206-proj HPC handoff
+
+Archive root after extraction:
+  {bundle_name}/
+
+Expected contents:
+  prepared.json
+  panda_source_eligibility.json
+  manifests/panda_train.csv
+  manifests/panda_validation.csv
+  cache/*.png
+
+IMPORTANT:
+- train_gleason.pbs cannot read this ZIP directly. Extract it first.
+- Keep dataset='panda'; do not rename PANDA to Gleason2019.
+- On branch gleason, add ['panda'] to modern_pca.gleason.manifest_datasets().
+- The model/training schedule and train_gleason.pbs do not otherwise need changing.
+- Use TRAINING_COHORT=pure.
+- Point PREPARED_DIR at this extracted directory.
+
+Example extraction:
+  mkdir -p /scratch/USER/dsa5206-work/prepared
+  unzip -q panda_150um_hpc_5000train_1000val.zip \\
+      -d /scratch/USER/dsa5206-work/prepared
+
+Then set, for example:
+  DATASET=panda
+  PREPARED_DIR=/scratch/USER/dsa5206-work/prepared/{bundle_name}
+  RUN_ROOT=/scratch/USER/dsa5206-work/runs/panda
+  TRAINING_COHORT=pure
+
+The existing train_gleason.pbs can then be submitted directly:
+  qsub -v PIPELINE_CONFIG=/scratch/USER/site.env,DATASET=panda,MODE=smoke \\
+      hpc/pbs/train_gleason.pbs
+
+After a successful smoke:
+  qsub -v PIPELINE_CONFIG=/scratch/USER/site.env,DATASET=panda,MODE=production \\
+      hpc/pbs/train_gleason.pbs
+
+The current submit_pipeline.sh rejects DATASET=panda unless separately patched.
+"""
+        )
+
+        archive_path.parent.mkdir(parents=True, exist_ok=True)
+        if archive_path.exists():
+            archive_path.unlink()
+
+        # PNG is already compressed; ZIP_STORED avoids wasting Kaggle CPU time on
+        # essentially non-compressible image payloads.
+        with zipfile.ZipFile(
+            archive_path,
+            mode='w',
+            compression=zipfile.ZIP_STORED,
+            allowZip64=True,
+        ) as zf:
+            prefix = bundle_name.rstrip('/') + '/'
+
+            zf.write(prepared_file, prefix + 'prepared.json')
+            zf.write(
+                eligibility_file,
+                prefix + 'panda_source_eligibility.json',
+            )
+            zf.write(
+                train_manifest,
+                prefix + 'manifests/panda_train.csv',
+            )
+            zf.write(
+                val_manifest,
+                prefix + 'manifests/panda_validation.csv',
+            )
+            zf.write(handoff_file, prefix + 'HPC_HANDOFF.txt')
+
+            all_selected = train_selected + val_selected
+            seen_cache = set()
+
+            for i, row in enumerate(all_selected, 1):
+                name = row['cache_file']
+                if name in seen_cache:
+                    raise ValueError(f'Duplicate cache filename in export: {name}')
+                seen_cache.add(name)
+
+                source = prepared_root / 'cache' / name
+                if not source.is_file():
+                    raise FileNotFoundError(source)
+                if sha(source) != row['cache_sha256']:
+                    raise ValueError(f'Cache checksum changed before export: {name}')
+
+                zf.write(source, prefix + 'cache/' + name)
+
+                if i % 500 == 0:
+                    print(f'Archived {i:,}/{len(all_selected):,} PNGs', flush=True)
+
+    digest = sha(archive_path)
+    HPC_ARCHIVE_SHA.write_text(f'{digest}  {archive_path.name}\n')
+
+    result = {
+        'archive': str(archive_path),
+        'sha256': digest,
+        'bytes': archive_path.stat().st_size,
+        'GiB': archive_path.stat().st_size / 1024**3,
+        'train': len(train_selected),
+        'validation': len(val_selected),
+        'train_by_label': {CLASSES[k]: train_targets[k] for k in (0, 1, 2)},
+        'validation_by_label': {CLASSES[k]: val_targets[k] for k in (0, 1, 2)},
+        'bundle_root': bundle_name,
+    }
+
+    print(json.dumps(result, indent=2))
+    print('SHA sidecar:', HPC_ARCHIVE_SHA)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Execute export only when preparation is complete.
+# ---------------------------------------------------------------------------
+
+if not (PREP_ROOT / 'prepared.json').is_file():
+    raise FileNotFoundError('Run/finish CPU preparation before the HPC export cell')
+
+_export_source_meta = json.loads((PREP_ROOT / 'prepared.json').read_text())
+if not _export_source_meta.get('complete') or not _export_source_meta.get('training_ready'):
+    raise ValueError('CPU preparation is not complete/training-ready')
+
+HPC_EXPORT_RESULT = export_hpc_bundle(
+    PREP_ROOT,
+    HPC_ARCHIVE,
+    train_n=HPC_EXPORT_TRAIN,
+    validation_n=HPC_EXPORT_VALIDATION,
+    seed=HPC_EXPORT_SEED,
+    bundle_name=HPC_BUNDLE_NAME,
+)
+
+
+# ===========================================================================
+# ONE REQUIRED HPC REPOSITORY COMPATIBILITY PATCH
+# ===========================================================================
+#
+# On branch `gleason`, modern_pca/gleason.py currently has:
+#
+#     def manifest_datasets(prepared):
+#         names = prepared.get('datasets', ['crowd', 'sicap'])
+#         if names not in (['crowd', 'sicap'], ['gleason2019']):
+#             raise ValueError(...)
+#         return names
+#
+# Change ONLY the accepted dataset tuple to:
+#
+#         if names not in (['crowd', 'sicap'], ['gleason2019'], ['panda']):
+#
+# The exported manifests already satisfy the rest of the existing
+# train_gleason.py "pure" contract:
+#   - dataset/split/class_name/label
+#   - sample_id and content hash
+#   - source_wsi for held-out overlap protection
+#   - region_role='pure' + matching primary/secondary GP for training
+#   - cache_file/cache_sha256
+#   - prepared.json preprocessing/reference/provenance fields
+#
+# Therefore:
+#   * train_gleason.py need not be changed.
+#   * hpc/pbs/train_gleason.pbs need not be changed.
+#   * NASNetLarge/ImageNet/14-epoch schedule need not be changed.
+#
+# OPTIONAL convenience patch:
+# hpc/submit_pipeline.sh currently accepts only crowd-sicap|gleason2019.
+# Add `panda` to that case statement if you want to use the submit helper.
+# Otherwise submit train_gleason.pbs directly as shown in HPC_HANDOFF.txt.
