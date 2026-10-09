@@ -1,0 +1,40 @@
+#!/bin/bash
+#PBS -N nasnet_infer
+#PBS -q auto
+#PBS -l select=1:ncpus=8:mem=48gb:ngpus=1
+#PBS -l walltime=01:00:00
+#PBS -j oe
+
+set -euo pipefail
+
+BASE="${DSA5206_BASE:-/scratch/$USER/DSA5206}"
+REPO="${DSA5206_REPO:-$BASE/dsa5206-proj}"
+VENV="${DSA5206_VENV:-$BASE/.venv}"
+MODEL="${DSA5206_MODEL:-$BASE/checkpoints/epoch14.keras}"
+IMAGE="${DSA5206_IMAGE:?Set DSA5206_IMAGE to the pathology patch path}"
+OUTPUT="${DSA5206_OUTPUT:-$BASE/inference/prediction.json}"
+
+module load Python/3.11.5-GCCcore-13.2.0
+source "$VENV/bin/activate"
+cd "$REPO"
+
+export PYTHONPATH="$REPO:${PYTHONPATH:-}"
+export TF_CPP_MIN_LOG_LEVEL=2
+export CUDA_VISIBLE_DEVICES=0
+
+mkdir -p "$(dirname "$OUTPUT")"
+
+echo "Host: $(hostname)"
+echo "Model: $MODEL"
+echo "Image: $IMAGE"
+echo "Output: $OUTPUT"
+
+nvidia-smi -L
+sha256sum "$MODEL"
+
+python -B -u -m modern_pca.vanda_native_infer \
+  --model "$MODEL" \
+  --image "$IMAGE" \
+  --output "$OUTPUT"
+
+echo "Inference completed: $OUTPUT"
