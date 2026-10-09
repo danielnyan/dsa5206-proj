@@ -62,13 +62,13 @@ MIN_TUMOUR_FRACTION = 0.0
 
 # Per-class deterministic pilot caps. Increase only after inspecting inventory
 # counts and saved-output size. None means "all eligible" for that split.
-CAPS = {'train': 1000, 'validation': 200}
+CAPS = {'train': None, 'validation': None}
 
 MAX_CACHE_GIB = 8
 CPU_DEADLINE = CPU_SESSION_STARTED + SESSION_WORK_HOURS * 3600
 
 assert CPU_TASK in ('inventory', 'prepare')
-assert 0 < SESSION_WORK_HOURS <= 7
+assert 0 < SESSION_WORK_HOURS <= 10
 assert TARGET_FOV_UM > 0
 assert OUTPUT_PIXELS > 0
 assert 0.0 <= MIN_TUMOUR_FRACTION <= 1.0
@@ -304,61 +304,325 @@ def rgb_region(slide, x, y, width, height):
 
 # %% A3.3 — inventory database
 
-def init_inventory(output, signature):
+class PersistentMaskReadError(RuntimeError):
+    """
+    Raised only when a PANDA mask cannot be opened/read successfully
+    after bounded fresh-handle retries.
+
+    These errors are treated as slide-level source exclusions so that
+    inventory may continue. Other unexpected errors remain fatal.
+    """
+
+    def __init__(
+        self,
+        path,
+        message,
+        x=None,
+        y=None,
+        width=None,
+        height=None,
+        attempts=None,
+    ):
+        super().__init__(message)
+
+        self.path = str(path)
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.attempts = attempts
+
+
+class RetryingMaskSlide:
+    """
+    OpenSlide-compatible wrapper for PANDA label masks.
+
+    Normal case:
+        read_region() behaves exactly like OpenSlide.read_region().
+
+    On OpenSlideError:
+        1. close the failed handle;
+        2. reopen the same TIFF;
+        3. retry the exact same region.
+
+    After RETRIES unsuccessful fresh-handle attempts, raise
+    PersistentMaskReadError.
+
+    This wrapper intentionally does NOT fabricate background pixels,
+    skip individual mask blocks, or change labels.
+    """
+
+    def __init__(
+        self,
+        path,
+        retries=3,
+        retry_delay_seconds=1.0,
+    ):
+        self.path = Path(path)
+        self.retries = int(retries)
+        self.retry_delay_seconds = float(retry_delay_seconds)
+        self._slide = None
+
+        if self.retries < 1:
+            raise ValueError('retries must be at least 1')
+
+        self._open_with_retry()
+
+    def _close_current(self):
+        if self._slide is not None:
+            try:
+                self._slide.close()
+            except Exception:
+                pass
+
+        self._slide = None
+
+    def _open_with_retry(self):
+        last_error = None
+
+        for attempt in range(1, self.retries + 1):
+            try:
+                self._close_current()
+
+                self._slide = openslide.OpenSlide(
+                    str(self.path)
+                )
+
+                return
+
+            except openslide.OpenSlideError as error:
+                last_error = error
+                self._close_current()
+
+                print(
+                    f'OpenSlide mask open failed: '
+                    f'{self.path.name}, '
+                    f'attempt={attempt}/{self.retries}: '
+                    f'{error}',
+                    flush=True,
+                )
+
+                if attempt < self.retries:
+                    time.sleep(
+                        self.retry_delay_seconds
+                    )
+
+        raise PersistentMaskReadError(
+            path=self.path,
+            message=(
+                f'Unable to open mask after '
+                f'{self.retries} fresh attempts: '
+                f'{self.path.name}: {last_error}'
+            ),
+            attempts=self.retries,
+        ) from last_error
+
+    @property
+    def dimensions(self):
+        return self._slide.dimensions
+
+    @property
+    def properties(self):
+        return self._slide.properties
+
+    def read_region(
+        self,
+        location,
+        level,
+        size,
+    ):
+        x, y = location
+        width, height = size
+
+        last_error = None
+
+        for attempt in range(1, self.retries + 1):
+            try:
+                return self._slide.read_region(
+                    location,
+                    level,
+                    size,
+                )
+
+            except openslide.OpenSlideError as error:
+                last_error = error
+
+                print(
+                    f'OpenSlide mask read failed: '
+                    f'{self.path.name}, '
+                    f'x={x}, y={y}, '
+                    f'w={width}, h={height}, '
+                    f'attempt={attempt}/{self.retries}: '
+                    f'{error}',
+                    flush=True,
+                )
+
+                # OpenSlide errors are latched. Never reuse this handle.
+                self._close_current()
+
+                if attempt >= self.retries:
+                    break
+
+                time.sleep(
+                    self.retry_delay_seconds
+                )
+
+                try:
+                    self._slide = openslide.OpenSlide(
+                        str(self.path)
+                    )
+
+                    print(
+                        f'Reopened mask successfully for retry: '
+                        f'{self.path.name}',
+                        flush=True,
+                    )
+
+                except openslide.OpenSlideError as reopen_error:
+                    last_error = reopen_error
+
+                    print(
+                        f'Mask reopen failed: '
+                        f'{self.path.name}, '
+                        f'attempt={attempt}/{self.retries}: '
+                        f'{reopen_error}',
+                        flush=True,
+                    )
+
+                    self._slide = None
+
+                    # The next loop iteration will need a valid handle.
+                    # Try opening it explicitly there.
+                    if attempt < self.retries:
+                        try:
+                            self._slide = openslide.OpenSlide(
+                                str(self.path)
+                            )
+                        except openslide.OpenSlideError:
+                            pass
+
+        self._close_current()
+
+        raise PersistentMaskReadError(
+            path=self.path,
+            message=(
+                f'Mask region failed after '
+                f'{self.retries} fresh-handle attempts: '
+                f'{self.path.name}, '
+                f'x={x}, y={y}, '
+                f'w={width}, h={height}; '
+                f'last error: {last_error}'
+            ),
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            attempts=self.retries,
+        ) from last_error
+
+    def close(self):
+        self._close_current()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(
+        self,
+        exc_type,
+        exc_value,
+        traceback,
+    ):
+        self.close()
+        return False
+
+
+def init_inventory(
+    output,
+    signature,
+):
     output = Path(output)
-    output.mkdir(parents=True, exist_ok=True)
-    marker = output / 'inventory_settings.json'
+    output.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    if marker.exists() and json.loads(marker.read_text()) != signature:
-        raise ValueError('Inventory settings changed. Use a fresh PREP_ROOT.')
+    marker = (
+        output
+        / 'inventory_settings.json'
+    )
 
-    atomic_json(marker, signature)
+    if (
+        marker.exists()
+        and json.loads(
+            marker.read_text()
+        ) != signature
+    ):
+        raise ValueError(
+            'Inventory settings changed. '
+            'Use a fresh PREP_ROOT.'
+        )
 
-    db = sqlite3.connect(output / 'inventory.sqlite')
+    atomic_json(
+        marker,
+        signature,
+    )
+
+    db = sqlite3.connect(
+        output
+        / 'inventory.sqlite'
+    )
+
     db.row_factory = sqlite3.Row
-    db.executescript('''
-    CREATE TABLE IF NOT EXISTS slides (
-        image_id TEXT PRIMARY KEY,
-        split TEXT,
-        role TEXT,
-        gleason_score TEXT,
-        expected_gp INTEGER,
-        patterns TEXT,
-        width INTEGER,
-        height INTEGER,
-        mpp_x REAL,
-        mpp_y REAL,
-        tile_width INTEGER,
-        tile_height INTEGER,
-        actual_fov_um_x REAL,
-        actual_fov_um_y REAL,
-        image_bytes INTEGER,
-        mask_bytes INTEGER,
-        image_quickhash TEXT,
-        mask_quickhash TEXT,
-        mask_counts TEXT,
-        discarded_edge_pixels INTEGER,
-        complete INTEGER
-    );
 
-    CREATE TABLE IF NOT EXISTS tiles (
-        tile_id TEXT PRIMARY KEY,
-        image_id TEXT,
-        x INTEGER,
-        y INTEGER,
-        tile_width INTEGER,
-        tile_height INTEGER,
-        status TEXT,
-        label INTEGER,
-        tumour_fraction REAL,
-        gp3_pixels INTEGER,
-        gp4_pixels INTEGER,
-        gp5_pixels INTEGER
-    );
+    db.executescript(
+        '''
+        CREATE TABLE IF NOT EXISTS slides (
+            image_id TEXT PRIMARY KEY,
+            split TEXT,
+            role TEXT,
+            gleason_score TEXT,
+            expected_gp INTEGER,
+            patterns TEXT,
+            width INTEGER,
+            height INTEGER,
+            mpp_x REAL,
+            mpp_y REAL,
+            tile_width INTEGER,
+            tile_height INTEGER,
+            actual_fov_um_x REAL,
+            actual_fov_um_y REAL,
+            image_bytes INTEGER,
+            mask_bytes INTEGER,
+            image_quickhash TEXT,
+            mask_quickhash TEXT,
+            mask_counts TEXT,
+            discarded_edge_pixels INTEGER,
+            complete INTEGER
+        );
 
-    CREATE INDEX IF NOT EXISTS tiles_slide ON tiles(image_id);
-    CREATE INDEX IF NOT EXISTS tiles_status_label ON tiles(status, label);
-    ''')
+        CREATE TABLE IF NOT EXISTS tiles (
+            tile_id TEXT PRIMARY KEY,
+            image_id TEXT,
+            x INTEGER,
+            y INTEGER,
+            tile_width INTEGER,
+            tile_height INTEGER,
+            status TEXT,
+            label INTEGER,
+            tumour_fraction REAL,
+            gp3_pixels INTEGER,
+            gp4_pixels INTEGER,
+            gp5_pixels INTEGER
+        );
+
+        CREATE INDEX IF NOT EXISTS tiles_slide
+        ON tiles(image_id);
+
+        CREATE INDEX IF NOT EXISTS tiles_status_label
+        ON tiles(status, label);
+        '''
+    )
+
     return db
 
 
@@ -373,16 +637,41 @@ def build_inventory(
 ):
     data_root = Path(data_root)
     output = Path(output)
-    records, excluded = discover_data(data_root)
 
-    ids = sorted(r['image_id'] for r in records)
+    records, excluded = discover_data(
+        data_root
+    )
+
+    ids = sorted(
+        r['image_id']
+        for r in records
+    )
+
     shuffled = ids.copy()
-    random.Random(seed).shuffle(shuffled)
-    heldout = set(shuffled[:max(1, round(.2 * len(shuffled)))])
+
+    random.Random(
+        seed
+    ).shuffle(
+        shuffled
+    )
+
+    heldout = set(
+        shuffled[
+            :max(
+                1,
+                round(
+                    .2 * len(shuffled)
+                ),
+            )
+        ]
+    )
 
     signature = {
         'pipeline_version': PIPELINE_VERSION,
-        'train_csv_sha256': sha(data_root / 'train.csv'),
+        'train_csv_sha256': sha(
+            data_root
+            / 'train.csv'
+        ),
         'image_ids': ids,
         'seed': seed,
         'target_fov_um': target_fov_um,
@@ -390,157 +679,624 @@ def build_inventory(
         'level': 0,
         'min_mpp': min_mpp,
         'max_mpp': max_mpp,
-        'split': '80/20 slide/image-id groups; patient independence unverified',
+        'split': (
+            '80/20 slide/image-id groups; '
+            'patient independence unverified'
+        ),
         'provider': 'radboud',
     }
 
-    db = init_inventory(output, signature)
-    atomic_json(output / 'source_exclusions.json', excluded)
-    atomic_json(
-        output / 'split.json',
-        {image_id: ('validation' if image_id in heldout else 'train') for image_id in ids},
+    db = init_inventory(
+        output,
+        signature,
     )
 
-    by_id = {r['image_id']: r for r in records}
+    atomic_json(
+        output
+        / 'source_exclusions.json',
+        excluded,
+    )
+
+    atomic_json(
+        output
+        / 'split.json',
+        {
+            image_id: (
+                'validation'
+                if image_id in heldout
+                else 'train'
+            )
+            for image_id in ids
+        },
+    )
+
+    by_id = {
+        r['image_id']: r
+        for r in records
+    }
+
     started = time.monotonic()
 
-    for number, image_id in enumerate(ids, 1):
-        image_path = data_root / 'train_images' / f'{image_id}.tiff'
-        mask_path = data_root / 'train_label_masks' / f'{image_id}_mask.tiff'
-        row_csv = by_id[image_id]
+    for number, image_id in enumerate(
+        ids,
+        1,
+    ):
+        image_path = (
+            data_root
+            / 'train_images'
+            / f'{image_id}.tiff'
+        )
 
-        old = db.execute('SELECT * FROM slides WHERE image_id=?', (image_id,)).fetchone()
-        if old and old['complete']:
-            if old['image_bytes'] != image_path.stat().st_size or old['mask_bytes'] != mask_path.stat().st_size:
-                raise ValueError(f'Source file size changed for {image_id}')
-            continue
+        mask_path = (
+            data_root
+            / 'train_label_masks'
+            / f'{image_id}_mask.tiff'
+        )
 
-        try:
-            check_deadline(deadline)
+        row_csv = by_id[
+            image_id
+        ]
 
-            with openslide.OpenSlide(str(image_path)) as image, openslide.OpenSlide(str(mask_path)) as mask:
-                if image.dimensions != mask.dimensions:
-                    raise ValueError('Image/mask level-0 dimensions differ')
+        split = (
+            'validation'
+            if image_id in heldout
+            else 'train'
+        )
 
-                width, height = image.dimensions
-                mpp_x = float(image.properties.get('openslide.mpp-x', 'nan'))
-                mpp_y = float(image.properties.get('openslide.mpp-y', 'nan'))
+        old = db.execute(
+            '''
+            SELECT *
+            FROM slides
+            WHERE image_id=?
+            ''',
+            (image_id,),
+        ).fetchone()
 
-                if not all(math.isfinite(v) and min_mpp <= v <= max_mpp for v in (mpp_x, mpp_y)):
-                    raise ValueError(
-                        f'Unverified/out-of-range level-0 MPP: {mpp_x}, {mpp_y}; '
-                        'review scale before changing limits'
-                    )
-
-                tile_w, tile_h, actual_fov_x, actual_fov_y = physical_tile_geometry(
-                    mpp_x, mpp_y, target_fov_um
+        if (
+            old
+            and old['complete']
+        ):
+            if (
+                old['image_bytes']
+                != image_path.stat().st_size
+                or old['mask_bytes']
+                != mask_path.stat().st_size
+            ):
+                raise ValueError(
+                    f'Source file size changed '
+                    f'for {image_id}'
                 )
 
-                pixel_counts = np.zeros(6, dtype=np.int64)
-                patches = []
-                patterns = set()
+            continue
 
-                # Non-overlapping physical-FOV grid. Partial edges are inspected for
-                # whole-slide pattern accounting but are not retained as training tiles.
-                for y in range(0, height, tile_h):
-                    for x in range(0, width, tile_w):
-                        check_deadline(deadline)
-                        tw = min(tile_w, width - x)
-                        th = min(tile_h, height - y)
+        # Initialise metadata so that, if mask decoding permanently fails,
+        # the slide can still be entered into the inventory as an audited
+        # excluded source and the next slide can be processed.
+        width = None
+        height = None
 
-                        hist, gps, status, label, tumour_fraction = classify_mask(
-                            mask_region(mask, x, y, tw, th)
+        mpp_x = None
+        mpp_y = None
+
+        tile_w = None
+        tile_h = None
+
+        actual_fov_x = None
+        actual_fov_y = None
+
+        discarded_edge_pixels = None
+
+        expected_gp = PURE_SCORE_TO_GP.get(
+            row_csv['gleason_score']
+        )
+
+        image_quickhash = ''
+        mask_quickhash = ''
+
+        pixel_counts = np.zeros(
+            6,
+            dtype=np.int64,
+        )
+
+        patterns = set()
+
+        try:
+            check_deadline(
+                deadline
+            )
+
+            # Open the RGB WSI normally.
+            #
+            # Only PANDA label-mask reads receive the bounded
+            # reopen-and-retry behavior.
+            with openslide.OpenSlide(
+                str(image_path)
+            ) as image:
+
+                width, height = (
+                    image.dimensions
+                )
+
+                mpp_x = float(
+                    image.properties.get(
+                        'openslide.mpp-x',
+                        'nan',
+                    )
+                )
+
+                mpp_y = float(
+                    image.properties.get(
+                        'openslide.mpp-y',
+                        'nan',
+                    )
+                )
+
+                image_quickhash = (
+                    image.properties.get(
+                        'openslide.quickhash-1',
+                        '',
+                    )
+                )
+
+                if not all(
+                    math.isfinite(v)
+                    and min_mpp <= v <= max_mpp
+                    for v in (
+                        mpp_x,
+                        mpp_y,
+                    )
+                ):
+                    raise ValueError(
+                        f'Unverified/out-of-range '
+                        f'level-0 MPP: '
+                        f'{mpp_x}, {mpp_y}; '
+                        f'review scale before '
+                        f'changing limits'
+                    )
+
+                (
+                    tile_w,
+                    tile_h,
+                    actual_fov_x,
+                    actual_fov_y,
+                ) = physical_tile_geometry(
+                    mpp_x,
+                    mpp_y,
+                    target_fov_um,
+                )
+
+                discarded_edge_pixels = (
+                    width * height
+                    - (
+                        width
+                        // tile_w
+                        * tile_w
+                    )
+                    * (
+                        height
+                        // tile_h
+                        * tile_h
+                    )
+                )
+
+                with RetryingMaskSlide(
+                    mask_path,
+                    retries=3,
+                    retry_delay_seconds=1.0,
+                ) as mask:
+
+                    if (
+                        image.dimensions
+                        != mask.dimensions
+                    ):
+                        raise ValueError(
+                            'Image/mask level-0 '
+                            'dimensions differ'
                         )
-                        pixel_counts += hist
-                        patterns.update(gps)
 
-                        if tw == tile_w and th == tile_h:
-                            patches.append((
-                                f'{image_id}_x{x}_y{y}',
-                                image_id,
-                                x,
-                                y,
+                    mask_quickhash = (
+                        mask.properties.get(
+                            'openslide.quickhash-1',
+                            '',
+                        )
+                    )
+
+                    patches = []
+
+                    # Non-overlapping physical-FOV grid.
+                    #
+                    # Partial edges are still scanned for whole-slide
+                    # GP-pattern accounting but are not retained as
+                    # training patches.
+                    for y in range(
+                        0,
+                        height,
+                        tile_h,
+                    ):
+                        for x in range(
+                            0,
+                            width,
+                            tile_w,
+                        ):
+                            check_deadline(
+                                deadline
+                            )
+
+                            tw = min(
                                 tile_w,
+                                width - x,
+                            )
+
+                            th = min(
                                 tile_h,
+                                height - y,
+                            )
+
+                            (
+                                hist,
+                                gps,
                                 status,
                                 label,
-                                float(tumour_fraction),
-                                int(hist[3]),
-                                int(hist[4]),
-                                int(hist[5]),
-                            ))
+                                tumour_fraction,
+                            ) = classify_mask(
+                                mask_region(
+                                    mask,
+                                    x,
+                                    y,
+                                    tw,
+                                    th,
+                                )
+                            )
 
-                expected_gp = PURE_SCORE_TO_GP.get(row_csv['gleason_score'])
-                pattern_list = sorted(patterns)
+                            pixel_counts += (
+                                hist
+                            )
 
-                if expected_gp is not None and pattern_list == [expected_gp]:
-                    role = 'pure_score_and_mask_match'
-                elif expected_gp is not None:
-                    role = 'pure_score_mask_mismatch_or_mixed'
-                elif pattern_list:
-                    role = 'mixed_or_nonpure_score'
-                else:
-                    role = 'no_gp_pixels'
+                            patterns.update(
+                                gps
+                            )
 
-                discarded_edge_pixels = width * height - (width // tile_w * tile_w) * (height // tile_h * tile_h)
+                            if (
+                                tw == tile_w
+                                and th == tile_h
+                            ):
+                                patches.append(
+                                    (
+                                        (
+                                            f'{image_id}'
+                                            f'_x{x}'
+                                            f'_y{y}'
+                                        ),
+                                        image_id,
+                                        x,
+                                        y,
+                                        tile_w,
+                                        tile_h,
+                                        status,
+                                        label,
+                                        float(
+                                            tumour_fraction
+                                        ),
+                                        int(
+                                            hist[3]
+                                        ),
+                                        int(
+                                            hist[4]
+                                        ),
+                                        int(
+                                            hist[5]
+                                        ),
+                                    )
+                                )
 
-                with db:
-                    db.execute('DELETE FROM tiles WHERE image_id=?', (image_id,))
-                    db.executemany('INSERT INTO tiles VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', patches)
-                    db.execute(
-                        'INSERT OR REPLACE INTO slides VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                        (
-                            image_id,
-                            'validation' if image_id in heldout else 'train',
-                            role,
-                            row_csv['gleason_score'],
-                            expected_gp,
-                            json.dumps(pattern_list),
-                            width,
-                            height,
-                            mpp_x,
-                            mpp_y,
-                            tile_w,
-                            tile_h,
-                            actual_fov_x,
-                            actual_fov_y,
-                            image_path.stat().st_size,
-                            mask_path.stat().st_size,
-                            image.properties.get('openslide.quickhash-1', ''),
-                            mask.properties.get('openslide.quickhash-1', ''),
-                            json.dumps(pixel_counts.tolist()),
-                            discarded_edge_pixels,
-                            1,
-                        ),
+                    pattern_list = sorted(
+                        patterns
                     )
+
+                    if (
+                        expected_gp
+                        is not None
+                        and pattern_list
+                        == [expected_gp]
+                    ):
+                        role = (
+                            'pure_score_and_mask_match'
+                        )
+
+                    elif (
+                        expected_gp
+                        is not None
+                    ):
+                        role = (
+                            'pure_score_'
+                            'mask_mismatch_or_mixed'
+                        )
+
+                    elif pattern_list:
+                        role = (
+                            'mixed_or_nonpure_score'
+                        )
+
+                    else:
+                        role = (
+                            'no_gp_pixels'
+                        )
+
+                    # Nothing is committed until the entire mask has
+                    # been scanned successfully. Therefore a later
+                    # decoding failure cannot leave partial tiles in
+                    # the training inventory.
+                    with db:
+                        db.execute(
+                            '''
+                            DELETE FROM tiles
+                            WHERE image_id=?
+                            ''',
+                            (image_id,),
+                        )
+
+                        db.executemany(
+                            '''
+                            INSERT INTO tiles
+                            VALUES (
+                                ?,?,?,?,?,?,
+                                ?,?,?,?,?,?
+                            )
+                            ''',
+                            patches,
+                        )
+
+                        db.execute(
+                            '''
+                            INSERT OR REPLACE
+                            INTO slides
+                            VALUES (
+                                ?,?,?,?,?,?,
+                                ?,?,?,?,?,?,
+                                ?,?,?,?,?,?,
+                                ?,?,?
+                            )
+                            ''',
+                            (
+                                image_id,
+                                split,
+                                role,
+                                row_csv[
+                                    'gleason_score'
+                                ],
+                                expected_gp,
+                                json.dumps(
+                                    pattern_list
+                                ),
+                                width,
+                                height,
+                                mpp_x,
+                                mpp_y,
+                                tile_w,
+                                tile_h,
+                                actual_fov_x,
+                                actual_fov_y,
+                                image_path.stat().st_size,
+                                mask_path.stat().st_size,
+                                image_quickhash,
+                                mask_quickhash,
+                                json.dumps(
+                                    pixel_counts.tolist()
+                                ),
+                                discarded_edge_pixels,
+                                1,
+                            ),
+                        )
+
+        except PersistentMaskReadError as error:
+            # ------------------------------------------------------
+            # Persistent mask decoder failure:
+            #
+            # Exclude the WHOLE slide, audit it, mark it complete in
+            # the inventory, and continue.
+            #
+            # We deliberately do not retain partially scanned tiles:
+            # whole-slide GP purity cannot be established reliably.
+            # ------------------------------------------------------
+
+            event = {
+                'image_id': image_id,
+                'split': split,
+                'mask_file': (
+                    mask_path.name
+                ),
+                'error': type(
+                    error
+                ).__name__,
+                'message': str(
+                    error
+                ),
+                'x': error.x,
+                'y': error.y,
+                'width': error.width,
+                'height': error.height,
+                'attempts': error.attempts,
+                'gleason_score': row_csv[
+                    'gleason_score'
+                ],
+                'expected_gp': expected_gp,
+                'policy': (
+                    'exclude entire slide after '
+                    'bounded fresh-handle mask-read '
+                    'retries; retain no partial tiles'
+                ),
+            }
+
+            append_audit(
+                output
+                / 'mask_read_exclusions.jsonl',
+                event,
+            )
+
+            warnings.warn(
+                (
+                    f'Excluded slide {image_id} '
+                    f'after persistent mask-read '
+                    f'failure: {error}'
+                ),
+                RuntimeWarning,
+            )
+
+            # Mark the slide as processed/excluded so that:
+            #
+            #   * the overall inventory can complete;
+            #   * resumed runs do not retry it forever;
+            #   * it contributes zero training/validation tiles.
+            #
+            # Any partially accumulated mask counts are deliberately
+            # NOT treated as valid whole-slide annotation counts.
+            with db:
+                db.execute(
+                    '''
+                    DELETE FROM tiles
+                    WHERE image_id=?
+                    ''',
+                    (image_id,),
+                )
+
+                db.execute(
+                    '''
+                    INSERT OR REPLACE
+                    INTO slides
+                    VALUES (
+                        ?,?,?,?,?,?,
+                        ?,?,?,?,?,?,
+                        ?,?,?,?,?,?,
+                        ?,?,?
+                    )
+                    ''',
+                    (
+                        image_id,
+                        split,
+                        'mask_read_failure',
+                        row_csv[
+                            'gleason_score'
+                        ],
+                        expected_gp,
+                        json.dumps([]),
+                        width,
+                        height,
+                        mpp_x,
+                        mpp_y,
+                        tile_w,
+                        tile_h,
+                        actual_fov_x,
+                        actual_fov_y,
+                        image_path.stat().st_size,
+                        mask_path.stat().st_size,
+                        image_quickhash,
+                        mask_quickhash,
+                        # Empty/invalid whole-slide count,
+                        # rather than misleading partial counts.
+                        json.dumps(
+                            [0, 0, 0, 0, 0, 0]
+                        ),
+                        (
+                            discarded_edge_pixels
+                            if discarded_edge_pixels
+                            is not None
+                            else 0
+                        ),
+                        1,
+                    ),
+                )
+
+            print(
+                f'CPU inventory '
+                f'{number}/{len(ids)} slides; '
+                f'EXCLUDED {image_id} '
+                f'(persistent mask read failure); '
+                f'elapsed '
+                f'{(time.monotonic() - started) / 60:.1f} min',
+                flush=True,
+            )
+
+            continue
 
         except BudgetStop:
             db.close()
-            report = inventory_report(output, min_tumour_fraction=MIN_TUMOUR_FRACTION)
-            report['stop_reason'] = 'session_budget; resume uncommitted slide next run'
-            atomic_json(output / 'inventory_report.json', report)
+
+            report = inventory_report(
+                output,
+                min_tumour_fraction=(
+                    MIN_TUMOUR_FRACTION
+                ),
+            )
+
+            report[
+                'stop_reason'
+            ] = (
+                'session_budget; '
+                'resume uncommitted slide '
+                'next run'
+            )
+
+            atomic_json(
+                output
+                / 'inventory_report.json',
+                report,
+            )
+
             return report
+
         except Exception as error:
+            # Unexpected problems remain fail-closed.
+            #
+            # Examples:
+            #   * invalid MPP metadata
+            #   * image/mask geometry mismatch
+            #   * unexpected mask labels
+            #   * SQLite/schema errors
+            #
+            # Those should not silently remove data.
             append_audit(
-                output / 'inventory_errors.jsonl',
+                output
+                / 'inventory_errors.jsonl',
                 {
-                    'image_id': image_id,
-                    'error': type(error).__name__,
-                    'message': str(error),
+                    'image_id': (
+                        image_id
+                    ),
+                    'error': type(
+                        error
+                    ).__name__,
+                    'message': str(
+                        error
+                    ),
                 },
             )
+
             db.close()
+
             raise
 
         print(
-            f'CPU inventory {number}/{len(ids)} slides; '
-            f'elapsed {(time.monotonic() - started) / 60:.1f} min',
+            f'CPU inventory '
+            f'{number}/{len(ids)} slides; '
+            f'elapsed '
+            f'{(time.monotonic() - started) / 60:.1f} min',
             flush=True,
         )
 
     db.close()
-    report = inventory_report(output, min_tumour_fraction=MIN_TUMOUR_FRACTION)
-    atomic_json(output / 'inventory_report.json', report)
+
+    report = inventory_report(
+        output,
+        min_tumour_fraction=(
+            MIN_TUMOUR_FRACTION
+        ),
+    )
+
+    atomic_json(
+        output
+        / 'inventory_report.json',
+        report,
+    )
+
     return report
 
 
