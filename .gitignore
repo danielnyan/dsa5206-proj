@@ -1,8 +1,34 @@
+# Python environments and caches
 __pycache__/
 *.py[cod]
 .venv/
 .smoke-venv/
-outputs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Editor and operating-system files
+.DS_Store
+.vscode/
+
+# Local datasets, archives, and whole-slide images
+/data/
+*.zip
+*.svs
+
+# Model checkpoints and generated arrays/results
+*.keras
+*.h5
 *.pt
 *.pth
+*.npy
+outputs/
 runs/
+
+# Local Vanda run artifacts and duplicate project copy
+/ens model_vanda-epoch14-v1/
+/native model_vanda-epoch14-v1/
+
+# Local research paper
+/AAE_Tolkach_ProstateCancer_mulidata.pdf
