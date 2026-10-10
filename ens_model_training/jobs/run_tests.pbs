@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -N ens-tests
+#PBS -l select=1:ncpus=8:mem=32gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+# CPU test run of the ENS suite in the NSCC environment (TensorFlow tests included, CPU only).
+# Submit:  qsub -P $NSCC_PROJECT -q $CPU_QUEUE -v CODE_DIR=$CODE ens_model_training/jobs/run_tests.pbs   (or run on the login node)
+set -euo pipefail
+source "${CODE_DIR:-${PBS_O_WORKDIR:-$(dirname "$0")/../..}}/ens_model_training/jobs/config.sh"
+activate_env
+CUDA_VISIBLE_DEVICES= python -B -m pytest ens_model_training/tests/test_ens_model2.py -q -p no:cacheprovider
