@@ -96,3 +96,31 @@ of bitwise equality across devices. No automatic fallback changes the batch size
 At completion, `last.pt` is the final epoch model with optimizer state. Metrics
 for completed epochs are in its `progress.history`; no best-epoch selection or
 VAL2 evaluation is performed by this minimal trainer.
+
+## Evaluate a fixed checkpoint on VAL2
+
+Use the separate PyTorch evaluator with a trusted checkpoint saved after a
+completed epoch. It preserves the trainer's preprocessing and argmax decision
+rule (ties select benign), verifies the VAL2 manifest and every image SHA-256,
+and loads the escnn checkpoint in training mode before switching to evaluation
+mode. No training, augmentation, threshold tuning or checkpoint selection occurs.
+
+```sh
+python -u -m modern_pca.evaluate_group_equivariant \
+  --data /path/to/extracted \
+  --checkpoint runs/group_equivariant_run01/epoch1.pt \
+  --output runs/group_equivariant_run01/val2_epoch1 \
+  --batch-size 4 --device cuda
+```
+
+The extracted root must contain `val_dataset_2_norm/norm/` and
+`val_dataset_2_tu/tu/`. The output directory must not already exist. Results are
+`predictions.csv` and `metrics.json`, including tumour-positive precision,
+recall, specificity, F1, ROC-AUC, accuracy, loss and the confusion matrix
+(rows=true, columns=predicted; benign then tumour). Undefined metrics are null.
+Only a completed `metrics.json` indicates success; `.partial` files are incomplete.
+After a failed run, use a new output directory. Evaluation does not resume.
+
+Report the evaluated checkpoint's completed epoch count. If VAL2 results inform
+model changes or selection, VAL2 has participated in development and must no
+longer be described as an untouched final test set.
