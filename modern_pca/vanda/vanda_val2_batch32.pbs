@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N nasnet_val2_b32
+#PBS -q auto
+#PBS -l select=1:ncpus=12:mem=96gb:ngpus=1
+#PBS -l walltime=08:00:00
+#PBS -j oe
+set -euo pipefail
+cd /scratch/e1536052/DSA5206/dsa5206-proj
+module load Python/3.11.5-GCCcore-13.2.0
+source /scratch/e1536052/DSA5206/.venv/bin/activate
+export CUDA_VISIBLE_DEVICES=0
+export TF_CPP_MIN_LOG_LEVEL=2
+python -m modern_pca.vanda_val2_batch32 \
+  --model /scratch/e1536052/DSA5206/vanda_runs/nasnet_production_14epoch/epoch14.keras \
+  --checkpoint-manifest /scratch/e1536052/DSA5206/vanda_runs/nasnet_production_14epoch/epoch_14_resume/manifest.json \
+  --final-model-metadata /scratch/e1536052/DSA5206/vanda_runs/nasnet_production_14epoch/final_model.json \
+  --manifest manifests/VAL2_manifest.csv \
+  --extracted /scratch/e1536052/DSA5206/val2_transfer/extracted \
+  --stain-reference 4_WSI_pipeline/WSI_pipeline_v6/images/standard_he_stain_small.jpg \
+  --batch-size 32 \
+  --output /scratch/e1536052/DSA5206/vanda_runs/val2_epoch14_b32_${PBS_JOBID%%.*}

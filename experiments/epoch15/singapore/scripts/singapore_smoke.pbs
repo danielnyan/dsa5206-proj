@@ -1,0 +1,29 @@
+#!/bin/bash
+#PBS -N singapore_smoke
+#PBS -q auto
+#PBS -l select=1:ncpus=8:mem=48gb:ngpus=1
+#PBS -l walltime=01:00:00
+#PBS -j oe
+
+set -euo pipefail
+
+BASE=/scratch/e1536052/DSA5206
+REPO="$BASE/dsa5206-native-release"
+DATA="$BASE/singapore_external"
+MODEL="$BASE/vanda_runs/nasnet_production_14epoch/epoch14.keras"
+
+module load Python/3.11.5-GCCcore-13.2.0
+source "$BASE/.venv/bin/activate"
+
+cd "$REPO"
+export PYTHONPATH="$REPO:${PYTHONPATH:-}"
+export TF_CPP_MIN_LOG_LEVEL=2
+export CUDA_VISIBLE_DEVICES=0
+
+nvidia-smi -L
+
+python -u "$DATA/scripts/evaluate_epoch14.py" \
+  --root "$DATA" \
+  --model "$MODEL" \
+  --output "$DATA/results/epoch14_baseline/smoke10" \
+  --limit 10

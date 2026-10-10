@@ -1,0 +1,566 @@
+{
+  "GPU_feasibility": "PASS (zero-update real model probe plus existing compiled training evidence; no new optimizer updates)",
+  "Stage2I_outcomes_inspected": false,
+  "VAL2_images_accessed": false,
+  "archive": {
+    "VAL2_images_opened": false,
+    "all_official_binary_counts": {
+      "0": 4417,
+      "1": 7664
+    },
+    "archive_bytes": 2159052394,
+    "archive_files": 37589,
+    "archive_sha256": "a28aa6a0e3831217bf31575cecfc1846607ace7ff25a4392f07052bbc7355916",
+    "archive_uncompressed_bytes": 2161978547,
+    "audit_dir": "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/sicapv2_v2/audit",
+    "dataset": "https://data.mendeley.com/datasets/9xxm58dvs3/2",
+    "decoded_images": 18783,
+    "doi": "10.17632/9xxm58dvs3.2",
+    "download_url": "https://data.mendeley.com/public-files/datasets/9xxm58dvs3/files/6ab087a7-ca89-47ac-9698-f6546bb50f98/file_downloaded",
+    "duplicate_pixel_groups": [],
+    "duplicate_raw_groups": [],
+    "errors": [],
+    "extraction": "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/sicapv2_v2/extracted",
+    "image_embedded_metadata": {
+      "{\"exif\": \"{}\", \"info\": \"{'jfif': 257, 'jfif_version': (1, 1), 'jfif_unit': 0, 'jfif_density': (1, 1)}\"}": 18783
+    },
+    "image_properties": {
+      "{\"format\": \"JPEG\", \"height\": 512, \"mode\": \"RGB\", \"width\": 512}": 18783
+    },
+    "images": 18783,
+    "mask_pixel_counts": {
+      "mask_other": 0,
+      "mask_value_0": 4220631721,
+      "mask_value_1": 0,
+      "mask_value_2": 0,
+      "mask_value_3": 190847349,
+      "mask_value_4": 428337950,
+      "mask_value_5": 84033732
+    },
+    "mask_properties": {
+      "{\"format\": \"PNG\", \"height\": 512, \"mode\": \"L\", \"width\": 512}": 18783
+    },
+    "masks": 18783,
+    "metadata_sha256": {
+      "SICAPv2/partition/Test/Test.xlsx": "6874a071a8fe14ca84fbd5017c2ec278632635f9be5ff4b5e123d0d8b81357ad",
+      "SICAPv2/partition/Test/TestCribfriform.xlsx": "129a547bfbaba720e344f925a491e5803b5ba8bcb90bc9b5dd3ffc28d3632f27",
+      "SICAPv2/partition/Test/Train.xlsx": "fc60dc99debff67cab21a3147ebd5d66892905bcacf84df2527211ce273b9eaf",
+      "SICAPv2/partition/Test/TrainCribfriform.xlsx": "31c3a906fd5be7601bd010f95a70ebcc0c7ad6e582d0c268cbf4d8a620e177d5",
+      "SICAPv2/partition/Validation/Val1/Test.xlsx": "ff14a1b733d7ac8f312374a63b1886d47678ab7b9af1c2c9440b14bfdfb41ae8",
+      "SICAPv2/partition/Validation/Val1/TestCribfriform.xlsx": "f250d81c84b42a7c4026ba6ddd6a4138de91aa33bbae593cb4c6c801416c5c30",
+      "SICAPv2/partition/Validation/Val1/Train.xlsx": "0e765928fe28b08e3aa98a30e79016e2826bb597862a3518d085246dfd259660",
+      "SICAPv2/partition/Validation/Val1/TrainCribfriform.xlsx": "b129c4b9cb63bba95e54147fac6dcc3f0bd4ef826f7d5b17a69bc8f2006ab108",
+      "SICAPv2/partition/Validation/Val2/Test.xlsx": "714b4ce6b72878d2a1ca2c26c3353d5c044e403609a7274f17b3215ce993dd4f",
+      "SICAPv2/partition/Validation/Val2/TestCribfriform.xlsx": "ac3e5755e6461066e4efbfb059afb9a41cb688f2ce963638f7808540707453a0",
+      "SICAPv2/partition/Validation/Val2/Train.xlsx": "666c60bcf9c46776d4296370686beff4afd1eb4a4b5d4a1af6cf9ddfeea8161f",
+      "SICAPv2/partition/Validation/Val2/TrainCribfriform.xlsx": "ffc45047b4c1d2b3b21478022a1940ab022a9f1ef66c38b60762c85fbda38cc2",
+      "SICAPv2/partition/Validation/Val3/Test.xlsx": "e00285e0d54b97d5910181823e8fb4fcc195c988f8fbbc1f69f1f75f7b03805e",
+      "SICAPv2/partition/Validation/Val3/TestCribfriform.xlsx": "061d0c79a5a91b565728e06a1b0fdb5d8ff8f3b0f985658eb8f80485fe51b373",
+      "SICAPv2/partition/Validation/Val3/Train.xlsx": "6e45e98fe2873f7cf4b65423c262b627bc7540af5750549488f9ff58ae80ebbb",
+      "SICAPv2/partition/Validation/Val3/TrainCribfriform.xlsx": "6579f15113650182286ab31763eb22bbd76f0dc0635745dcf42b919134689e24",
+      "SICAPv2/partition/Validation/Val4/Test.xlsx": "0c9f8c8c857b727997c8734f1eb08b77d1879fac3bce955104c7a7bf3f0031c2",
+      "SICAPv2/partition/Validation/Val4/TestCribfriform.xlsx": "deebc2a6e9189d509387820c7727828bb99517ca8ca48102ec97118ed9230488",
+      "SICAPv2/partition/Validation/Val4/Train.xlsx": "b5097012fe56cc8e7b5c4c44da5c3970b252f52d92dbc56d5513495986ab7fa2",
+      "SICAPv2/partition/Validation/Val4/TrainCribfriform.xlsx": "2fdc7f6597807ac46f71e3de5b19cb47179e23ee791c6dd0ac4d33d2a09206c4",
+      "SICAPv2/readme.txt": "ff03a64eb2b4a7bb3c3a18a4fec2d76f81026fdd4db38645969ea2d990015880",
+      "SICAPv2/wsi_labels.xlsx": "c8943645db58a357b382ef3064713fbe41415722de6448216aec9f5e0e3eebd4"
+    },
+    "mixed_zero_nonzero": 8055,
+    "multiple_nonzero_values": 6638,
+    "official_label_conflicts": [],
+    "overlap": {
+      "VAL1": {
+        "count": 0,
+        "method": "JPEG SHA256 versus existing manifest hashes only",
+        "sample_ids": []
+      },
+      "VAL2": {
+        "count": 0,
+        "method": "JPEG SHA256 versus existing manifest hashes only",
+        "sample_ids": []
+      }
+    },
+    "partition_summaries": {
+      "SICAPv2/partition/Test/Test.xlsx": {
+        "binary": {
+          "0": 644,
+          "1": 1478
+        },
+        "classes": {
+          "G3": 393,
+          "G4": 853,
+          "G5": 232,
+          "NC": 644
+        },
+        "decoded": 2122,
+        "patients": 21,
+        "rows": 2122,
+        "slides": 31
+      },
+      "SICAPv2/partition/Test/Train.xlsx": {
+        "binary": {
+          "0": 3773,
+          "1": 6186
+        },
+        "classes": {
+          "G3": 1829,
+          "G4": 3641,
+          "G5": 716,
+          "NC": 3773
+        },
+        "decoded": 9959,
+        "patients": 74,
+        "rows": 9959,
+        "slides": 124
+      },
+      "SICAPv2/partition/Validation/Val1/Test.xlsx": {
+        "binary": {
+          "0": 685,
+          "1": 1802
+        },
+        "classes": {
+          "G3": 625,
+          "G4": 979,
+          "G5": 198,
+          "NC": 685
+        },
+        "decoded": 2487,
+        "patients": 18,
+        "rows": 2487,
+        "slides": 29
+      },
+      "SICAPv2/partition/Validation/Val1/Train.xlsx": {
+        "binary": {
+          "0": 3088,
+          "1": 4384
+        },
+        "classes": {
+          "G3": 1204,
+          "G4": 2662,
+          "G5": 518,
+          "NC": 3088
+        },
+        "decoded": 7472,
+        "patients": 56,
+        "rows": 7472,
+        "slides": 95
+      },
+      "SICAPv2/partition/Validation/Val2/Test.xlsx": {
+        "binary": {
+          "0": 717,
+          "1": 1449
+        },
+        "classes": {
+          "G3": 346,
+          "G4": 950,
+          "G5": 153,
+          "NC": 717
+        },
+        "decoded": 2166,
+        "patients": 17,
+        "rows": 2166,
+        "slides": 27
+      },
+      "SICAPv2/partition/Validation/Val2/Train.xlsx": {
+        "binary": {
+          "0": 3056,
+          "1": 4737
+        },
+        "classes": {
+          "G3": 1483,
+          "G4": 2691,
+          "G5": 563,
+          "NC": 3056
+        },
+        "decoded": 7793,
+        "patients": 57,
+        "rows": 7793,
+        "slides": 97
+      },
+      "SICAPv2/partition/Validation/Val3/Test.xlsx": {
+        "binary": {
+          "0": 644,
+          "1": 1149
+        },
+        "classes": {
+          "G3": 361,
+          "G4": 670,
+          "G5": 118,
+          "NC": 644
+        },
+        "decoded": 1793,
+        "patients": 19,
+        "rows": 1793,
+        "slides": 30
+      },
+      "SICAPv2/partition/Validation/Val3/Train.xlsx": {
+        "binary": {
+          "0": 3129,
+          "1": 5037
+        },
+        "classes": {
+          "G3": 1468,
+          "G4": 2971,
+          "G5": 598,
+          "NC": 3129
+        },
+        "decoded": 8166,
+        "patients": 55,
+        "rows": 8166,
+        "slides": 94
+      },
+      "SICAPv2/partition/Validation/Val4/Test.xlsx": {
+        "binary": {
+          "0": 1727,
+          "1": 1786
+        },
+        "classes": {
+          "G3": 497,
+          "G4": 1042,
+          "G5": 247,
+          "NC": 1727
+        },
+        "decoded": 3513,
+        "patients": 20,
+        "rows": 3513,
+        "slides": 38
+      },
+      "SICAPv2/partition/Validation/Val4/Train.xlsx": {
+        "binary": {
+          "0": 2046,
+          "1": 4400
+        },
+        "classes": {
+          "G3": 1332,
+          "G4": 2599,
+          "G5": 469,
+          "NC": 2046
+        },
+        "decoded": 6446,
+        "patients": 54,
+        "rows": 6446,
+        "slides": 86
+      }
+    },
+    "patient_partition": {
+      "overlap": 0,
+      "test_patients": 21,
+      "train_patients": 74
+    },
+    "patients": 95,
+    "readme": "------------\r\n| Contents |\r\n------------\r\n\r\nVersion 1: 2020-05\r\n\r\n\r\n---------------\r\n| Directories |\r\n---------------\r\nD1. images\r\n\tProstate histology patches of slides at 10X magnification. Patches are extracted with size 512 pixels and overlap of 50% among them. Only the patches with more than 20% of tissue are selected.\r\n\tThe first prefix in filename indicated the slide ID (e.g. 16B0001851 in '16B0001851_Block_Region_1_0_0_xini_6803_yini_59786').\r\n\tThe patch position in the slide is indicated by the prefixes: Block_Region_region_y_x. Each slide have different regions, and the patch position is indicated in _y_x_.\r\nD2. masks\r\n\tMask with encoded anotations of the images in D1.\r\n\t\t0 --> non cancerous\r\n\t\t1 --> GG3\t\r\n\t\t2 --> GG4\r\n\t\t3 --> GG5\r\nD3. partition\r\n\tTables with the proposed patient-based cross-validation partition of the database, Gleason grades labels, and ground truth of cribriform patterns.\r\n\tThe non-cancerous patches in this partition are obtained from slides classified as non cancerous.\r\n\tThe labels in cancerous patches are obtained by majority voting of the annotations (masks).\r\n\r\n----------\r\n| Tables |\r\n----------\r\nT1. wsi_labels\r\n\tTable with the wsi ID, patient ID and its respective Gleason score (primary and secondary grades).\r\n",
+    "seconds": 725.4287894550071,
+    "selected_binary_counts": {
+      "0": 3773,
+      "1": 6186
+    },
+    "selected_manifest": "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/sicapv2_v2/audit/selected_train.csv",
+    "selected_manifest_sha256": "52e87a6e814eb64c296493d0637b34872269f63d890b472d1c11d17914cd660d",
+    "selected_samples": 9959,
+    "slides": 155,
+    "training_started": false,
+    "unlisted": 6702,
+    "version": 2
+  },
+  "archive_hashes_recorded": true,
+  "candidate_mappings": {
+    "all_official_train_plus_test": {
+      "benign": 4417,
+      "patients": 95,
+      "samples": 12081,
+      "slides": 155,
+      "tumour": 7664
+    },
+    "official_train_only": {
+      "benign": 3773,
+      "patients": 74,
+      "samples": 9959,
+      "slides": 124,
+      "tumour": 6186
+    }
+  },
+  "commit_push": false,
+  "comparison": {
+    "A": "Stage 2I native fixed epoch14 VAL2 result",
+    "B": "fixed epoch14 plus exactly one SICAP epoch15, then VAL2",
+    "caveat": "User-provided approximate descriptive paper values. This is not reproduction of paper post-VAL1; report deterioration as deterioration.",
+    "descriptive_paper_values": {
+      "native_VAL2": {
+        "accuracy": 0.967,
+        "f1": 0.942,
+        "precision": 0.927,
+        "recall": 0.957,
+        "roc_auc": 0.9918
+      },
+      "paper_VAL2_after_VAL1": {
+        "accuracy": 0.974,
+        "f1": 0.953,
+        "precision": 0.951,
+        "recall": 0.955,
+        "roc_auc": 0.9939
+      }
+    },
+    "metrics": [
+      "accuracy",
+      "precision",
+      "recall",
+      "sensitivity",
+      "specificity",
+      "f1",
+      "roc_auc",
+      "TN",
+      "FP",
+      "FN",
+      "TP"
+    ],
+    "probability_analysis": "Per-image unrounded tumour probability delta B-A; crossings at p_tumour >0.5 (equality benign)",
+    "selection": "No tuning, calibration, checkpoint selection, retry for VAL2 improvement or outcome-based sample choice"
+  },
+  "created_at_utc": "2026-10-08T04:27:21.551700+00:00",
+  "cross_validation_integrity": {
+    "Val1": {
+      "overlap": 0,
+      "test_patients": 18,
+      "train_patients": 56
+    },
+    "Val2": {
+      "overlap": 0,
+      "test_patients": 17,
+      "train_patients": 57
+    },
+    "Val3": {
+      "overlap": 0,
+      "test_patients": 19,
+      "train_patients": 55
+    },
+    "Val4": {
+      "overlap": 0,
+      "test_patients": 20,
+      "train_patients": 54
+    }
+  },
+  "downloaded": true,
+  "epoch15_configuration_frozen": true,
+  "exact_version_verified": true,
+  "excluded": {
+    "ambiguous_official_primary_labels": 0,
+    "official_test": 2122,
+    "selected_quality_exclusions": 0,
+    "total": 8824,
+    "unlisted": 6702
+  },
+  "file_inventory_sha256": "30f7564bbe661b71d4f69ae5b459cb33905a246bc3575a312bfc5d737c8fec3f",
+  "files_added": [
+    "modern_pca/sicapv2.py",
+    "modern_pca/train_sicapv2.py",
+    "modern_pca/evaluate_sicapv2.py",
+    "tests/test_sicapv2.py",
+    "tests/test_sicapv2_training.py",
+    "tools/inspect_sicapv2.py",
+    "tools/audit_sicapv2.py",
+    "tools/check_sicapv2_preprocessing.py",
+    "tools/verify_stage2j.py",
+    "tools/report_stage2j.py"
+  ],
+  "framing": "SECONDARY external fine-tuning/transfer; not paper post-VAL1 reproduction",
+  "git_diff_check": "PASS; additional trailing-whitespace check of all new code passed",
+  "global_Gleason_counts": {
+    "0+0": 36,
+    "3+3": 14,
+    "3+4": 22,
+    "3+5": 4,
+    "4+3": 23,
+    "4+4": 13,
+    "4+5": 28,
+    "5+3": 1,
+    "5+4": 7,
+    "5+5": 7
+  },
+  "image_inventory_sha256": "1557779325cb922785142ed24e4056b5180c7a63ec25abc43cc5753d4d2e3cb7",
+  "magnification": {
+    "available_high_resolution_WSI": false,
+    "caveat": "Ratios assume comparable scanner calibration; MPP is not established. Whole-patch resize preserves a much wider field. Interpolation cannot recover optical resolution. Crop/rescale would change labels/context and is not proposed.",
+    "mpp": null,
+    "nominal_area_ratio": 11.650844444444447,
+    "nominal_linear_FOV_ratio": 3.4133333333333336,
+    "physical_FOV_microns": null,
+    "primary_source": "MAIN.py p_s600/m_p_s350 and wsi_process.py comment40x, level0 read_region",
+    "released": "512x512 RGB patches documented at10x, 50% overlap",
+    "source_scanner": "Authors describe40x Ventana iScanCoreo acquisition"
+  },
+  "masks": {
+    "interpretation": "Actual values are exactly 0/3/4/5, empirically associated with NC/G3/G4/G5; the stale Version1 readme says 0/1/2/3. Six official G3/G4 labels disagree with mask majority grade but remain tumour under either binary mapping. No mask-derived training labels or thresholds. Zero does not distinguish benign tissue from unannotated/background; numeric mixtures do not independently certify biological mixtures.",
+    "majority_nonzero_by_official_label": {
+      "G3": {
+        "3": 2220,
+        "4": 2
+      },
+      "G4": {
+        "3": 4,
+        "4": 4490
+      },
+      "G5": {
+        "5": 948
+      },
+      "NC": {
+        "0": 4417
+      },
+      "unlisted": {
+        "0": 6307,
+        "3": 120,
+        "4": 185,
+        "5": 90
+      }
+    },
+    "mixed_zero_nonzero_patches": 8055,
+    "multiple_nonzero_value_patches": 6638,
+    "raw_histogram": {
+      "mask_other": 0,
+      "mask_value_0": 4220631721,
+      "mask_value_1": 0,
+      "mask_value_2": 0,
+      "mask_value_3": 190847349,
+      "mask_value_4": 428337950,
+      "mask_value_5": 84033732
+    }
+  },
+  "new_VAL2_evaluation_started": false,
+  "patient_partition_preserved": true,
+  "plan_sha256": "dde60a751a3fe6b49aec2f561bc48d258c88a1b45ab0f12a767f47d773aa8c47",
+  "post_training_VAL2_command": "cd '/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/GitHub/dsa5206-proj'\nenv -u TF_GPU_ALLOCATOR /home/soonh/miniconda3/envs/dsa5206-reimplementation/bin/python -B -u -m modern_pca.evaluate_sicapv2 \\\n  --plan reports/stage2j_epoch15_plan.json \\\n  --run runs/stage2j_sicapv2_epoch15 \\\n  --baseline runs/stage2i_val2_native_epoch14 \\\n  --manifest manifests/VAL2_manifest.csv \\\n  --extracted '/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/zenodo/_3825933/extracted' \\\n  --output runs/stage2j_val2_epoch15 --final-evaluation",
+  "preprocessing": {
+    "contact_sheet": "reports/stage2j_preprocessing_contact_sheet.png",
+    "failure_rate": 0.0,
+    "failures": [],
+    "reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1",
+    "report": "reports/stage2j_preprocessing.json",
+    "samples": 9959,
+    "successes": 9959,
+    "visual_review": "Eight deterministic official training samples, two per grade, raw/normalized pairs. Stronger contrast and slight background speckling visible; no gross structural loss seen at preview scale. Not a histopathologist validation or exhaustive visual review."
+  },
+  "primary_checkpoints_history_unchanged": true,
+  "primary_sources_unchanged": true,
+  "protocol": {
+    "BN": "frozen/inference",
+    "TF32": false,
+    "allocator": "cuda_malloc_async",
+    "amsgrad": false,
+    "beta_1": 0.9,
+    "beta_2": 0.999,
+    "boundary": "normal_conv_1_1",
+    "class_order": [
+      "benign",
+      "tumour"
+    ],
+    "clipping": null,
+    "effective_batch": 100,
+    "epoch_for_flips": 15,
+    "epsilon": 1e-07,
+    "extra_epochs": 1,
+    "final_epoch": 15,
+    "horizontal_flip": 0.5,
+    "learning_rate": 1e-06,
+    "loss": "unweighted sparse categorical crossentropy",
+    "optimizer": "fresh Adam",
+    "order": "SHA256 SICAPv2-epoch15-v1|42|<sample_id>; ties sample_id",
+    "physical_batch": 4,
+    "precision": "float32",
+    "preprocessing": "frozen PIL RGB/LANCZOS350/brightness/Macenko/float32 divided by255",
+    "purpose": "secondary_SICAPv2_epoch15",
+    "reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1",
+    "sampling": "each official training sample exactly once; no resampling",
+    "scale": "whole 512px 10x patch resized to350; explicit magnification deviation",
+    "seed": 42,
+    "starting_epoch": 14,
+    "validation": "none; no checkpoint selection",
+    "vertical_flip": 0.5,
+    "weight_decay": null
+  },
+  "quality": {
+    "all_white_images": 0,
+    "constant_images": 0,
+    "max_bright_fraction": 0.7818374633789062,
+    "mean_rgb_ranges": {
+      "b": [
+        126.70899963378906,
+        245.9622573852539
+      ],
+      "g": [
+        68.22867202758789,
+        238.74380111694336
+      ],
+      "r": [
+        105.03046035766602,
+        250.91845321655273
+      ]
+    },
+    "meaning": "Brightness >=240 in all channels and RGB std are descriptive QC only; no exclusion thresholds.",
+    "min_rgb_std": 18.164771656675907,
+    "normalized_constant_images": 0,
+    "normalized_mean_rgb_ranges": [
+      [
+        0.5145388245582581,
+        0.9440447688102722
+      ],
+      [
+        0.35719436407089233,
+        0.8846815228462219
+      ],
+      [
+        0.5575470924377441,
+        0.9237765669822693
+      ]
+    ],
+    "normalized_std_range": [
+      0.16231784224510193,
+      0.32279691100120544
+    ]
+  },
+  "runtime_memory": {
+    "cache_proposed": false,
+    "estimated_compute_seconds": 743.660609949776,
+    "final_logical_batch_samples": 59,
+    "free_data_volume_bytes": 1061623676928,
+    "full_logical_batches": 99,
+    "full_preprocessing_audit_seconds": 1242.8800576530048,
+    "historical_compiled_training_images_per_second": 13.391861645963195,
+    "limitation": "Estimate, not a timed production epoch. Eager diagnostic peak is close to current TensorFlow GPU budget; compiled Stage 2H same-boundary evidence used separately. Keep other GPU workloads closed.",
+    "optimizer_updates": 100,
+    "optional_uint8_cache_bytes": 3659932500,
+    "output_space_estimate_bytes": 5000000000,
+    "physical_batches": 2490,
+    "preprocessing_measured_seconds": 1206.1097389007045,
+    "previous_compiled_peak_bytes": 5857152000,
+    "proposed_wall_clock_minutes": [
+      35,
+      55
+    ],
+    "serial_preprocessing_plus_compute_seconds": 1949.7703488504806,
+    "zero_update_probe": {
+      "current": 4185936556,
+      "peak": 9972027424
+    }
+  },
+  "selected": "SICAPv2/partition/Test/Train.xlsx only; NC->0; G3/G4/G5->1",
+  "sources": [
+    "https://data.mendeley.com/datasets/9xxm58dvs3/2",
+    "https://arxiv.org/html/2105.10490v1",
+    "4_WSI_pipeline/WSI_pipeline_v6/MAIN.py",
+    "4_WSI_pipeline/WSI_pipeline_v6/wsi_process.py"
+  ],
+  "status": "CONDITIONAL GO",
+  "tests": {
+    "focused": {
+      "exit_code": 0,
+      "log": "reports/stage2j_focused_tests.log",
+      "summary": "24 passed in 7.32s"
+    },
+    "full": {
+      "exit_code": 0,
+      "log": "reports/stage2j_full_tests.log",
+      "summary": "303 passed in 60.83s (0:01:00)"
+    }
+  },
+  "training_command": "cd '/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/GitHub/dsa5206-proj'\nTF_GPU_ALLOCATOR=cuda_malloc_async /home/soonh/miniconda3/envs/dsa5206-reimplementation/bin/python -B -u -m modern_pca.train_sicapv2 \\\n  --plan reports/stage2j_epoch15_plan.json \\\n  --model runs/stage2h_production_resume_epoch11_cuda_malloc_async/epoch14.keras \\\n  --manifest '/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/sicapv2_v2/audit/selected_train.csv' \\\n  --images '/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/sicapv2_v2/extracted/SICAPv2/images' \\\n  --output runs/stage2j_sicapv2_epoch15 \\\n  --train-one-epoch --accept-magnification-deviation",
+  "training_started": false
+}

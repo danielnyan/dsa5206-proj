@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N nasnet_14epoch
+#PBS -q auto
+#PBS -l select=1:ncpus=12:mem=96gb:ngpus=2
+#PBS -l walltime=36:00:00
+#PBS -j oe
+set -euo pipefail
+cd /scratch/e1536052/DSA5206/dsa5206-proj
+module load Python/3.11.5-GCCcore-13.2.0
+source /scratch/e1536052/DSA5206/.venv/bin/activate
+export PYTHONPATH="$PWD:${PYTHONPATH:-}"
+export TF_CPP_MIN_LOG_LEVEL=2
+export OMP_NUM_THREADS=8
+CACHE="/scratch/e1536052/DSA5206/cache_transfer/cache"
+OUTPUT="/scratch/e1536052/DSA5206/vanda_runs/nasnet_production_14epoch"
+# For a single-epoch pilot, submit with qsub -v MAX_EPOCHS=1 nasnet_14epoch.pbs
+MAX_EPOCHS="${MAX_EPOCHS:-14}"
+echo "PBS_JOBID=$PBS_JOBID HOST=$(hostname) MAX_EPOCHS=$MAX_EPOCHS"
+nvidia-smi -L
+python -u -m modern_pca.vanda_distributed_training \
+  --cache "$CACHE" --output "$OUTPUT" --max-epochs "$MAX_EPOCHS" --log-every 50

@@ -1,0 +1,16 @@
+{
+  "experiment": "Singapore all-patch epoch-15 fine-tuning",
+  "source_checkpoint": "/scratch/e1536052/DSA5206/vanda_runs/nasnet_production_14epoch/epoch_14_resume",
+  "source_optimizer_iterations": 1167,
+  "samples": 11020,
+  "updates": 111,
+  "final_optimizer_iterations": 1278,
+  "learning_rate": 1e-06,
+  "trainable_boundary": "normal_conv_1_1",
+  "batch_size": 100,
+  "shuffle_seed": 42,
+  "augmentation_epoch": 15,
+  "mean_training_loss": 0.532094503406388,
+  "checkpoint_sha256": "5c1bf2f62c3fdb44a1dba239afa8718ab76a4d6b8b7be8b5195666ef3bc9dea8",
+  "elapsed_seconds": 342.7716218139976
+}

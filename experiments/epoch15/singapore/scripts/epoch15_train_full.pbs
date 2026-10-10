@@ -1,0 +1,25 @@
+#!/bin/bash
+#PBS -N epoch15_train_full
+#PBS -q auto
+#PBS -l select=1:ncpus=8:mem=64gb:ngpus=2
+#PBS -l walltime=06:00:00
+#PBS -j oe
+
+set -euo pipefail
+
+BASE=/scratch/e1536052/DSA5206
+REPO="$BASE/dsa5206-native-release"
+DATA="$BASE/singapore_external"
+
+module load Python/3.11.5-GCCcore-13.2.0
+source "$BASE/.venv/bin/activate"
+
+cd "$REPO"
+export PYTHONPATH="$REPO:${PYTHONPATH:-}"
+export TF_CPP_MIN_LOG_LEVEL=2
+
+nvidia-smi -L
+
+python -u "$DATA/scripts/train_epoch15.py" \
+  --limit 11020 \
+  --output "$DATA/results/epoch15_singapore/full11020"

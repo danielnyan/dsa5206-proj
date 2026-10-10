@@ -1,0 +1,35 @@
+{
+  "purpose": "SICAPv2_patient_disjoint_development_evaluation",
+  "model_key": "partial",
+  "model_sha256": "f28c7cbd6b874a4287972913127a361d7bbc8d2bcd8cf03c72747d8589c707df",
+  "development_manifest_sha256": "660273c4ce1959b77c4b35e39bbe713309d14f921fe62f8012c2f3334e43245a",
+  "samples": 1833,
+  "patients": 16,
+  "threshold": "p_tumour > 0.5",
+  "augmentation": false,
+  "training_performed": false,
+  "metrics": {
+    "TN": 559,
+    "FP": 26,
+    "FN": 1017,
+    "TP": 231,
+    "accuracy": 0.430987452264048,
+    "precision": 0.8988326848249028,
+    "sensitivity": 0.18509615384615385,
+    "specificity": 0.9555555555555556,
+    "f1": 0.30697674418604654,
+    "balanced_accuracy": 0.5703258547008547,
+    "roc_auc": 0.6566485864562788,
+    "confusion_matrix": [
+      [
+        559,
+        26
+      ],
+      [
+        1017,
+        231
+      ]
+    ]
+  },
+  "elapsed_seconds": 433.83468319196254
+}

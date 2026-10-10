@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "artifacts_sha256": {
+    "metrics.json": "b353dc2dc50b5dfa201a66c5492700e3fc3dbabbd42965270ead38f69f5b676b",
+    "predictions.csv": "dc233050eacb925a2fa224d0c583c6a89dbf5745b890adb97cd10db32abcc13d"
+  }
+}

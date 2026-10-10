@@ -1,0 +1,30 @@
+#!/bin/bash
+#PBS -N val2_singapore15
+#PBS -q auto
+#PBS -l select=1:ncpus=12:mem=96gb:ngpus=1
+#PBS -l walltime=06:00:00
+#PBS -j oe
+
+set -euo pipefail
+
+BASE=/scratch/e1536052/DSA5206
+REPO="$BASE/dsa5206-native-release"
+DATA="$BASE/singapore_external"
+MODEL="$DATA/results/epoch15_singapore/full11020"
+
+module load Python/3.11.5-GCCcore-13.2.0
+source "$BASE/.venv/bin/activate"
+
+cd "$REPO"
+export PYTHONPATH="$REPO:${PYTHONPATH:-}"
+export CUDA_VISIBLE_DEVICES=0
+export TF_CPP_MIN_LOG_LEVEL=2
+
+python -u "$DATA/scripts/evaluate_val2_singapore15.py" \
+  --model "$MODEL/epoch15_singapore.keras" \
+  --training-summary "$MODEL/training_summary.json" \
+  --manifest "$REPO/manifests/VAL2_manifest.csv" \
+  --extracted "$BASE/val2_transfer/extracted" \
+  --stain-reference "$REPO/4_WSI_pipeline/WSI_pipeline_v6/images/standard_he_stain_small.jpg" \
+  --batch-size 32 \
+  --output "$BASE/vanda_runs/val2_epoch15_singapore_${PBS_JOBID%%.*}"

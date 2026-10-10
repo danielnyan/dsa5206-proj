@@ -1,0 +1,12 @@
+{
+  "purpose": "secondary_SICAPv2_epoch15_vanda_2xa40",
+  "epochs": [
+    {
+      "epoch": 15,
+      "samples": 9959,
+      "updates": 100,
+      "loss": 1.3199445925894626,
+      "elapsed_seconds": 3351.34
+    }
+  ]
+}

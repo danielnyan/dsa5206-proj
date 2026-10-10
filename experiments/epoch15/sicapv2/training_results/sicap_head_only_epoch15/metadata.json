@@ -1,0 +1,7 @@
+{
+  "completed_epochs": 15,
+  "model_sha256": "4d5b2127484f1e2c37ff33c3bd7ca451f77984d47b4f43b09f9710c6fd64dfd7",
+  "parent_model_sha256": "433dd48aae800c659d1cba092af2859499bb804d2228ff978a6e9c9602b2adde",
+  "trainable_params": 124896002,
+  "purpose": "experiment1_head_only"
+}
