@@ -1,177 +1,331 @@
-# PANDA CPU addendum — export a PBS/HPC training bundle
+# PANDA CPU chunked preparation + export addendum
+# =================================================
 #
-# APPEND THIS AS THE FINAL CELL of PANDA_CPU_150um_prepare.py / the corresponding
-# Kaggle CPU notebook, AFTER preparation has completed successfully.
-#
-# Purpose
+# PURPOSE
 # -------
-# Export a deterministic 5,000-train / 1,000-validation subset (configurable)
-# from the already-normalized 350x350 PANDA cache into a single ZIP suitable for
-# transfer to the dsa5206-proj HPC environment.
+# Replace the original unbounded A6/A7 preparation/handoff cells AND the older
+# "export after everything is prepared" addendum.
 #
-# IMPORTANT
-# ---------
-# 1. This addendum does NOT retrain, renormalize, or alter image pixels.
-# 2. It preserves the PANDA provenance: manifest rows use dataset="panda".
-# 3. The ZIP is a TRANSFER ARCHIVE. The current PBS training job reads normal
-#    directories/files; it cannot train directly from inside a ZIP.
-# 4. A one-line repository compatibility change is required on the gleason
-#    branch so manifest_datasets() accepts ['panda']; see the handoff notes
-#    printed by this cell and the comments at the end of this file.
-# 5. The existing NASNetLarge architecture, ImageNet initialization, class order,
-#    14-epoch schedule, optimizer behavior, and train_gleason.pbs remain untouched.
+# This version prepares and exports PANDA in deterministic bounded chunks. It is
+# intended for Kaggle sessions with a time/output-size limit and for eventual
+# export of the *entire* eligible cohort over multiple runs.
 #
-# BEFORE PREPARATION FOR A 5,000 / 1,000 EXPORT:
-# The current CPU script default CAPS={'train': 1000, 'validation': 200} is
-# PER CLASS, so it can cache at most 3,000 train + 600 validation images.
-# After inspecting inventory counts, use a larger preparation allowance, e.g.
+# IMPORTANT FOR EXISTING NOTEBOOKS
+# --------------------------------
+# Keep A1-A5 unchanged, including the completed inventory in PREP_ROOT.
 #
-#     CAPS = {'train': 2000, 'validation': 400}
+# DO NOT run the old A6:
 #
-# which permits up to 6,000 train + 1,200 validation candidates. The exporter
-# below then deterministically selects exactly 5,000 + 1,000. If a class has
-# insufficient eligible tiles or stain exclusions reduce the retained cohort,
-# the exporter fails rather than silently changing the requested cohort.
+#     prepare_selected(... CAPS ...)
 #
-# Expected prior definitions from the CPU script:
-#   PREP_ROOT, CLASSES, REFERENCE_SHA, TARGET_FOV_UM, OUTPUT_PIXELS,
-#   load_prepared(), sha()
+# and DO NOT run the old single-ZIP A8 exporter.
+#
+# Put this block immediately after A5 instead.
+#
+# The chunker deliberately uses the same final ordering as the original
+# `select_tiles(..., caps=None)` path:
+#
+#     (image_id, y, x, tile_id)
+#
+# Therefore an interrupted legacy CAPS=None preparation can be salvaged. If
+# PREP_ROOT/cache + PREP_ROOT/tile_ledger.jsonl already contain normalized tiles,
+# this block reuses them when they belong to the selected chunk.
+#
+# CHUNK SEMANTICS
+# ---------------
+# CHUNK_INDEX is zero-based. CHUNK_TILE_COUNT is editable on every *new* chunk.
+# The next chunk starts automatically at the previous completed chunk's
+# selection_stop recorded in PREP_ROOT/chunk_exports.jsonl.
+#
+# Example:
+#
+#     chunk 0: CHUNK_TILE_COUNT=40000 -> eligible rows      0:40000
+#     chunk 1: CHUNK_TILE_COUNT=30000 -> eligible rows  40000:70000
+#     chunk 2: CHUNK_TILE_COUNT=50000 -> eligible rows  70000:120000
+#
+# The eligible-row ordering is deterministic, so completed chunks are disjoint
+# and their union covers the cohort without requiring equal chunk sizes. When
+# resuming an interrupted chunk, keep BOTH CHUNK_INDEX and CHUNK_TILE_COUNT
+# unchanged.
+#
+# A chunk is resumable. Incomplete normalized PNGs and the chunk ledger live
+# under PREP_ROOT/chunk_work/chunk_XXXX, so `restore_previous()` carries them
+# forward with the ordinary PREVIOUS_CPU_OUTPUT workflow.
+#
+# Once a chunk ZIP is finalized and SHA-256 verified, this script can delete the
+# corresponding raw PNG cache. Small chunk metadata are retained so that the
+# next notebook version does not carry all previous image caches forward.
+#
+# The final ZIP is a transfer shard, not necessarily a standalone training set.
+# Extract all desired shards on HPC and merge them with the companion
+# PANDA_HPC_merge_chunks.py helper before running production PBS training.
+#
+# RECOMMENDED FIRST CHUNK FOR THE CURRENT RUN
+# -------------------------------------------
+# The observed cache was ~6.72 GiB at ~38,100 processed candidates. A 40,000-tile
+# shard should therefore be around 7 GiB at the same compression ratio and will
+# reuse almost all of the work already done in the interrupted legacy run.
+#
+# Future users may edit CHUNK_TILE_COUNT. Keep it small enough that BOTH the raw
+# chunk cache and the temporary ZIP can coexist in /kaggle/working while the ZIP
+# is being finalized.
 #
 # ---------------------------------------------------------------------------
-# A8 — HPC export configuration
+# A6C.1 — user configuration
 # ---------------------------------------------------------------------------
 
 import csv
 import hashlib
 import json
-import math
-import tempfile
+import shutil
+import sqlite3
+import time
+import warnings
 import zipfile
 from collections import Counter
 from pathlib import Path
 
-HPC_EXPORT_TRAIN = 5000
-HPC_EXPORT_VALIDATION = 1000
-HPC_EXPORT_SEED = SEED
+# Zero-based chunk number. Increment by exactly one after a completed export.
+CHUNK_INDEX = 0
 
-# The archive contains this one top-level directory.
-HPC_BUNDLE_NAME = 'panda-150um'
-HPC_ARCHIVE = Path('/kaggle/working/panda_150um_hpc_5000train_1000val.zip')
-HPC_ARCHIVE_SHA = HPC_ARCHIVE.with_suffix(HPC_ARCHIVE.suffix + '.sha256.txt')
+# Total eligible candidates attempted in this chunk, across train + validation.
+# This may be changed for each NEW chunk. The next start offset is derived from
+# the previous completed chunk, so changing 40k -> 30k -> 50k does not create a
+# gap or overlap. When RESUMING the same incomplete chunk, keep it unchanged.
+CHUNK_TILE_COUNT = 81_000
+
+# Additional guard for NEW files written into this chunk's private cache.
+# Reused legacy cache files do not count against this number because they already
+# exist on disk. This is a safety guard, not a target.
+CHUNK_MAX_NEW_CACHE_GIB = 19.0
+
+# Reuse normalized tiles created by the earlier CAPS=None preparation, if present.
+REUSE_LEGACY_CACHE = True
+
+# After the final ZIP is closed and SHA-256 verified:
+#   - remove the chunk-private raw PNG cache;
+#   - remove matching legacy PREP_ROOT/cache PNGs that were safely archived.
+# This is what prevents every subsequent saved notebook version from carrying
+# all previous image data forward.
+DELETE_RAW_CACHE_AFTER_ARCHIVE = True
+DELETE_ARCHIVED_LEGACY_CACHE = True
+
+# If True, rerunning a CHUNK_INDEX that already has chunk_done.json is refused.
+# This prevents accidental duplicate exports. Set True only if you intentionally
+# need to rebuild a completed shard.
+ALLOW_REEXPORT_COMPLETED_CHUNK = False
+
+# Archive is intentionally OUTSIDE PREP_ROOT. restore_previous() therefore
+# restores only the small resumable state, not all old ZIPs.
+CHUNK_ARCHIVE_DIR = Path('/kaggle/working')
+
+# ---------------------------------------------------------------------------
+# A6C.2 — derived paths and constants
+# ---------------------------------------------------------------------------
+
+if CHUNK_INDEX < 0:
+    raise ValueError('CHUNK_INDEX must be >= 0')
+if CHUNK_TILE_COUNT < 1:
+    raise ValueError('CHUNK_TILE_COUNT must be >= 1')
+if CHUNK_MAX_NEW_CACHE_GIB <= 0:
+    raise ValueError('CHUNK_MAX_NEW_CACHE_GIB must be positive')
+
+CHUNK_NAME = f'chunk_{CHUNK_INDEX:04d}'
+CHUNK_BUNDLE_NAME = f'panda-150um-{CHUNK_NAME}'
+CHUNK_ROOT = PREP_ROOT / 'chunk_work' / CHUNK_NAME
+CHUNK_CACHE = CHUNK_ROOT / 'cache'
+CHUNK_MANIFESTS = CHUNK_ROOT / 'manifests'
+
+CHUNK_ARCHIVE = CHUNK_ARCHIVE_DIR / f'panda_150um_{CHUNK_NAME}.zip'
+CHUNK_ARCHIVE_PARTIAL = CHUNK_ARCHIVE.with_suffix('.zip.partial')
+CHUNK_ARCHIVE_SHA = CHUNK_ARCHIVE.with_suffix('.zip.sha256.txt')
+
+LEGACY_CACHE = PREP_ROOT / 'cache'
+LEGACY_LEDGER = PREP_ROOT / 'tile_ledger.jsonl'
+LEGACY_STAIN_EXCLUSIONS = PREP_ROOT / 'stain_exclusions.jsonl'
+
+HPC_FIELDS = [
+    'dataset', 'split', 'sample_id', 'class_name', 'label',
+    'region_role', 'region_primary', 'region_secondary',
+    'source_wsi', 'patient_id', 'file_sha256',
+    'cache_file', 'cache_sha256',
+    'tile_id', 'image_id', 'x', 'y',
+    'tile_width', 'tile_height',
+    'mpp_x', 'mpp_y', 'actual_fov_um_x', 'actual_fov_um_y',
+    'tumour_fraction', 'gleason_score', 'expected_gp',
+]
 
 
 # ---------------------------------------------------------------------------
-# Deterministic proportional subsampling
+# A6C.3 — deterministic contiguous chunk selection from completed inventory
 # ---------------------------------------------------------------------------
 
-def _stable_rank(seed, split, row):
-    key = f'{seed}:{split}:{row["tile_id"]}'.encode('utf-8')
-    return hashlib.sha256(key).hexdigest()
-
-
-def _class_targets(rows, n):
+def _chunk_selection(
+    inventory_root,
+    chunk_index,
+    chunk_tile_count,
+    start,
+    min_tumour_fraction=0.0,
+):
     """
-    Allocate exactly n observations across the available GP classes approximately
-    in proportion to their frequencies in `rows`, while retaining every class.
+    Return one contiguous shard of the complete eligible cohort.
 
-    This exporter does not introduce class balancing beyond whatever distribution
-    already exists in the prepared cohort.
+    Ordering intentionally matches the final ordering of the old
+    select_tiles(..., caps=None) implementation:
+        image_id, y, x
+    with tile_id as a deterministic tie-breaker.
     """
-    counts = Counter(int(r['label']) for r in rows)
-    labels = sorted(counts)
+    inventory_root = Path(inventory_root)
+    db = sqlite3.connect(inventory_root / 'inventory.sqlite')
+    db.row_factory = sqlite3.Row
 
-    if labels != [0, 1, 2]:
-        raise ValueError(f'Expected prepared GP3/GP4/GP5 classes, got {labels}')
-    if n < len(labels):
-        raise ValueError('Requested export is too small to retain all GP classes')
-    if n > len(rows):
-        raise ValueError(
-            f'Requested {n:,} rows but only {len(rows):,} prepared rows are available'
+    clause = eligibility_clause(min_tumour_fraction)
+
+    total = db.execute(
+        'SELECT COUNT(*) '
+        'FROM tiles t JOIN slides s USING(image_id) '
+        'WHERE ' + clause,
+        (min_tumour_fraction,),
+    ).fetchone()[0]
+
+    start = int(start)
+
+    if start < 0:
+        db.close()
+        raise ValueError('Chunk start offset must be >= 0')
+
+    if start >= total:
+        db.close()
+        return [], {
+            'chunk_index': int(chunk_index),
+            'chunk_tile_count': int(chunk_tile_count),
+            'global_eligible': int(total),
+            'start': int(start),
+            'stop': int(start),
+            'selected': 0,
+            'is_last_chunk': True,
+            'all_chunks_exported': True,
+        }
+
+    rows = [
+        dict(row)
+        for row in db.execute(
+            'SELECT '
+            't.*, '
+            's.split, s.role, s.gleason_score, s.expected_gp, '
+            's.mpp_x, s.mpp_y, s.actual_fov_um_x, s.actual_fov_um_y '
+            'FROM tiles t JOIN slides s USING(image_id) '
+            'WHERE ' + clause + ' '
+            'ORDER BY t.image_id, t.y, t.x, t.tile_id '
+            'LIMIT ? OFFSET ?',
+            (
+                min_tumour_fraction,
+                int(chunk_tile_count),
+                int(start),
+            ),
         )
+    ]
 
-    total = len(rows)
-    ideal = {k: n * counts[k] / total for k in labels}
-    target = {
-        k: min(counts[k], max(1, int(math.floor(ideal[k]))))
-        for k in labels
+    db.close()
+
+    stop = start + len(rows)
+
+    selection_sha256 = hashlib.sha256(
+        '\n'.join(row['tile_id'] for row in rows).encode('utf-8')
+    ).hexdigest()
+
+    meta = {
+        'chunk_index': int(chunk_index),
+        'chunk_tile_count': int(chunk_tile_count),
+        'global_eligible': int(total),
+        'start': int(start),
+        'stop': int(stop),
+        'selected': len(rows),
+        'is_last_chunk': stop >= total,
+        'all_chunks_exported': False,
+        'selection_order': 'image_id,y,x,tile_id',
+        'selection_sha256': selection_sha256,
     }
 
-    # If enforcing at least one pushed the total above n, reduce classes that are
-    # most above their ideal allocation, never dropping a represented class.
-    while sum(target.values()) > n:
-        candidates = [k for k in labels if target[k] > 1]
-        if not candidates:
-            raise RuntimeError('Unable to construct requested class-preserving subset')
-        k = max(candidates, key=lambda j: (target[j] - ideal[j], target[j], -j))
-        target[k] -= 1
-
-    # Largest-remainder/capacity allocation until the requested total is exact.
-    while sum(target.values()) < n:
-        candidates = [k for k in labels if target[k] < counts[k]]
-        if not candidates:
-            raise RuntimeError('Insufficient class capacity for requested export size')
-        k = max(candidates, key=lambda j: (ideal[j] - target[j], counts[j] - target[j], -j))
-        target[k] += 1
-
-    assert sum(target.values()) == n
-    return target
+    return rows, meta
 
 
-def _select_exact(rows, n, split, seed):
-    rows = list(rows)
-    target = _class_targets(rows, n)
-    selected = []
+def _next_chunk_start(prep_root, chunk_index):
+    """
+    Resolve the start offset for a new/resumed chunk.
 
-    for label in (0, 1, 2):
-        group = [r for r in rows if int(r['label']) == label]
-        group.sort(key=lambda r: _stable_rank(seed, split, r))
-        selected.extend(group[:target[label]])
+    * chunk 0 always starts at 0.
+    * for chunk N>0, start at selection_stop of completed chunk N-1.
+    * if chunk N already has chunk_settings.json (resume), use its frozen
+      selection_start instead.
 
-    # Stable final ordering makes manifests byte-for-byte reproducible.
-    selected.sort(key=lambda r: (r['image_id'], int(r['y']), int(r['x']), r['tile_id']))
+    This makes CHUNK_TILE_COUNT editable between completed chunks without
+    creating gaps or overlaps.
+    """
+    prep_root = Path(prep_root)
+    chunk_root = prep_root / 'chunk_work' / f'chunk_{chunk_index:04d}'
+    frozen = chunk_root / 'chunk_settings.json'
 
-    if len(selected) != n:
-        raise RuntimeError('Exact export selection failed')
-    return selected, target
+    if frozen.exists():
+        settings = json.loads(frozen.read_text())
+        if int(settings['chunk_index']) != int(chunk_index):
+            raise ValueError('Frozen chunk index mismatch')
+        return int(settings['selection_start'])
+
+    if chunk_index == 0:
+        return 0
+
+    exports = [
+        row
+        for row in read_jsonl(prep_root / 'chunk_exports.jsonl')
+        if int(row.get('chunk_index', -1)) == int(chunk_index) - 1
+    ]
+
+    if not exports:
+        raise ValueError(
+            f'Cannot start chunk {chunk_index}: completed chunk '
+            f'{chunk_index - 1} is not recorded in chunk_exports.jsonl. '
+            'Resume/finish the previous chunk first.'
+        )
+
+    previous = exports[-1]
+    return int(previous['selection_stop'])
 
 
 # ---------------------------------------------------------------------------
-# Convert PANDA manifest rows to the existing Gleason trainer's row contract
+# A6C.4 — HPC manifest conversion
 # ---------------------------------------------------------------------------
 
-def _hpc_row(row, split):
+def _hpc_row(row):
     label = int(row['label'])
     gp = label + 3
 
-    # file_sha256 is used by the current HPC isolation check as a content identity.
-    # The normalized cache file is the actual object passed to training, so its
-    # checksum is the appropriate available content identity here.
-    cache_digest = row['cache_sha256']
-
     return {
         'dataset': 'panda',
-        'split': split,
+        'split': row['split'],
         'sample_id': f'panda:{row["tile_id"]}',
         'class_name': CLASSES[label],
         'label': label,
 
-        # Existing "pure" cohort selector contract. The PANDA CPU preparation has
-        # already enforced a single-pattern pure-source proxy before these rows
-        # reach this exporter.
-        'region_role': 'pure' if split == 'train' else 'heldout_single_gp',
+        # Existing pure-cohort contract used by the gleason branch.
+        # PANDA training eligibility was already decided during inventory.
+        'region_role': (
+            'pure'
+            if row['split'] == 'train'
+            else 'heldout_single_gp'
+        ),
         'region_primary': gp,
         'region_secondary': gp,
 
-        # Existing overlap/isolation contract.
         'source_wsi': row['image_id'],
         'patient_id': '',
-        'file_sha256': cache_digest,
 
-        # Existing cache contract.
+        # The normalized PNG is the object passed to model training.
+        'file_sha256': row['cache_sha256'],
         'cache_file': row['cache_file'],
-        'cache_sha256': cache_digest,
+        'cache_sha256': row['cache_sha256'],
 
-        # PANDA/FOV provenance retained as extra manifest fields.
+        # Preserve PANDA/FOV provenance.
         'tile_id': row['tile_id'],
         'image_id': row['image_id'],
         'x': row['x'],
@@ -188,308 +342,833 @@ def _hpc_row(row, split):
     }
 
 
-def _write_csv(path, rows):
-    if not rows:
-        raise ValueError(f'Cannot write empty manifest: {path}')
-    fields = list(rows[0])
-    with Path(path).open('w', newline='') as stream:
-        writer = csv.DictWriter(stream, fieldnames=fields)
+def _write_hpc_manifest(path, rows):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open('w', newline='') as stream:
+        writer = csv.DictWriter(stream, fieldnames=HPC_FIELDS)
         writer.writeheader()
         writer.writerows(rows)
 
 
 # ---------------------------------------------------------------------------
-# Build the transfer archive without duplicating the cache into another saved
-# directory. Temporary metadata files are written under /tmp; PNGs are streamed
-# directly from PREP_ROOT/cache into the ZIP.
+# A6C.5 — cache lookup / integrity
 # ---------------------------------------------------------------------------
 
-def export_hpc_bundle(
-    prepared_root,
-    archive_path,
-    train_n=5000,
-    validation_n=1000,
-    seed=42,
-    bundle_name='panda-150um',
+def _load_latest_jsonl(path, key):
+    result = {}
+    for row in read_jsonl(path):
+        if key in row:
+            result[row[key]] = row
+    return result
+
+
+def _valid_cached(path, expected_sha):
+    path = Path(path)
+    return (
+        path.is_file()
+        and expected_sha
+        and sha(path) == expected_sha
+    )
+
+
+def _resolve_cache_source(item):
+    """
+    Resolve the PNG used for final archive creation.
+
+    Prefer chunk-private cache. Fall back to legacy PREP_ROOT/cache for tiles
+    salvaged from an interrupted old preparation.
+    """
+    name = item['cache_file']
+
+    candidate = CHUNK_CACHE / name
+    if _valid_cached(candidate, item['cache_sha256']):
+        return candidate
+
+    candidate = LEGACY_CACHE / name
+    if _valid_cached(candidate, item['cache_sha256']):
+        return candidate
+
+    raise FileNotFoundError(
+        f'No verified cache file for {item["tile_id"]}: {name}'
+    )
+
+
+# ---------------------------------------------------------------------------
+# A6C.6 — resumable preparation of one shard
+# ---------------------------------------------------------------------------
+
+def prepare_chunk(
+    selected,
+    selection_meta,
+    reference,
+    deadline=None,
 ):
-    prepared_root = Path(prepared_root)
-    archive_path = Path(archive_path)
+    CHUNK_ROOT.mkdir(parents=True, exist_ok=True)
+    CHUNK_CACHE.mkdir(parents=True, exist_ok=True)
+    CHUNK_MANIFESTS.mkdir(parents=True, exist_ok=True)
 
-    source_meta, source_rows = load_prepared(prepared_root)
+    done_marker = CHUNK_ROOT / 'chunk_done.json'
+    if done_marker.exists() and not ALLOW_REEXPORT_COMPLETED_CHUNK:
+        previous = json.loads(done_marker.read_text())
+        raise RuntimeError(
+            f'{CHUNK_NAME} was already completed. '
+            f'Use CHUNK_INDEX={CHUNK_INDEX + 1} for the next shard, '
+            f'or set ALLOW_REEXPORT_COMPLETED_CHUNK=True deliberately. '
+            f'Previous archive SHA-256: {previous.get("archive_sha256")}'
+        )
 
-    train_selected, train_targets = _select_exact(
-        source_rows['train'], int(train_n), 'train', seed
+    inventory_settings = json.loads(
+        (PREP_ROOT / 'inventory_settings.json').read_text()
     )
-    val_selected, val_targets = _select_exact(
-        source_rows['validation'], int(validation_n), 'validation', seed
-    )
 
-    train_rows = [_hpc_row(r, 'train') for r in train_selected]
-    val_rows = [_hpc_row(r, 'validation') for r in val_selected]
-
-    # Guard the same slide-level split separation before export.
-    train_slides = {r['source_wsi'] for r in train_rows}
-    val_slides = {r['source_wsi'] for r in val_rows}
-    if train_slides & val_slides:
-        raise ValueError('Slide leakage detected during HPC export')
-
-    # Guard normalized-content overlap as well.
-    train_hashes = {r['file_sha256'] for r in train_rows}
-    val_hashes = {r['file_sha256'] for r in val_rows}
-    if train_hashes & val_hashes:
-        raise ValueError('Identical normalized image content crosses train/validation')
-
-    with tempfile.TemporaryDirectory(prefix='panda_hpc_export_') as tmp:
-        tmp = Path(tmp)
-
-        train_manifest = tmp / 'panda_train.csv'
-        val_manifest = tmp / 'panda_validation.csv'
-        eligibility_file = tmp / 'panda_source_eligibility.json'
-        prepared_file = tmp / 'prepared.json'
-        handoff_file = tmp / 'HPC_HANDOFF.txt'
-
-        _write_csv(train_manifest, train_rows)
-        _write_csv(val_manifest, val_rows)
-
-        eligibility = {
-            'dataset': 'PANDA',
-            'provider': 'radboud',
-            'export_seed': seed,
-            'target_fov_um': float(source_meta['target_fov_um']),
-            'output_pixels': int(source_meta['output_pixels']),
-            'training_seed_definition': (
-                'PANDA CPU preparation pure-source proxy: published pure '
-                '3+3/4+4/5+5 score and matching single-GP whole-mask pattern, '
-                'plus single-GP tile'
-            ),
-            'validation_definition': 'held-out-slide single-GP tiles',
-            'patient_independence': source_meta.get(
-                'patient_independence',
-                'unverified: public PANDA image IDs are not patient identifiers',
-            ),
-            'source_prepared_sha256': sha(prepared_root / 'prepared.json'),
-            'selection': {
-                'train_requested': int(train_n),
-                'validation_requested': int(validation_n),
-                'train_by_label': train_targets,
-                'validation_by_label': val_targets,
-                'method': 'deterministic SHA-256 ranked proportional subsample',
-            },
-        }
-        eligibility_file.write_text(
-            json.dumps(eligibility, indent=2, allow_nan=False) + '\n'
-        )
-        eligibility_sha = sha(eligibility_file)
-
-        manifests = {
-            'panda_train.csv': sha(train_manifest),
-            'panda_validation.csv': sha(val_manifest),
-        }
-
-        # Contract consumed by modern_pca.train_gleason on the gleason branch.
-        # "region_grade_sha256" is retained because the existing training signature
-        # expects this compatibility key for pure-cohort provenance. Here it hashes
-        # the frozen PANDA source-eligibility record above; it is NOT a claim that
-        # PANDA has the SICAP region-grade workbook.
-        hpc_prepared = {
-            'complete': True,
-            'training_ready': True,
-            'sample_only': False,
-            'datasets': ['panda'],
-            'class_order': CLASSES,
-            'manifests': manifests,
-            'counts': {
-                'train': {CLASSES[k]: train_targets[k] for k in (0, 1, 2)},
-                'validation': {CLASSES[k]: val_targets[k] for k in (0, 1, 2)},
-            },
-            'seed_definition': eligibility['training_seed_definition'],
-            'region_grade_sha256': eligibility_sha,
-            'reference_sha256': REFERENCE_SHA,
-            'preprocessing': (
-                'PANDA level-0 MPP-aware ~150um crop -> LANCZOS 350 -> '
-                'legacy brightness -> StainTools Macenko -> uint8 PNG cache '
-                '-> float32 /255 during training'
-            ),
-            'prenormalized_sources_accepted': False,
-            'source_dataset': 'PANDA/Radboud',
-            'target_fov_um': float(source_meta['target_fov_um']),
-            'output_pixels': int(source_meta['output_pixels']),
-            'sampling': (
-                f'deterministic export subset: {train_n} train / '
-                f'{validation_n} validation'
-            ),
-            'patient_independence': eligibility['patient_independence'],
-            'source_prepared_sha256': eligibility['source_prepared_sha256'],
-        }
-        prepared_file.write_text(
-            json.dumps(hpc_prepared, indent=2, allow_nan=False) + '\n'
-        )
-
-        handoff_file.write_text(
-            f"""PANDA -> dsa5206-proj HPC handoff
-
-Archive root after extraction:
-  {bundle_name}/
-
-Expected contents:
-  prepared.json
-  panda_source_eligibility.json
-  manifests/panda_train.csv
-  manifests/panda_validation.csv
-  cache/*.png
-
-IMPORTANT:
-- train_gleason.pbs cannot read this ZIP directly. Extract it first.
-- Keep dataset='panda'; do not rename PANDA to Gleason2019.
-- On branch gleason, add ['panda'] to modern_pca.gleason.manifest_datasets().
-- The model/training schedule and train_gleason.pbs do not otherwise need changing.
-- Use TRAINING_COHORT=pure.
-- Point PREPARED_DIR at this extracted directory.
-
-Example extraction:
-  mkdir -p /scratch/USER/dsa5206-work/prepared
-  unzip -q panda_150um_hpc_5000train_1000val.zip \\
-      -d /scratch/USER/dsa5206-work/prepared
-
-Then set, for example:
-  DATASET=panda
-  PREPARED_DIR=/scratch/USER/dsa5206-work/prepared/{bundle_name}
-  RUN_ROOT=/scratch/USER/dsa5206-work/runs/panda
-  TRAINING_COHORT=pure
-
-The existing train_gleason.pbs can then be submitted directly:
-  qsub -v PIPELINE_CONFIG=/scratch/USER/site.env,DATASET=panda,MODE=smoke \\
-      hpc/pbs/train_gleason.pbs
-
-After a successful smoke:
-  qsub -v PIPELINE_CONFIG=/scratch/USER/site.env,DATASET=panda,MODE=production \\
-      hpc/pbs/train_gleason.pbs
-
-The current submit_pipeline.sh rejects DATASET=panda unless separately patched.
-"""
-        )
-
-        archive_path.parent.mkdir(parents=True, exist_ok=True)
-        if archive_path.exists():
-            archive_path.unlink()
-
-        # PNG is already compressed; ZIP_STORED avoids wasting Kaggle CPU time on
-        # essentially non-compressible image payloads.
-        with zipfile.ZipFile(
-            archive_path,
-            mode='w',
-            compression=zipfile.ZIP_STORED,
-            allowZip64=True,
-        ) as zf:
-            prefix = bundle_name.rstrip('/') + '/'
-
-            zf.write(prepared_file, prefix + 'prepared.json')
-            zf.write(
-                eligibility_file,
-                prefix + 'panda_source_eligibility.json',
-            )
-            zf.write(
-                train_manifest,
-                prefix + 'manifests/panda_train.csv',
-            )
-            zf.write(
-                val_manifest,
-                prefix + 'manifests/panda_validation.csv',
-            )
-            zf.write(handoff_file, prefix + 'HPC_HANDOFF.txt')
-
-            all_selected = train_selected + val_selected
-            seen_cache = set()
-
-            for i, row in enumerate(all_selected, 1):
-                name = row['cache_file']
-                if name in seen_cache:
-                    raise ValueError(f'Duplicate cache filename in export: {name}')
-                seen_cache.add(name)
-
-                source = prepared_root / 'cache' / name
-                if not source.is_file():
-                    raise FileNotFoundError(source)
-                if sha(source) != row['cache_sha256']:
-                    raise ValueError(f'Cache checksum changed before export: {name}')
-
-                zf.write(source, prefix + 'cache/' + name)
-
-                if i % 500 == 0:
-                    print(f'Archived {i:,}/{len(all_selected):,} PNGs', flush=True)
-
-    digest = sha(archive_path)
-    HPC_ARCHIVE_SHA.write_text(f'{digest}  {archive_path.name}\n')
-
-    result = {
-        'archive': str(archive_path),
-        'sha256': digest,
-        'bytes': archive_path.stat().st_size,
-        'GiB': archive_path.stat().st_size / 1024**3,
-        'train': len(train_selected),
-        'validation': len(val_selected),
-        'train_by_label': {CLASSES[k]: train_targets[k] for k in (0, 1, 2)},
-        'validation_by_label': {CLASSES[k]: val_targets[k] for k in (0, 1, 2)},
-        'bundle_root': bundle_name,
+    settings = {
+        'pipeline_version': PIPELINE_VERSION,
+        'chunk_protocol': 'contiguous-eligible-v1',
+        'chunk_index': CHUNK_INDEX,
+        'chunk_tile_count': CHUNK_TILE_COUNT,
+        'selection_start': selection_meta['start'],
+        'selection_stop': selection_meta['stop'],
+        'selection_sha256': selection_meta['selection_sha256'],
+        'global_eligible': selection_meta['global_eligible'],
+        'inventory_settings_sha256': sha(
+            PREP_ROOT / 'inventory_settings.json'
+        ),
+        'reference_sha256': sha(reference),
+        'target_fov_um': inventory_settings['target_fov_um'],
+        'output_pixels': inventory_settings['output_pixels'],
+        'min_tumour_fraction': MIN_TUMOUR_FRACTION,
+        'normalization': (
+            'direct ~150um source crop -> LANCZOS 350 -> '
+            'legacy brightness -> StainTools Macenko -> uint8 PNG'
+        ),
     }
 
+    settings_path = CHUNK_ROOT / 'chunk_settings.json'
+
+    if settings_path.exists():
+        previous_settings = json.loads(settings_path.read_text())
+        if previous_settings != settings:
+            raise ValueError(
+                f'{CHUNK_NAME} settings changed. '
+                'Resume with identical chunk settings or choose a new CHUNK_INDEX.'
+            )
+
+    atomic_json(settings_path, settings)
+
+    chunk_ledger_path = CHUNK_ROOT / 'chunk_ledger.jsonl'
+    chunk_exclusions_path = CHUNK_ROOT / 'chunk_exclusions.jsonl'
+
+    chunk_previous = _load_latest_jsonl(
+        chunk_ledger_path,
+        'tile_id',
+    )
+    chunk_excluded = _load_latest_jsonl(
+        chunk_exclusions_path,
+        'tile_id',
+    )
+
+    legacy_previous = (
+        _load_latest_jsonl(LEGACY_LEDGER, 'tile_id')
+        if REUSE_LEGACY_CACHE and LEGACY_LEDGER.exists()
+        else {}
+    )
+
+    legacy_excluded = (
+        _load_latest_jsonl(LEGACY_STAIN_EXCLUSIONS, 'tile_id')
+        if LEGACY_STAIN_EXCLUSIONS.exists()
+        else {}
+    )
+
+    normalizers = make_normalizer(reference)
+
+    completed = []
+    excluded = []
+    current = None
+    slide = None
+    started = time.monotonic()
+    new_cache_bytes = sum(
+        p.stat().st_size
+        for p in CHUNK_CACHE.glob('*.png')
+        if p.is_file()
+    )
+    stop_reason = None
+
+    try:
+        for number, row in enumerate(selected, 1):
+            check_deadline(deadline)
+
+            tile_id = row['tile_id']
+
+            # Already known exclusion from this chunk.
+            if tile_id in chunk_excluded:
+                excluded.append(chunk_excluded[tile_id])
+                continue
+
+            # Preserve a stain-normalization exclusion made by the legacy run.
+            if tile_id in legacy_excluded:
+                event = dict(
+                    legacy_excluded[tile_id],
+                    chunk_index=CHUNK_INDEX,
+                    source='legacy_stain_exclusion',
+                )
+                append_audit(chunk_exclusions_path, event)
+                chunk_excluded[tile_id] = event
+                excluded.append(event)
+                continue
+
+            # Resume chunk-private completion.
+            old = chunk_previous.get(tile_id)
+            if old is not None:
+                try:
+                    _resolve_cache_source(old)
+                    completed.append(old)
+                    continue
+                except FileNotFoundError:
+                    # Ledger exists but PNG is unavailable. Rebuild safely.
+                    pass
+
+            # Reuse legacy cache produced by the old CAPS=None run.
+            legacy = legacy_previous.get(tile_id)
+            if legacy is not None:
+                legacy_file = LEGACY_CACHE / legacy['cache_file']
+
+                if _valid_cached(
+                    legacy_file,
+                    legacy.get('cache_sha256'),
+                ):
+                    item = dict(
+                        row,
+                        cache_file=legacy['cache_file'],
+                        cache_sha256=legacy['cache_sha256'],
+                        cache_origin='legacy',
+                    )
+                    append_audit(chunk_ledger_path, item)
+                    chunk_previous[tile_id] = item
+                    completed.append(item)
+
+                    if number % 100 == 0:
+                        print(
+                            f'Chunk {CHUNK_INDEX}: '
+                            f'{number}/{len(selected)} candidates; '
+                            f'reused legacy cache; '
+                            f'new cache {new_cache_bytes / 1024**3:.2f} GiB',
+                            flush=True,
+                        )
+
+                    continue
+
+            # Guard the amount of NEW chunk-private PNG data. This does not
+            # estimate the final ZIP; choose CHUNK_TILE_COUNT conservatively.
+            raw_upper = OUTPUT_PIXELS * OUTPUT_PIXELS * 3
+            if (
+                new_cache_bytes + raw_upper
+                > CHUNK_MAX_NEW_CACHE_GIB * 1024**3
+            ):
+                stop_reason = (
+                    'new_chunk_cache_size_guard; '
+                    'reduce CHUNK_TILE_COUNT or increase '
+                    'CHUNK_MAX_NEW_CACHE_GIB'
+                )
+                break
+
+            if current != row['image_id']:
+                if slide is not None:
+                    slide.close()
+
+                slide = openslide.OpenSlide(
+                    str(
+                        DATA_ROOT
+                        / 'train_images'
+                        / f'{row["image_id"]}.tiff'
+                    )
+                )
+                current = row['image_id']
+
+            tile = rgb_region(
+                slide,
+                int(row['x']),
+                int(row['y']),
+                int(row['tile_width']),
+                int(row['tile_height']),
+            )
+
+            try:
+                pixels = normalize_tile(
+                    tile,
+                    normalizers,
+                    output_pixels=OUTPUT_PIXELS,
+                )
+            except Exception as error:
+                event = {
+                    'tile_id': tile_id,
+                    'image_id': row['image_id'],
+                    'x': row['x'],
+                    'y': row['y'],
+                    'split': row['split'],
+                    'label': row['label'],
+                    'chunk_index': CHUNK_INDEX,
+                    'error': type(error).__name__,
+                    'message': str(error),
+                    'source': 'chunk_preparation',
+                }
+
+                append_audit(
+                    chunk_exclusions_path,
+                    event,
+                )
+                chunk_excluded[tile_id] = event
+                excluded.append(event)
+
+                warnings.warn(
+                    f'Excluded {tile_id}: '
+                    f'{type(error).__name__}: {error}',
+                    RuntimeWarning,
+                )
+                continue
+
+            cached = CHUNK_CACHE / f'{tile_id}.png'
+            temporary = cached.with_suffix('.tmp')
+
+            Image.fromarray(pixels).save(
+                temporary,
+                format='PNG',
+            )
+
+            temporary.replace(cached)
+            new_cache_bytes += cached.stat().st_size
+
+            item = dict(
+                row,
+                cache_file=cached.name,
+                cache_sha256=sha(cached),
+                cache_origin='chunk',
+            )
+
+            append_audit(
+                chunk_ledger_path,
+                item,
+            )
+            chunk_previous[tile_id] = item
+            completed.append(item)
+
+            if number % 100 == 0:
+                print(
+                    f'Chunk {CHUNK_INDEX}: '
+                    f'{number}/{len(selected)} candidates; '
+                    f'new cache {new_cache_bytes / 1024**3:.2f} GiB',
+                    flush=True,
+                )
+
+    except BudgetStop:
+        stop_reason = (
+            'session_budget; resume this same CHUNK_INDEX '
+            'from PREVIOUS_CPU_OUTPUT next run'
+        )
+
+    finally:
+        if slide is not None:
+            slide.close()
+
+    completed_by_id = {
+        row['tile_id']: row
+        for row in completed
+    }
+    excluded_ids = {
+        row['tile_id']
+        for row in excluded
+    }
+
+    # Reconstruct completion from ledgers so duplicate-free counts remain correct
+    # after a resumed run.
+    selected_ids = {
+        row['tile_id']
+        for row in selected
+    }
+
+    ledger_now = _load_latest_jsonl(
+        chunk_ledger_path,
+        'tile_id',
+    )
+    exclusions_now = _load_latest_jsonl(
+        chunk_exclusions_path,
+        'tile_id',
+    )
+
+    retained_ids = selected_ids & set(ledger_now)
+    excluded_ids = selected_ids & set(exclusions_now)
+
+    processed_ids = retained_ids | excluded_ids
+    complete = (
+        stop_reason is None
+        and processed_ids == selected_ids
+    )
+
+    progress = {
+        **selection_meta,
+        'complete': complete,
+        'retained': len(retained_ids),
+        'excluded': len(excluded_ids),
+        'processed': len(processed_ids),
+        'remaining': len(selected_ids - processed_ids),
+        'new_cache_bytes': new_cache_bytes,
+        'elapsed_seconds_this_run': time.monotonic() - started,
+        'stop_reason': stop_reason,
+    }
+
+    atomic_json(
+        CHUNK_ROOT / 'chunk_progress.json',
+        progress,
+    )
+
+    if not complete:
+        print(json.dumps(progress, indent=2))
+        return None, progress
+
+    completed = [
+        ledger_now[row['tile_id']]
+        for row in selected
+        if row['tile_id'] in ledger_now
+    ]
+
+    return completed, progress
+
+
+# ---------------------------------------------------------------------------
+# A6C.7 — finalize manifests + transfer ZIP atomically
+# ---------------------------------------------------------------------------
+
+def finalize_chunk_archive(
+    completed,
+    progress,
+    reference,
+):
+    train_rows = [
+        _hpc_row(row)
+        for row in completed
+        if row['split'] == 'train'
+    ]
+    validation_rows = [
+        _hpc_row(row)
+        for row in completed
+        if row['split'] == 'validation'
+    ]
+
+    _write_hpc_manifest(
+        CHUNK_MANIFESTS / 'panda_train.csv',
+        train_rows,
+    )
+    _write_hpc_manifest(
+        CHUNK_MANIFESTS / 'panda_validation.csv',
+        validation_rows,
+    )
+
+    counts = {}
+    for split, rows in (
+        ('train', train_rows),
+        ('validation', validation_rows),
+    ):
+        labels = Counter(int(row['label']) for row in rows)
+        counts[split] = {
+            CLASSES[k]: int(labels.get(k, 0))
+            for k in range(3)
+        }
+
+    chunk_meta = {
+        'dataset': 'panda',
+        'provider': 'radboud',
+        'chunk_index': CHUNK_INDEX,
+        'chunk_tile_count': CHUNK_TILE_COUNT,
+        'selection_start': progress['start'],
+        'selection_stop': progress['stop'],
+        'global_eligible': progress['global_eligible'],
+        'selection_sha256': progress['selection_sha256'],
+        'selection_order': progress['selection_order'],
+        'is_last_chunk': progress['is_last_chunk'],
+        'selected': progress['selected'],
+        'retained': len(completed),
+        'excluded': progress['excluded'],
+        'counts': counts,
+        'target_fov_um': TARGET_FOV_UM,
+        'output_pixels': OUTPUT_PIXELS,
+        'reference_sha256': sha(reference),
+        'inventory_settings_sha256': sha(
+            PREP_ROOT / 'inventory_settings.json'
+        ),
+        'training_seed_definition': (
+            'PANDA Radboud pure-source proxy: train slides require '
+            'published pure 3+3/4+4/5+5 score and matching single-GP '
+            'whole-mask pattern; validation uses held-out-slide '
+            'single-GP tiles'
+        ),
+        'patient_independence': (
+            'unverified: public PANDA image IDs are not patient identifiers'
+        ),
+        'preprocessing': (
+            'MPP-aware ~150um level-0 crop -> LANCZOS 350 -> '
+            'legacy brightness -> StainTools Macenko -> uint8 PNG; '
+            'float32 /255 deferred to model training'
+        ),
+        'note': (
+            'This is a transfer shard. Merge all required shards on HPC '
+            'before production training.'
+        ),
+    }
+
+    atomic_json(
+        CHUNK_ROOT / 'chunk.json',
+        chunk_meta,
+    )
+
+    manifests_sha = {
+        name: sha(CHUNK_MANIFESTS / name)
+        for name in (
+            'panda_train.csv',
+            'panda_validation.csv',
+        )
+    }
+
+    atomic_json(
+        CHUNK_ROOT / 'manifest_hashes.json',
+        manifests_sha,
+    )
+
+    handoff = CHUNK_ROOT / 'HPC_HANDOFF.txt'
+    handoff.write_text(
+        f"""PANDA chunked HPC handoff
+
+Shard:
+  {CHUNK_BUNDLE_NAME}
+
+Chunk index:
+  {CHUNK_INDEX}
+
+Selection interval in the deterministic eligible cohort:
+  [{progress['start']}, {progress['stop']})
+
+Global eligible candidates:
+  {progress['global_eligible']}
+
+Retained normalized PNGs:
+  {len(completed)}
+
+This archive is a TRANSFER SHARD.
+Do not point train_gleason.pbs directly at a collection of shard directories.
+
+On HPC:
+  1. Extract every desired panda_150um_chunk_XXXX.zip under one parent.
+  2. Run PANDA_HPC_merge_chunks.py on that parent.
+  3. Point PREPARED_DIR at the merged output.
+  4. Keep DATASET=panda and TRAINING_COHORT=pure.
+  5. The NASNetLarge architecture / ImageNet initialization / 14-epoch
+     training schedule remain unchanged.
+
+For a full-cohort merge, provide every contiguous chunk from 0000 through the
+chunk whose chunk.json has is_last_chunk=true. The merge helper refuses gaps
+unless --allow-partial is explicitly supplied.
+"""
+    )
+
+    # Build to .partial and rename only after ZipFile closes successfully.
+    if CHUNK_ARCHIVE_PARTIAL.exists():
+        CHUNK_ARCHIVE_PARTIAL.unlink()
+
+    if CHUNK_ARCHIVE.exists():
+        CHUNK_ARCHIVE.unlink()
+
+    with zipfile.ZipFile(
+        CHUNK_ARCHIVE_PARTIAL,
+        mode='w',
+        compression=zipfile.ZIP_STORED,
+        allowZip64=True,
+    ) as zf:
+        prefix = CHUNK_BUNDLE_NAME.rstrip('/') + '/'
+
+        for path, arcname in (
+            (
+                CHUNK_ROOT / 'chunk.json',
+                prefix + 'chunk.json',
+            ),
+            (
+                CHUNK_ROOT / 'chunk_settings.json',
+                prefix + 'chunk_settings.json',
+            ),
+            (
+                CHUNK_ROOT / 'manifest_hashes.json',
+                prefix + 'manifest_hashes.json',
+            ),
+            (
+                CHUNK_MANIFESTS / 'panda_train.csv',
+                prefix + 'manifests/panda_train.csv',
+            ),
+            (
+                CHUNK_MANIFESTS / 'panda_validation.csv',
+                prefix + 'manifests/panda_validation.csv',
+            ),
+            (
+                handoff,
+                prefix + 'HPC_HANDOFF.txt',
+            ),
+        ):
+            zf.write(path, arcname)
+
+        seen = set()
+
+        for number, item in enumerate(completed, 1):
+            name = item['cache_file']
+
+            if name in seen:
+                raise ValueError(
+                    f'Duplicate cache filename inside shard: {name}'
+                )
+            seen.add(name)
+
+            source = _resolve_cache_source(item)
+
+            # Recheck immediately before archive write.
+            if sha(source) != item['cache_sha256']:
+                raise ValueError(
+                    f'Cache checksum changed before archive: '
+                    f'{item["tile_id"]}'
+                )
+
+            zf.write(
+                source,
+                prefix + 'cache/' + name,
+            )
+
+            if number % 500 == 0:
+                print(
+                    f'Archived {number:,}/{len(completed):,} PNGs',
+                    flush=True,
+                )
+
+    CHUNK_ARCHIVE_PARTIAL.replace(
+        CHUNK_ARCHIVE
+    )
+
+    archive_sha = sha(
+        CHUNK_ARCHIVE
+    )
+
+    CHUNK_ARCHIVE_SHA.write_text(
+        f'{archive_sha}  {CHUNK_ARCHIVE.name}\n'
+    )
+
+    result = {
+        **chunk_meta,
+        'archive': str(CHUNK_ARCHIVE),
+        'archive_sha256': archive_sha,
+        'archive_bytes': CHUNK_ARCHIVE.stat().st_size,
+        'archive_GiB': CHUNK_ARCHIVE.stat().st_size / 1024**3,
+    }
+
+    # Record success BEFORE optional raw-cache cleanup.
+    atomic_json(
+        CHUNK_ROOT / 'chunk_done.json',
+        result,
+    )
+
+    append_audit(
+        PREP_ROOT / 'chunk_exports.jsonl',
+        {
+            'chunk_index': CHUNK_INDEX,
+            'archive_name': CHUNK_ARCHIVE.name,
+            'archive_sha256': archive_sha,
+            'selection_start': progress['start'],
+            'selection_stop': progress['stop'],
+            'global_eligible': progress['global_eligible'],
+            'is_last_chunk': progress['is_last_chunk'],
+            'retained': len(completed),
+            'excluded': progress['excluded'],
+        },
+    )
+
+    # Only remove raw PNGs after the final archive hash exists.
+    if DELETE_RAW_CACHE_AFTER_ARCHIVE:
+        if CHUNK_CACHE.exists():
+            shutil.rmtree(CHUNK_CACHE)
+
+    if DELETE_ARCHIVED_LEGACY_CACHE and LEGACY_CACHE.exists():
+        removed = 0
+
+        for item in completed:
+            legacy = LEGACY_CACHE / item['cache_file']
+
+            if (
+                legacy.is_file()
+                and sha(legacy) == item['cache_sha256']
+            ):
+                legacy.unlink()
+                removed += 1
+
+        print(
+            f'Removed {removed:,} safely archived legacy cache PNGs',
+            flush=True,
+        )
+
     print(json.dumps(result, indent=2))
-    print('SHA sidecar:', HPC_ARCHIVE_SHA)
+    print('Archive:', CHUNK_ARCHIVE)
+    print('SHA-256 sidecar:', CHUNK_ARCHIVE_SHA)
+
+    if progress['is_last_chunk']:
+        print(
+            'This was the final chunk. All eligible candidates have now '
+            'been partitioned across chunk indices 0..'
+            f'{CHUNK_INDEX}.'
+        )
+    else:
+        print(
+            f'Next run: set CHUNK_INDEX = {CHUNK_INDEX + 1}. '
+            'You may edit CHUNK_TILE_COUNT for that new chunk; its start '
+            'offset will be taken from this chunk\'s recorded selection_stop.'
+        )
+
     return result
 
 
 # ---------------------------------------------------------------------------
-# Execute export only when preparation is complete.
+# A6C.8 — execute one bounded shard
 # ---------------------------------------------------------------------------
 
-if not (PREP_ROOT / 'prepared.json').is_file():
-    raise FileNotFoundError('Run/finish CPU preparation before the HPC export cell')
-
-_export_source_meta = json.loads((PREP_ROOT / 'prepared.json').read_text())
-if not _export_source_meta.get('complete') or not _export_source_meta.get('training_ready'):
-    raise ValueError('CPU preparation is not complete/training-ready')
-
-HPC_EXPORT_RESULT = export_hpc_bundle(
+# Inventory must be complete. This addendum intentionally does NOT require
+# prepared.json, because it replaces the old all-at-once preparation stage.
+inventory_now = inventory_report(
     PREP_ROOT,
-    HPC_ARCHIVE,
-    train_n=HPC_EXPORT_TRAIN,
-    validation_n=HPC_EXPORT_VALIDATION,
-    seed=HPC_EXPORT_SEED,
-    bundle_name=HPC_BUNDLE_NAME,
+    min_tumour_fraction=MIN_TUMOUR_FRACTION,
 )
 
+if not inventory_now['complete']:
+    raise ValueError(
+        'Inventory is incomplete. Finish/resume A5 before chunk preparation.'
+    )
 
-# ===========================================================================
-# ONE REQUIRED HPC REPOSITORY COMPATIBILITY PATCH
-# ===========================================================================
+chunk_start = _next_chunk_start(
+    PREP_ROOT,
+    CHUNK_INDEX,
+)
+
+selected_chunk, selection_meta = _chunk_selection(
+    PREP_ROOT,
+    CHUNK_INDEX,
+    CHUNK_TILE_COUNT,
+    start=chunk_start,
+    min_tumour_fraction=MIN_TUMOUR_FRACTION,
+)
+
+if selection_meta['all_chunks_exported']:
+    print(
+        f'No candidates remain for CHUNK_INDEX={CHUNK_INDEX}. '
+        f'Global eligible count is {selection_meta["global_eligible"]:,}.'
+    )
+    CHUNK_RESULT = None
+
+else:
+    print(
+        'Chunk selection:',
+        json.dumps(selection_meta, indent=2),
+    )
+
+    reference = ensure_reference(
+        PREP_ROOT / 'standard_he_stain_small.jpg'
+    )
+
+    completed_chunk, chunk_progress = prepare_chunk(
+        selected_chunk,
+        selection_meta,
+        reference,
+        deadline=CPU_DEADLINE,
+    )
+
+    if completed_chunk is None:
+        print(
+            '\nChunk preparation paused safely.\n'
+            'Save this notebook version with outputs. On the next run:\n'
+            '  - attach the previous notebook output,\n'
+            '  - set PREVIOUS_CPU_OUTPUT to its panda_prepared_150um folder,\n'
+            f'  - KEEP CHUNK_INDEX={CHUNK_INDEX},\n'
+            '  - rerun A1-A5 and this block.\n'
+            'Completed PNGs in this chunk will be verified and skipped.'
+        )
+        CHUNK_RESULT = None
+
+    else:
+        CHUNK_RESULT = finalize_chunk_archive(
+            completed_chunk,
+            chunk_progress,
+            reference,
+        )
+
+
+# ---------------------------------------------------------------------------
+# FUTURE-USER RUNBOOK
+# ---------------------------------------------------------------------------
 #
-# On branch `gleason`, modern_pca/gleason.py currently has:
+# FIRST INVENTORY RUN
+# -------------------
+# 1. Run A1-A5 until inventory_report.json says complete=true.
+# 2. Save that notebook output. The inventory is the expensive global metadata
+#    scan and is reused by every later chunk.
 #
-#     def manifest_datasets(prepared):
-#         names = prepared.get('datasets', ['crowd', 'sicap'])
-#         if names not in (['crowd', 'sicap'], ['gleason2019']):
-#             raise ValueError(...)
-#         return names
+# CHUNK RUN 0
+# -----------
+# 1. Attach the completed previous notebook output.
+# 2. Set PREVIOUS_CPU_OUTPUT to its panda_prepared_150um directory.
+# 3. Replace/disable the old A6/A7 and old single-ZIP exporter.
+# 4. Set:
 #
-# Change ONLY the accepted dataset tuple to:
+#       CHUNK_INDEX = 0
+#       CHUNK_TILE_COUNT = 40000   # edit if desired
 #
-#         if names not in (['crowd', 'sicap'], ['gleason2019'], ['panda']):
+# 5. Run A1-A5 + this addendum.
+# 6. Download/save panda_150um_chunk_0000.zip and its SHA-256 sidecar.
 #
-# The exported manifests already satisfy the rest of the existing
-# train_gleason.py "pure" contract:
-#   - dataset/split/class_name/label
-#   - sample_id and content hash
-#   - source_wsi for held-out overlap protection
-#   - region_role='pure' + matching primary/secondary GP for training
-#   - cache_file/cache_sha256
-#   - prepared.json preprocessing/reference/provenance fields
+# CHUNK RUN 1, 2, 3, ...
+# -----------------------
+# 1. Attach the immediately previous notebook output so PREP_ROOT state,
+#    chunk_done.json and any interrupted chunk cache can be restored.
+# 2. Set PREVIOUS_CPU_OUTPUT as usual.
+# 3. If the previous chunk completed, increment CHUNK_INDEX by exactly one.
+# 4. CHUNK_TILE_COUNT may be changed for this NEW chunk. Its start offset is
+#    automatically taken from the previous completed chunk's selection_stop.
+#    Example: 40k, then 30k, then 50k is valid and remains gap-free.
 #
-# Therefore:
-#   * train_gleason.py need not be changed.
-#   * hpc/pbs/train_gleason.pbs need not be changed.
-#   * NASNetLarge/ImageNet/14-epoch schedule need not be changed.
+# INTERRUPTED CHUNK
+# -----------------
+# If the 10-hour software deadline is reached midway:
+#   - DO NOT increment CHUNK_INDEX.
+#   - save the output;
+#   - attach it next run;
+#   - rerun with the SAME CHUNK_INDEX and SAME CHUNK_TILE_COUNT.
+# Do not resize a chunk after it has started; its frozen chunk_settings.json
+# deliberately prevents that.
+# The chunk ledger + PNG cache are inside PREP_ROOT and will resume.
 #
-# OPTIONAL convenience patch:
-# hpc/submit_pipeline.sh currently accepts only crowd-sicap|gleason2019.
-# Add `panda` to that case statement if you want to use the submit helper.
-# Otherwise submit train_gleason.pbs directly as shown in HPC_HANDOFF.txt.
+# COMPLETED CHUNK
+# ---------------
+# The final ZIP is written as .zip.partial first, then atomically renamed only
+# after ZipFile closes. A SHA-256 sidecar is written afterwards. Raw PNGs are
+# deleted only after that SHA exists.
+#
+# CURRENT LEGACY CAPS=None RUN
+# ----------------------------
+# If PREP_ROOT/cache and tile_ledger.jsonl already contain tens of thousands of
+# normalized tiles, do not delete them before chunk 0. This addendum will reuse
+# any matching files. With CHUNK_TILE_COUNT=40000, an interrupted legacy run at
+# ~38k candidates should require only the remainder of the first shard plus the
+# final ZIP step.
+#
+# HPC
+# ---
+# Extract all shard ZIPs under one parent directory and run the companion
+# PANDA_HPC_merge_chunks.py helper. For a full production cohort, the helper
+# requires contiguous chunk indices from 0 through the shard marked
+# is_last_chunk=true.
+#
+# The existing `gleason` branch still needs its small PANDA whitelist patch:
+#
+#     manifest_datasets(): allow ['panda']
+#
+# The NASNetLarge model signature, ImageNet initialization and 14-epoch training
+# schedule remain unchanged.

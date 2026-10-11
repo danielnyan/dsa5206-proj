@@ -54,7 +54,7 @@ def write_csv(path, rows, fields=None):
 
 def manifest_datasets(prepared):
     names = prepared.get('datasets', ['crowd', 'sicap'])
-    if names not in (['crowd', 'sicap'], ['gleason2019']):
+    if names not in (['crowd', 'sicap'], ['gleason2019'], ['panda']):
         raise ValueError('Tracks must stay separate; invalid dataset combination')
     return names
 

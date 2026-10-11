@@ -21,15 +21,22 @@ def main():
     p.add_argument('--smoke', action='store_true')
     p.add_argument('--max-train-samples', type=int, default=96)
     p.add_argument('--resume', action='store_true', help='Resume last fully checkpointed stage')
+    p.add_argument('--allow-sample-only', action='store_true',
+                   help='Explicitly permit preliminary training on an incomplete PANDA chunk cohort')
     args = p.parse_args()
     if args.batch_size < 1 or args.max_train_samples < 3:
         p.error('Batch size must be positive and smoke sample limit at least 3')
     prepared = json.loads((args.manifests.parent/'prepared.json').read_text())
     sources = manifest_datasets(prepared)
+    if args.allow_sample_only and sources != ['panda']:
+        raise ValueError('--allow-sample-only is restricted to the PANDA transfer track')
     if sources == ['gleason2019'] and not prepared.get('training_ready'):
         raise ValueError('Gleason2019 preparation is not training-ready: ' + prepared.get('reason', ''))
-    if prepared['sample_only'] and not args.smoke:
-        raise ValueError('Sample preparation cannot be used for production')
+    if prepared['sample_only'] and not args.smoke and not args.allow_sample_only:
+        raise ValueError(
+            'Sample preparation cannot be used for production-like training unless '
+            '--allow-sample-only is explicitly supplied for the PANDA preliminary track'
+        )
     if args.training_cohort == 'pure' and not prepared.get('region_grade_sha256'):
         raise ValueError('Pure training requires frozen source eligibility metadata')
     train = sum([read_rows(args.manifests,d,'train',allow_unlabelled=True) for d in sources],[])
@@ -52,6 +59,8 @@ def main():
     settings = dict(manifests=prepared['manifests'], class_order=CLASSES,
                     datasets=sources, seed_definition=prepared.get('seed_definition', 'SICAP same-pattern slide proxy'),
                     training_cohort=args.training_cohort,
+                    source_sample_only=bool(prepared.get('sample_only')),
+                    preliminary=bool(prepared.get('preliminary')),
                     region_grade_sha256=prepared.get('region_grade_sha256'),
                     batch_size=args.batch_size, seed=args.seed, smoke=args.smoke,
                     max_train_samples=args.max_train_samples if args.smoke else None,
@@ -94,6 +103,10 @@ def main():
                deviations=['replacement dataset labels and field of view', 'no stromal decontamination',
                            'initial model only; optional mining is a separate frozen-model operation'],
                resume_semantics='completed-stage restart; interrupted stage is repeated; no bitwise continuation claim')
+    if prepared.get('sample_only'):
+        run['deviations'].append(
+            'preliminary incomplete PANDA chunk cohort; not full-cohort production training'
+        )
     if args.batch_size != 100:
         run['deviations'].append(f'physical batch {args.batch_size} instead of legacy 100')
     write_json(args.output/'run.json',run)

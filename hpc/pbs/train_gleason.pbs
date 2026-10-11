@@ -17,6 +17,13 @@ case "$mode" in
   production) batch=${BATCH_SIZE:-100};;
   *) echo 'MODE must be smoke or production' >&2; exit 2;;
 esac
+
+# A partial PANDA cohort is permitted only when the site configuration opts in.
+# train_gleason records this explicitly as preliminary/sample-only provenance.
+if [[ "${DATASET:-}" == panda && "${PANDA_ALLOW_PARTIAL:-0}" == 1 ]]; then
+  extra+=(--allow-sample-only)
+fi
+
 output=${MODEL_DIR:-$RUN_ROOT/${PBS_JOBID}-${mode}}
 if [[ "${RESUME:-0}" == 1 ]]; then
   : "${MODEL_DIR:?Set existing MODEL_DIR for resumption}"

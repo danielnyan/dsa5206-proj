@@ -42,8 +42,8 @@ PREP_ROOT = Path('/kaggle/working/panda_prepared_150um')
 # PREVIOUS_CPU_OUTPUT = Path('/kaggle/input/YOUR-SAVED-CPU-NOTEBOOK/panda_prepared_150um')
 PREVIOUS_CPU_OUTPUT = None
 
-CPU_TASK = 'inventory'  # 'inventory' first, then 'prepare'
-SESSION_WORK_HOURS = 6.5
+CPU_TASK = 'prepare'  # 'inventory' first, then 'prepare'
+SESSION_WORK_HOURS = 10
 SEED = 42
 
 # Physical/model geometry.
@@ -64,7 +64,7 @@ MIN_TUMOUR_FRACTION = 0.0
 # counts and saved-output size. None means "all eligible" for that split.
 CAPS = {'train': None, 'validation': None}
 
-MAX_CACHE_GIB = 8
+MAX_CACHE_GIB = 17
 CPU_DEADLINE = CPU_SESSION_STARTED + SESSION_WORK_HOURS * 3600
 
 assert CPU_TASK in ('inventory', 'prepare')
@@ -1833,32 +1833,3 @@ if inventory['complete']:
     )
 else:
     print('Inventory paused. Save this version with outputs and resume it next run.')
-
-# %% A6 — optional cache preparation
-if CPU_TASK == 'prepare' and inventory['complete'] and time.monotonic() < CPU_DEADLINE:
-    reference = ensure_reference(PREP_ROOT / 'standard_he_stain_small.jpg')
-    preparation = prepare_selected(
-        DATA_ROOT,
-        PREP_ROOT,
-        CAPS,
-        reference,
-        min_tumour_fraction=MIN_TUMOUR_FRACTION,
-        max_cache_gib=MAX_CACHE_GIB,
-        deadline=CPU_DEADLINE,
-    )
-    print(json.dumps(preparation, indent=2))
-    if not preparation['complete']:
-        print('Cache paused. Save outputs and resume with identical settings.')
-else:
-    print('No cache work this run. Review inventory, then use CPU_TASK=prepare.')
-
-# %% A7 — handoff checklist
-bytes_written = sum(p.stat().st_size for p in PREP_ROOT.rglob('*') if p.is_file())
-print(f'Saved-output directory: {PREP_ROOT}; size: {bytes_written / 1024**3:.2f} GiB')
-
-marker = PREP_ROOT / 'prepared.json'
-ready = marker.is_file() and json.loads(marker.read_text()).get('training_ready', False)
-print('Ready for GPU notebook:', ready)
-print('Save Version with outputs; attach that saved version using Add Input in notebook B.')
-print('For CPU resume, attach this version and set PREVIOUS_CPU_OUTPUT to its panda_prepared_150um folder.')
-print('Keep the same seed, geometry, class caps, software and source-data version when resuming.')
