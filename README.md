@@ -8,27 +8,37 @@ The original/legacy code is retained for reference. The current project also con
 
 ---
 
-## Current Reproducibility Status
+## Current Status — Native-architecture 14-epoch checkpoint
 
-Exact reproduction of the published trained model is currently **not possible** because the original trained checkpoint and exact original training artifacts are unavailable. The authors were contacted and were unable to provide the missing artifacts.
+This handover covers the **14-epoch constrained binary NASNetLarge checkpoint** (Stage 2H) and its prerequisites (Stages 2A–2G). The checkpoint reproduces the NASNetLarge architectural family and a staged training design, **not the authors' original three-class checkpoint, dataset or published experiment**.
 
-The released Zenodo validation datasets are therefore used for a carefully controlled **constrained binary reimplementation**. Results from this repository must not be described as an exact reproduction of the published model.
+| Milestone | Status |
+|---|---|
+| Dataset verification, frozen manifests, and deterministic VAL1 split (2A–2C) | PASS |
+| GPU feasibility and cache/profiling work (2D–2E) | PASS / documented limitations |
+| CPU/GPU numerical investigation (2F) | Material-equivalence GO; strict gradient parity FAIL |
+| Full lossless VAL1 cache and trainer readiness (2G) | PASS |
+| Native-architecture 14-epoch production run (2H) | **Completed on NUS Vanda** |
 
-| Stage | Description | Status |
-|---|---|---|
-| Stage 2A | Zenodo validation dataset verification | **PASS** |
-| Stage 2B | Deterministic dataset manifests | **PASS** |
-| Stage 2C | Reimplementation experimental design | **PASS** |
-| Stage 2D | GPU feasibility and smoke benchmarking | **PASS** |
-| Stage 2E | Performance profiling and preprocessing-cache validation | **COMPLETE** |
-| Stage 2F | CPU/GPU numerical-gradient investigation | **COMPLETE** |
-| Stage 2G | Full VAL1 cache, integrity/parity audits and trainer dry run | **PASS** |
-| Stage 2H | Production training, checkpoint / OOM investigation, and validation verification | **WORK PERFORMED — final metrics awaiting report reconciliation** |
-| Stage 2I | Frozen-checkpoint external VAL2 evaluation, contract and readiness verification | **WORK PERFORMED — evaluation outputs awaiting verification** |
+### Frozen production checkpoint
 
-> **Stage 2G recommended GO for production readiness as of the Stage 2G checkpoint.** Stage 2H work followed. This README does not yet claim an epoch-14 completion, a final VAL2 score, or a validated final checkpoint until the Stage 2H run records are supplied. Stage 2F strict CPU/GPU parity remains FAIL under its original tolerance; its separate material-equivalence assessment supports GPU training on numerical grounds.
+| Field | Verified record |
+|---|---|
+| Model | NASNetLarge, input 350×350×3, binary outputs (benign / tumour) |
+| Completed training epochs | 14 |
+| Original training patches | 116,655 (VAL1 internal training) |
+| Internal validation patches | 29,164 (VAL1 internal validation) |
+| Production platform | NUS Vanda, 2× NVIDIA A40 GPUs, TensorFlow/Keras |
+| Model artifact | `epoch14.keras` (approximately 804 MiB; verify exact size on producer Vanda) |
+| Model SHA-256 | `433dd48aae800c659d1cba092af2859499bb804d2228ff978a6e9c9602b2adde` |
+| Current producer Vanda path | `/scratch/e1536052/DSA5206/vanda_runs/nasnet_production_14epoch/epoch14.keras` |
+| Shared checkpoint | GitHub Release asset, not a standard Git blob; insert actual release URL below after publishing |
 
-> **VAL2 was held out during development through Stage 2G.** Stage 2I covers the final VAL2 evaluation workflow after checkpoint selection; its outcome and evidence must be documented separately from internal VAL1 validation.
+**Release URL:** `TO_BE_FILLED_AFTER_UPLOAD`
+
+The checkpoint can be used for research inference without rerunning 14 epochs. Full training reproduction additionally requires the original source images, frozen manifests, stain reference, lossless preprocessing cache (approximately 54 GB), training scripts and matching Python environment. These large data/cache assets are **not** stored in Git.
+
+See [Team handover](#team-handover--running-the-14-epoch-model-on-vanda) below and `docs/VANDA_NATIVE_HANDOVER.md`.
 
 ---
 
@@ -132,7 +142,7 @@ cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069
 
 This internal validation split may contain patches originating from the same unknown patient or slide as the training set. It must therefore not be interpreted as patient-independent validation.
 
-VAL2 remains the untouched external test cohort.
+VAL2 is an external cohort; it is not included in this handover.
 
 ---
 
@@ -355,8 +365,8 @@ Detailed Stage 2F evidence:
 - `reports/stage2f_numerical_parity.json`
 - `reports/stage2f_checks.json`
 
-Production training was not started during Stage 2F.
-VAL2 remained untouched.
+Production training was not started **during Stage 2F**.
+This statement describes only the historical milestone at that stage.
 
 ---
 
@@ -430,7 +440,7 @@ The bounded GPU dry run verified:
 - optimizer-state restoration
 - resume cursor behavior
 
-No production epoch was run.
+No production epoch was run **during Stage 2G**.
 
 ### Stage 2G performance
 
@@ -450,8 +460,8 @@ Stage 2G conclusion:
 
 > **Full VAL1 cache: PASS. Trainer/cache integration: PASS. Production readiness: GO.**
 
-Production training has still **not started**.
-VAL2 remains untouched.
+This describes the position **at the end of Stage 2G**; Stage 2H production subsequently completed.
+This statement describes only the historical milestone at that stage.
 
 Detailed Stage 2G evidence:
 
@@ -461,68 +471,15 @@ Detailed Stage 2G evidence:
 
 ---
 
-## Stage 2H — Production Run, Troubleshooting, and Validation
+## Stage 2H — Production 14-epoch NASNetLarge training (Vanda)
 
-Stage 2H follows the verified Stage 2G training readiness milestone. The local working tree contains Stage 2H-specific test and diagnostic materials, including files named:
+Production training completed for **14 epochs** on Vanda using the frozen VAL1 patch-level split and two NVIDIA A40 GPUs. The exported Keras checkpoint has the SHA-256 recorded above. The trained output head is **binary**, reflecting the released VAL1 labels rather than the authors' three-class training annotations.
 
-- `tests/test_stage2h_readiness.py` and `tests/test_stage2h_oom_candidates.py`
-- `tools/stage2h_epoch12_probe.py`, `tools/report_stage2h_epoch12.py`, and `tools/verify_stage2h_validation.py`
-- `reports/stage2h_epoch12_oom_investigation.md` and `.json`
-- `reports/stage2h_validation_batch2_verification.json` and `.log`
-- `reports/stage2h_epoch12_full_tests.log` and `reports/stage2h_validation_full_tests.log`
+The final Vanda model is external to Git. Place the verified `.keras` checkpoint into a GitHub Release so collaborators can retrieve it without expanding ordinary repository history. Preserve any available production training logs, final-model metadata, checkpoint manifest and run configuration as **small reviewed documentation/evidence files**, never the large optimizer checkpoint or preprocessing cache.
 
-These files are identified from the local Git status but **their contents were not supplied for this README revision**. Their existence alone does not establish that tests passed, that a full 14-epoch run finished, or that the model achieved particular VAL2 metrics.
+For numerical reproducibility, the existing accelerated Vanda training route uses distributed effective batches of 100; the earlier single-GPU local trainer uses a different microbatch and accumulation path. Their numerical identity has **not** been established. An exact 14-epoch rerun additionally requires the documented manifests, lossless cache, environment and original images.
 
-### Stage 2H results to insert from verified run records
-
-| Measurement | Verified result |
-|---|---|
-| Training epochs completed | Pending Stage 2H run log / checkpoint metadata |
-| Final checkpoint identifier and SHA-256 | Pending |
-| Training runtime and hardware | Pending |
-| Internal VAL1 validation loss / accuracy / AUROC | Pending |
-| Epoch-12 memory investigation and resolution | Pending Stage 2H OOM report |
-| Full test-suite pass count | Pending Stage 2H test log |
-
-
-**Interpretation safeguard:** An external VAL2 result should be reported only for the frozen, explicitly identified checkpoint. Do not use VAL2 to choose the checkpoint, optimize batch size, tune thresholds or revise hyperparameters and still describe it as an untouched external test.
-
-**Git scope:** Include reviewed Stage 2H work and Stage 2I files specifically supporting the frozen-checkpoint VAL2 evaluation. Stage 2J and the separate SICAPv2 work remain excluded. Select artifacts individually; avoid committing large datasets, caches or checkpoints.
-
----
-
-## Stage 2I — Final External VAL2 Evaluation and Verification
-
-Stage 2I is included **only for the final held-out VAL2 evaluation of the constrained binary reimplementation**, plus the associated evaluation contract, readiness checks, and evidence. This is distinct from Stage 2H internal VAL1 validation and from subsequent Stage 2J or SICAPv2 work.
-
-The local Git status supplied for this update identifies Stage 2I-related files:
-
-- `modern_pca/stage2i_contract.py` — Stage 2I evaluation contract (content not yet reviewed)
-- `tests/test_stage2i_readiness.py` — readiness tests
-- `tools/stage2i_readiness.py` — readiness verification utility
-- `reports/stage2i_readiness.md` and `.json` — readiness reports
-- `reports/stage2i_inference_verification.json` — inference verification
-- `reports/stage2i_report_verification.json` — report verification
-- `reports/stage2i_restore_verification.json` — restore verification
-- `reports/stage2i_tests_verification.json` — test verification
-- `reports/stage2i_focused_tests.log` and `reports/stage2i_full_tests.log` — test logs
-
-`modern_pca/evaluate_reimplementation.py` also has uncommitted changes; review its diff to identify changes required for Stage 2I VAL2 evaluation before staging it. Some of the files above can establish readiness and integrity but **do not themselves establish final VAL2 classification performance**.
-
-### External VAL2 results — pending evidence review
-
-| Measurement | Result / evidence status |
-|---|---|
-| Evaluated checkpoint (epoch, path and hash) | Not yet supplied / verified |
-| VAL2 evaluation run status and timestamp | Not yet supplied / verified |
-| VAL2 sample coverage (expected 34,103) | Verify from evaluation run and manifest |
-| Confusion matrix (benign / tumour) | Not yet supplied / verified |
-| Sensitivity, specificity, accuracy, precision, F1 | Not yet supplied / verified |
-| AUROC and applicable uncertainty intervals | Not yet supplied / verified |
-| Evaluation preprocessing / checkpoint restore parity | Verify from Stage 2I reports |
-| Stage 2I focused and full test totals | Verify from Stage 2I test logs |
-
-**Evaluation boundary:** VAL2 is an external test cohort, not a training or tuning cohort. Report results for the preselected, frozen checkpoint without using VAL2 to tune model weights, thresholds, hyperparameters, or checkpoint selection. This remains a constrained binary reimplementation, not an exact paper reproduction.
+Do **not** treat the internal VAL1 validation accuracy as an independent patient-level estimate: the VAL1 split is patch-level and underlying slide/patient provenance is missing.
 
 ---
 
@@ -591,7 +548,7 @@ Runtime outputs, downloaded datasets and large preprocessing caches are not inte
 
 ## Environment
 
-The current GPU reimplementation environment is based on WSL2.
+The initial GPU development environment used WSL2; the completed 14-epoch production checkpoint was trained on NUS Vanda with 2× A40 GPUs.
 
 Important verified software from the Stage 2D environment includes:
 
@@ -626,7 +583,6 @@ Stage 2G: 213 tests passed
 git diff --check passed
 ```
 
-Stage 2G also reran 23 focused cache/integration tests successfully. Stage 2H and Stage 2I test counts must be inserted from their actual test logs; they are not verified by this README alone.
 
 ---
 
@@ -687,11 +643,53 @@ The original repository should still be consulted when comparing legacy training
 
 ---
 
-## Current Next Step
+## Team Handover — Running the 14-epoch Model on Vanda
 
-1. Reconcile Stage 2H training/checkpoint status, OOM investigation, and test results with original run artifacts.
-2. Review Stage 2I readiness/evaluation logs and final VAL2 outputs for the **frozen checkpoint**. Insert numerical metrics only after verifying them.
-3. Commit reviewed Stage 2H and Stage 2I VAL2 evaluation code, tests, README and compact evidence. Keep Stage 2J and SICAPv2 work uncommitted.
-4. On NUS Vanda, validate a separate PBS two-A40 allocation and training-step benchmark before a new production run.
+For a teammate using a **different Vanda account**, the producer's `/scratch/e1536052/...` paths will not necessarily be readable. Each teammate must clone the reviewed Git commit, set up a compatible environment in their own scratch space, retrieve the separately released `epoch14.keras` asset, and verify its SHA-256 before inference.
 
-Stage 2G verified all 145,819 cached VAL1 samples (116,655 training; 29,164 internal validation), exact online parity on 590 representative and 1,000 deterministic random samples, and checkpoint reload/resume. Its training-only time forecasts (~22.09 hours, conservative ~26.48 hours) are **pre-Stage 2H estimates**, not measured final training runtime.
+### 1. Clone the reviewed source version
+
+```bash
+ssh YOUR_NUS_ID@vanda.nus.edu.sg
+module load Python/3.11.5-GCCcore-13.2.0
+mkdir -p "$HOME/scratch/DSA5206"  # adjust to your assigned scratch allocation
+cd "$HOME/scratch/DSA5206"
+git clone YOUR_REPO_SSH_URL dsa5206-proj
+cd dsa5206-proj
+git checkout YOUR_RELEASE_TAG
+```
+
+`YOUR_REPO_SSH_URL` and `YOUR_RELEASE_TAG` must be replaced with the actual GitHub repository and immutable release tag. Obtain the correct Python environment from `docs/VANDA_NATIVE_HANDOVER.md`; **do not** assume copying a virtual environment from another user's account will work.
+
+### 2. Download the model asset
+
+Download `epoch14.keras` from the release assets into your own scratch directory. Use GitHub CLI authentication or an authorized HTTPS download for a private repository. Do not assume an ordinary `wget` request to a private release asset is authenticated.
+
+```bash
+mkdir -p "$HOME/scratch/DSA5206/checkpoints"
+# Example if gh is installed and authenticated:
+gh release download YOUR_RELEASE_TAG -R OWNER/REPO \
+  -p epoch14.keras -D "$HOME/scratch/DSA5206/checkpoints"
+sha256sum "$HOME/scratch/DSA5206/checkpoints/epoch14.keras"
+```
+
+Expected hash: `433dd48aae800c659d1cba092af2859499bb804d2228ff978a6e9c9602b2adde`.
+
+### 3. Run research-only inference on a local patch
+
+After verifying TensorFlow, Pillow, StainTools and the exact reference stain are usable on a Vanda compute node, run the separate single-image inference module in this handover:
+
+```bash
+python -m modern_pca.vanda_native_infer \
+  --model "$HOME/scratch/DSA5206/checkpoints/epoch14.keras" \
+  --image /PATH/TO/YOUR/PROSTATE_PATCH.jpg \
+  --output /PATH/TO/OUTPUT/prediction.json
+```
+
+This checks the model checksum and executes the same legacy preprocessing (350×350 RGB Lanczos → brightness normalization → Macenko → `/255`). The input is a pathology image patch, **not an arbitrary whole-slide image**. This is for reproducibility research, **not clinical diagnosis**.
+
+### 4. Reproducing all 14 training epochs is a separate workflow
+
+An inference run needs the checkpoint, stain reference and images to be scored. A full fresh training run also needs the ~54 GB VAL1 cache, source training images, training manifests, two GPUs and a verified matching execution environment. Do not copy entire cache folders or rerun training unless required. Production PBS file location and full submission instructions must be verified against the tagged repository and institution-specific account settings before reuse.
+
+See `docs/VANDA_NATIVE_HANDOVER.md` for the publisher checklist, release commands, environment test and source-code verification instructions.

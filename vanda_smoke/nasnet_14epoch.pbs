@@ -1,0 +1,46 @@
+#!/bin/bash
+#PBS -N nasnet_14epoch
+#PBS -q auto
+#PBS -l select=1:ncpus=12:mem=96gb:ngpus=2
+#PBS -l walltime=10:00:00
+#PBS -j oe
+
+set -euo pipefail
+
+BASE="${DSA5206_BASE:-/scratch/$USER/DSA5206}"
+REPO="${DSA5206_REPO:-$BASE/dsa5206-proj}"
+VENV="${DSA5206_VENV:-$BASE/.venv}"
+CACHE="${DSA5206_CACHE:-$BASE/cache_transfer/cache}"
+OUTPUT="${DSA5206_OUTPUT:-$BASE/vanda_runs/nasnet_production_14epoch}"
+
+cd "$REPO"
+
+module load Python/3.11.5-GCCcore-13.2.0
+source "$VENV/bin/activate"
+
+export PYTHONPATH="$REPO:${PYTHONPATH:-}"
+export TF_CPP_MIN_LOG_LEVEL=2
+export OMP_NUM_THREADS=8
+
+MAX_EPOCHS="${MAX_EPOCHS:-14}"
+
+echo "USER=$USER"
+echo "PBS_JOBID=${PBS_JOBID:-unknown}"
+echo "HOST=$(hostname)"
+echo "REPO=$REPO"
+echo "CACHE=$CACHE"
+echo "OUTPUT=$OUTPUT"
+echo "MAX_EPOCHS=$MAX_EPOCHS"
+
+test -f "$CACHE/cache.json" || {
+    echo "Missing verified preprocessing cache: $CACHE/cache.json" >&2
+    exit 1
+}
+
+nvidia-smi -L
+
+python -B -u -m modern_pca.vanda_distributed_training \
+    --cache "$CACHE" \
+    --output "$OUTPUT" \
+    --max-epochs "$MAX_EPOCHS" \
+    --log-every 50
