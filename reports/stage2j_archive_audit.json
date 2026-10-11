@@ -1,0 +1,260 @@
+{
+  "VAL2_images_opened": false,
+  "all_official_binary_counts": {
+    "0": 4417,
+    "1": 7664
+  },
+  "archive_bytes": 2159052394,
+  "archive_files": 37589,
+  "archive_sha256": "a28aa6a0e3831217bf31575cecfc1846607ace7ff25a4392f07052bbc7355916",
+  "archive_uncompressed_bytes": 2161978547,
+  "audit_dir": "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/sicapv2_v2/audit",
+  "dataset": "https://data.mendeley.com/datasets/9xxm58dvs3/2",
+  "decoded_images": 18783,
+  "doi": "10.17632/9xxm58dvs3.2",
+  "download_url": "https://data.mendeley.com/public-files/datasets/9xxm58dvs3/files/6ab087a7-ca89-47ac-9698-f6546bb50f98/file_downloaded",
+  "duplicate_pixel_groups": [],
+  "duplicate_raw_groups": [],
+  "errors": [],
+  "extraction": "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/sicapv2_v2/extracted",
+  "image_embedded_metadata": {
+    "{\"exif\": \"{}\", \"info\": \"{'jfif': 257, 'jfif_version': (1, 1), 'jfif_unit': 0, 'jfif_density': (1, 1)}\"}": 18783
+  },
+  "image_properties": {
+    "{\"format\": \"JPEG\", \"height\": 512, \"mode\": \"RGB\", \"width\": 512}": 18783
+  },
+  "images": 18783,
+  "mask_pixel_counts": {
+    "mask_other": 0,
+    "mask_value_0": 4220631721,
+    "mask_value_1": 0,
+    "mask_value_2": 0,
+    "mask_value_3": 190847349,
+    "mask_value_4": 428337950,
+    "mask_value_5": 84033732
+  },
+  "mask_properties": {
+    "{\"format\": \"PNG\", \"height\": 512, \"mode\": \"L\", \"width\": 512}": 18783
+  },
+  "masks": 18783,
+  "metadata_sha256": {
+    "SICAPv2/partition/Test/Test.xlsx": "6874a071a8fe14ca84fbd5017c2ec278632635f9be5ff4b5e123d0d8b81357ad",
+    "SICAPv2/partition/Test/TestCribfriform.xlsx": "129a547bfbaba720e344f925a491e5803b5ba8bcb90bc9b5dd3ffc28d3632f27",
+    "SICAPv2/partition/Test/Train.xlsx": "fc60dc99debff67cab21a3147ebd5d66892905bcacf84df2527211ce273b9eaf",
+    "SICAPv2/partition/Test/TrainCribfriform.xlsx": "31c3a906fd5be7601bd010f95a70ebcc0c7ad6e582d0c268cbf4d8a620e177d5",
+    "SICAPv2/partition/Validation/Val1/Test.xlsx": "ff14a1b733d7ac8f312374a63b1886d47678ab7b9af1c2c9440b14bfdfb41ae8",
+    "SICAPv2/partition/Validation/Val1/TestCribfriform.xlsx": "f250d81c84b42a7c4026ba6ddd6a4138de91aa33bbae593cb4c6c801416c5c30",
+    "SICAPv2/partition/Validation/Val1/Train.xlsx": "0e765928fe28b08e3aa98a30e79016e2826bb597862a3518d085246dfd259660",
+    "SICAPv2/partition/Validation/Val1/TrainCribfriform.xlsx": "b129c4b9cb63bba95e54147fac6dcc3f0bd4ef826f7d5b17a69bc8f2006ab108",
+    "SICAPv2/partition/Validation/Val2/Test.xlsx": "714b4ce6b72878d2a1ca2c26c3353d5c044e403609a7274f17b3215ce993dd4f",
+    "SICAPv2/partition/Validation/Val2/TestCribfriform.xlsx": "ac3e5755e6461066e4efbfb059afb9a41cb688f2ce963638f7808540707453a0",
+    "SICAPv2/partition/Validation/Val2/Train.xlsx": "666c60bcf9c46776d4296370686beff4afd1eb4a4b5d4a1af6cf9ddfeea8161f",
+    "SICAPv2/partition/Validation/Val2/TrainCribfriform.xlsx": "ffc45047b4c1d2b3b21478022a1940ab022a9f1ef66c38b60762c85fbda38cc2",
+    "SICAPv2/partition/Validation/Val3/Test.xlsx": "e00285e0d54b97d5910181823e8fb4fcc195c988f8fbbc1f69f1f75f7b03805e",
+    "SICAPv2/partition/Validation/Val3/TestCribfriform.xlsx": "061d0c79a5a91b565728e06a1b0fdb5d8ff8f3b0f985658eb8f80485fe51b373",
+    "SICAPv2/partition/Validation/Val3/Train.xlsx": "6e45e98fe2873f7cf4b65423c262b627bc7540af5750549488f9ff58ae80ebbb",
+    "SICAPv2/partition/Validation/Val3/TrainCribfriform.xlsx": "6579f15113650182286ab31763eb22bbd76f0dc0635745dcf42b919134689e24",
+    "SICAPv2/partition/Validation/Val4/Test.xlsx": "0c9f8c8c857b727997c8734f1eb08b77d1879fac3bce955104c7a7bf3f0031c2",
+    "SICAPv2/partition/Validation/Val4/TestCribfriform.xlsx": "deebc2a6e9189d509387820c7727828bb99517ca8ca48102ec97118ed9230488",
+    "SICAPv2/partition/Validation/Val4/Train.xlsx": "b5097012fe56cc8e7b5c4c44da5c3970b252f52d92dbc56d5513495986ab7fa2",
+    "SICAPv2/partition/Validation/Val4/TrainCribfriform.xlsx": "2fdc7f6597807ac46f71e3de5b19cb47179e23ee791c6dd0ac4d33d2a09206c4",
+    "SICAPv2/readme.txt": "ff03a64eb2b4a7bb3c3a18a4fec2d76f81026fdd4db38645969ea2d990015880",
+    "SICAPv2/wsi_labels.xlsx": "c8943645db58a357b382ef3064713fbe41415722de6448216aec9f5e0e3eebd4"
+  },
+  "mixed_zero_nonzero": 8055,
+  "multiple_nonzero_values": 6638,
+  "official_label_conflicts": [],
+  "overlap": {
+    "VAL1": {
+      "count": 0,
+      "method": "JPEG SHA256 versus existing manifest hashes only",
+      "sample_ids": []
+    },
+    "VAL2": {
+      "count": 0,
+      "method": "JPEG SHA256 versus existing manifest hashes only",
+      "sample_ids": []
+    }
+  },
+  "partition_summaries": {
+    "SICAPv2/partition/Test/Test.xlsx": {
+      "binary": {
+        "0": 644,
+        "1": 1478
+      },
+      "classes": {
+        "G3": 393,
+        "G4": 853,
+        "G5": 232,
+        "NC": 644
+      },
+      "decoded": 2122,
+      "patients": 21,
+      "rows": 2122,
+      "slides": 31
+    },
+    "SICAPv2/partition/Test/Train.xlsx": {
+      "binary": {
+        "0": 3773,
+        "1": 6186
+      },
+      "classes": {
+        "G3": 1829,
+        "G4": 3641,
+        "G5": 716,
+        "NC": 3773
+      },
+      "decoded": 9959,
+      "patients": 74,
+      "rows": 9959,
+      "slides": 124
+    },
+    "SICAPv2/partition/Validation/Val1/Test.xlsx": {
+      "binary": {
+        "0": 685,
+        "1": 1802
+      },
+      "classes": {
+        "G3": 625,
+        "G4": 979,
+        "G5": 198,
+        "NC": 685
+      },
+      "decoded": 2487,
+      "patients": 18,
+      "rows": 2487,
+      "slides": 29
+    },
+    "SICAPv2/partition/Validation/Val1/Train.xlsx": {
+      "binary": {
+        "0": 3088,
+        "1": 4384
+      },
+      "classes": {
+        "G3": 1204,
+        "G4": 2662,
+        "G5": 518,
+        "NC": 3088
+      },
+      "decoded": 7472,
+      "patients": 56,
+      "rows": 7472,
+      "slides": 95
+    },
+    "SICAPv2/partition/Validation/Val2/Test.xlsx": {
+      "binary": {
+        "0": 717,
+        "1": 1449
+      },
+      "classes": {
+        "G3": 346,
+        "G4": 950,
+        "G5": 153,
+        "NC": 717
+      },
+      "decoded": 2166,
+      "patients": 17,
+      "rows": 2166,
+      "slides": 27
+    },
+    "SICAPv2/partition/Validation/Val2/Train.xlsx": {
+      "binary": {
+        "0": 3056,
+        "1": 4737
+      },
+      "classes": {
+        "G3": 1483,
+        "G4": 2691,
+        "G5": 563,
+        "NC": 3056
+      },
+      "decoded": 7793,
+      "patients": 57,
+      "rows": 7793,
+      "slides": 97
+    },
+    "SICAPv2/partition/Validation/Val3/Test.xlsx": {
+      "binary": {
+        "0": 644,
+        "1": 1149
+      },
+      "classes": {
+        "G3": 361,
+        "G4": 670,
+        "G5": 118,
+        "NC": 644
+      },
+      "decoded": 1793,
+      "patients": 19,
+      "rows": 1793,
+      "slides": 30
+    },
+    "SICAPv2/partition/Validation/Val3/Train.xlsx": {
+      "binary": {
+        "0": 3129,
+        "1": 5037
+      },
+      "classes": {
+        "G3": 1468,
+        "G4": 2971,
+        "G5": 598,
+        "NC": 3129
+      },
+      "decoded": 8166,
+      "patients": 55,
+      "rows": 8166,
+      "slides": 94
+    },
+    "SICAPv2/partition/Validation/Val4/Test.xlsx": {
+      "binary": {
+        "0": 1727,
+        "1": 1786
+      },
+      "classes": {
+        "G3": 497,
+        "G4": 1042,
+        "G5": 247,
+        "NC": 1727
+      },
+      "decoded": 3513,
+      "patients": 20,
+      "rows": 3513,
+      "slides": 38
+    },
+    "SICAPv2/partition/Validation/Val4/Train.xlsx": {
+      "binary": {
+        "0": 2046,
+        "1": 4400
+      },
+      "classes": {
+        "G3": 1332,
+        "G4": 2599,
+        "G5": 469,
+        "NC": 2046
+      },
+      "decoded": 6446,
+      "patients": 54,
+      "rows": 6446,
+      "slides": 86
+    }
+  },
+  "patient_partition": {
+    "overlap": 0,
+    "test_patients": 21,
+    "train_patients": 74
+  },
+  "patients": 95,
+  "readme": "------------\r\n| Contents |\r\n------------\r\n\r\nVersion 1: 2020-05\r\n\r\n\r\n---------------\r\n| Directories |\r\n---------------\r\nD1. images\r\n\tProstate histology patches of slides at 10X magnification. Patches are extracted with size 512 pixels and overlap of 50% among them. Only the patches with more than 20% of tissue are selected.\r\n\tThe first prefix in filename indicated the slide ID (e.g. 16B0001851 in '16B0001851_Block_Region_1_0_0_xini_6803_yini_59786').\r\n\tThe patch position in the slide is indicated by the prefixes: Block_Region_region_y_x. Each slide have different regions, and the patch position is indicated in _y_x_.\r\nD2. masks\r\n\tMask with encoded anotations of the images in D1.\r\n\t\t0 --> non cancerous\r\n\t\t1 --> GG3\t\r\n\t\t2 --> GG4\r\n\t\t3 --> GG5\r\nD3. partition\r\n\tTables with the proposed patient-based cross-validation partition of the database, Gleason grades labels, and ground truth of cribriform patterns.\r\n\tThe non-cancerous patches in this partition are obtained from slides classified as non cancerous.\r\n\tThe labels in cancerous patches are obtained by majority voting of the annotations (masks).\r\n\r\n----------\r\n| Tables |\r\n----------\r\nT1. wsi_labels\r\n\tTable with the wsi ID, patient ID and its respective Gleason score (primary and secondary grades).\r\n",
+  "seconds": 725.4287894550071,
+  "selected_binary_counts": {
+    "0": 3773,
+    "1": 6186
+  },
+  "selected_manifest": "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/sicapv2_v2/audit/selected_train.csv",
+  "selected_manifest_sha256": "52e87a6e814eb64c296493d0637b34872269f63d890b472d1c11d17914cd660d",
+  "selected_samples": 9959,
+  "slides": 155,
+  "training_started": false,
+  "unlisted": 6702,
+  "version": 2
+}

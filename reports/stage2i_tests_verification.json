@@ -1,0 +1,17 @@
+{
+  "VAL2_image_access_attempts": [],
+  "VAL2_images_accessed": false,
+  "completed_at_utc": "2026-10-07T15:09:32.641282+00:00",
+  "production_or_final_evaluation_started": false,
+  "status": "PASS",
+  "tests": {
+    "focused": {
+      "exit_code": 0,
+      "log": "reports/stage2i_focused_tests.log"
+    },
+    "full": {
+      "exit_code": 0,
+      "log": "reports/stage2i_full_tests.log"
+    }
+  }
+}

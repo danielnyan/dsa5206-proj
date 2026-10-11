@@ -1,0 +1,23 @@
+#!/bin/bash
+#PBS -N singapore_cache_smoke
+#PBS -q auto
+#PBS -l select=1:ncpus=4:mem=16gb
+#PBS -l walltime=00:30:00
+#PBS -j oe
+
+set -euo pipefail
+
+BASE=/scratch/e1536052/DSA5206
+REPO="$BASE/dsa5206-native-release"
+DATA="$BASE/singapore_external"
+
+module load Python/3.11.5-GCCcore-13.2.0
+source "$BASE/.venv/bin/activate"
+
+cd "$REPO"
+export PYTHONPATH="$REPO:${PYTHONPATH:-}"
+
+python -u "$DATA/scripts/build_epoch15_cache.py" \
+  --root "$DATA" \
+  --output "$DATA/cache_epoch15/smoke10" \
+  --limit 10

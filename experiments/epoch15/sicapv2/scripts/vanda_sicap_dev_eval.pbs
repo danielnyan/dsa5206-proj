@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N sicap_dev_eval
+#PBS -q auto
+#PBS -l select=1:ncpus=12:mem=96gb:ngpus=1
+#PBS -l walltime=01:00:00
+#PBS -j oe
+
+set -euo pipefail
+
+cd /scratch/e1536052/DSA5206/dsa5206-proj
+module load Python/3.11.5-GCCcore-13.2.0
+source /scratch/e1536052/DSA5206/.venv/bin/activate
+
+export CUDA_VISIBLE_DEVICES=0
+export TF_CPP_MIN_LOG_LEVEL=2
+export TF_ENABLE_ONEDNN_OPTS=0
+export TF_GPU_ALLOCATOR=cuda_malloc_async
+
+: "${MODEL_KEY:?Submit with MODEL_KEY=epoch14 or MODEL_KEY=head_only}"
+
+case "$MODEL_KEY" in
+  epoch14|head_only|partial) ;;
+  *) echo "Invalid MODEL_KEY" >&2; exit 2 ;;
+esac
+
+BASE=/scratch/e1536052/DSA5206
+OUT="$BASE/vanda_runs/sicap_dev_${MODEL_KEY}_${PBS_JOBID%%.*}"
+
+python -B -u -m modern_pca.vanda_sicap_dev_eval \
+  --model-key "$MODEL_KEY" \
+  --output "$OUT"

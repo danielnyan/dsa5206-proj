@@ -1,0 +1,17 @@
+{
+  "matrix": [
+    [
+      17461,
+      7010
+    ],
+    [
+      212,
+      9420
+    ]
+  ],
+  "label_order": [
+    "benign",
+    "tumour"
+  ],
+  "orientation": "rows=actual, columns=predicted"
+}

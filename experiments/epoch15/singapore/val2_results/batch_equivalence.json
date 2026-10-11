@@ -1,0 +1,7 @@
+{
+  "samples": 32,
+  "max_probability_abs_difference": 6.556510925292969e-07,
+  "all_decisions_identical": true,
+  "tolerance": 0.0001,
+  "purpose": "numerical batch invariance check, not model selection"
+}

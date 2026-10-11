@@ -1,0 +1,56 @@
+﻿{
+    "output":  "",
+    "new_files":  {
+                      "tools/report_stage2j.py":  {
+                                                      "output":  "",
+                                                      "sha256":  "9fe37e2928380791464a28eb2f437564827dd15ce2b5c4521f3a9c9daaee3935",
+                                                      "exit_code":  1
+                                                  },
+                      "tests/test_sicapv2_training.py":  {
+                                                             "output":  "",
+                                                             "sha256":  "11057788edc2ab98a21d676f99abbe6513751bb45f6545b0b2b77caf6cb462f1",
+                                                             "exit_code":  1
+                                                         },
+                      "tools/check_sicapv2_preprocessing.py":  {
+                                                                   "output":  "",
+                                                                   "sha256":  "9827df22994574e38df023f5bfdb899c7e5f7b8dfa5b70d5b6b5519017794520",
+                                                                   "exit_code":  1
+                                                               },
+                      "modern_pca/sicapv2.py":  {
+                                                    "output":  "",
+                                                    "sha256":  "c38443bd6823dbd06717288ba3d174ad0e05a4d3a4693e5b001560544bc3a15d",
+                                                    "exit_code":  1
+                                                },
+                      "tools/audit_sicapv2.py":  {
+                                                     "output":  "",
+                                                     "sha256":  "872d2253acb0521eaf9d76829783e23281d2352163548bf367d12ed8d2fcd7bd",
+                                                     "exit_code":  1
+                                                 },
+                      "tests/test_sicapv2.py":  {
+                                                    "output":  "",
+                                                    "sha256":  "2cf185f757820f83c28aca1bb35f472164857f9d6dfee4d7b39ea731255a826b",
+                                                    "exit_code":  1
+                                                },
+                      "modern_pca/train_sicapv2.py":  {
+                                                          "output":  "",
+                                                          "sha256":  "16c0db1f31cd43c0d56a2817ae5f36c199da12173643c8556cdc875ce9460717",
+                                                          "exit_code":  1
+                                                      },
+                      "tools/inspect_sicapv2.py":  {
+                                                       "output":  "",
+                                                       "sha256":  "40d00f2cf4c96e8290913fbba1aed6610dcd5179b73519885267e9baca817156",
+                                                       "exit_code":  1
+                                                   },
+                      "tools/verify_stage2j.py":  {
+                                                      "output":  "",
+                                                      "sha256":  "2c4e944135546ff49a72459f7552c4edea3c047577a1eee2a80b0c8d88cf6378",
+                                                      "exit_code":  1
+                                                  },
+                      "modern_pca/evaluate_sicapv2.py":  {
+                                                             "output":  "",
+                                                             "sha256":  "ab8c30d3896c4613cd04fe16566f7f3d474d88d5511e6bff0d53b2f8267fad92",
+                                                             "exit_code":  1
+                                                         }
+                  },
+    "exit_code":  0
+}

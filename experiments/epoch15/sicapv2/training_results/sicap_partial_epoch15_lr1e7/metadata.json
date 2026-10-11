@@ -1,0 +1,7 @@
+{
+  "completed_epochs": 15,
+  "model_sha256": "f28c7cbd6b874a4287972913127a361d7bbc8d2bcd8cf03c72747d8589c707df",
+  "parent_model_sha256": "433dd48aae800c659d1cba092af2859499bb804d2228ff978a6e9c9602b2adde",
+  "trainable_params": 142263170,
+  "purpose": "experiment2_late_backbone_lr1e-7"
+}
