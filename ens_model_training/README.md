@@ -5,7 +5,10 @@ NASNetLarge recipe as model 1 but on 600 px patches resized to 500 px (about x35
 Code: `ens_model_training/ens_cache.py` (500 px uint8 cache from the MD5-verified VAL1 ZIPs) and
 `ens_model_training/ens_train.py` (resumable training, epoch-14 export, grey-zone ENS rule
 `ens_combine`). Trained on the frozen VAL1 split (116,655 train / 29,164 internal validation).
-VAL2 is never downloaded or read by anything here.
+Training and cache creation remain VAL1-only. `ens_model_training/ens_val2.py` is a separate,
+inference-only VAL2 evaluator. ENS mode loads both released epoch-14 checkpoints and freshly
+evaluates Model 2 only for patches in the native model's inclusive `[0.2, 0.8]` uncertainty band.
+Standalone Model 2 mode loads only Model 2 and evaluates every selected patch.
 
 Recipe (frozen, identical to model 1 except the input size): ImageNet weights, Flatten,
 Dense(256, ReLU), Dense(2, softmax); brightness standardisation + Macenko stain normalisation,
@@ -38,6 +41,23 @@ Artifacts (not in Git): `ens_model2_epoch14.keras` (1.40 GB, SHA-256
 (recipe, software versions, checksums), `model2_internal_validation_predictions.csv`
 (sample_id, label, p_tumour), `history.json`, `train.log`.
 
+### Held-out VAL2 results (NUS Vanda, 2026-10-10/11)
+
+All 34,103 patches (24,471 benign / 9,632 tumour), with fixed thresholds and no VAL2 training:
+
+| Evaluation | Accuracy | Sensitivity | Specificity | F1 | ROC-AUC |
+|---|---|---|---|---|---|
+| Native Model 1 | 95.35% | 90.09% | 97.42% | 0.9162 | 0.98063 |
+| Routed ENS | 95.85% | 91.38% | 97.61% | 0.9256 | 0.98075 |
+| Standalone Model 2 | 95.62% | 92.64% | 96.79% | 0.9227 | 0.98163 |
+
+ENS invoked Model 2 on 1,069 patches (3.13%). The shared native/ENS evaluator took 17,894.6 seconds;
+standalone Model 2 took 29,336.8 seconds. These are evaluator durations, not matched GPU benchmarks.
+See the [native/ENS metrics](../reports/evaluation_ens_val2_full_20261010_163459/val2_ens_metrics.json),
+[Model 2 metrics](../reports/evaluation_ens_val2_full_20261010_163459_model2_only_val2_20261011_131430/val2_model2_metrics.json),
+and [presentation brief](../reports/evalutaion_VAL2_PRESENTATION_aurora.md) for provenance and limitations.
+These are constrained binary reimplementation results, not exact paper reproduction.
+
 ## Running it
 
 ```sh
@@ -59,6 +79,52 @@ Ensemble on VAL1 internal validation (needs model 1's `epoch14.keras` and its si
 ```sh
 qsub -P $NSCC_PROJECT -q $GPU_QUEUE -v CODE_DIR=$PWD,MODEL1=/path/epoch14.keras,MODEL1_META=/path/metadata.json,MODEL2_RUN=ens_model2_b4 ens_model_training/jobs/ensemble.pbs
 ```
+
+## VAL2 inference on NUS Vanda
+
+This path does not train either model. It requires the authenticated checkpoints, verified VAL2
+archives, matching Vanda environment and project code under `/scratch/$USER/DSA5206`. The runner
+checks each archive MD5, every selected image SHA-256, the Model 2 checkpoint SHA-256, the frozen
+VAL2 manifest fingerprint and the stain-reference SHA. ENS mode also checks the native checkpoint.
+It records whether the run is a partial or full cohort; never report a smoke subset as full-cohort
+results.
+
+After the Python 3.13 module environment (or an optional `venv-ens`) passes model-load and
+preprocessing checks on a Vanda GPU node, run a 512-per-class smoke evaluation:
+
+```sh
+qsub -v MAX_PER_CLASS=512 ens_model_training/jobs/ens_val2_vanda.pbs
+```
+
+For standalone Model 2 inference on every patch, first smoke-test the new path:
+
+```sh
+qsub -v MODEL2_ONLY=1,MAX_PER_CLASS=512 ens_model_training/jobs/ens_val2_vanda.pbs
+```
+
+Review the PBS log and `runs/model2_only_val2_*/val2_model2_metrics.json`. Confirm it reports 1024
+samples, `evaluation_mode` `model2_only`, and `model2_invoked` 1024. Then submit the full cohort:
+
+```sh
+qsub -v MODEL2_ONLY=1 ens_model_training/jobs/ens_val2_vanda.pbs
+```
+
+The standalone run writes `val2_model2_predictions.csv` and `val2_model2_metrics.json`; its metrics
+are under `model2`, and it does not load or score the native model.
+
+For ENS, review the original ENS smoke job's PBS log and the generated
+`runs/ens_val2_*/val2_ens_metrics.json`. Confirm it reports
+1024 samples, both classes and a nonzero `model2_invoked` count. Then submit full VAL2 by omitting
+`MAX_PER_CLASS`:
+
+```sh
+qsub ens_model_training/jobs/ens_val2_vanda.pbs
+```
+
+The Vanda PBS file specifies project `personal-e0775654`, one GPU allocation and a
+12-hour limit. Adjust the project or resource lines only to match the account's active allocation
+and the smoke-run timing. Do not run `ens_model_training.ens_train ensemble` for VAL2; that command
+is intentionally VAL1 internal-validation-only and consumes saved VAL1 Model 2 predictions.
 
 ## NSCC notes
 

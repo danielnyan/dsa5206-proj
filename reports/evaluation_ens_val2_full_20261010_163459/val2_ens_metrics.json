@@ -1,0 +1,87 @@
+{
+  "archive_md5": {
+    "benign": "029069ab405a76d42fcdefac32982989",
+    "tumour": "d72b78d364fbfed95d8f0d71d8f2d01e"
+  },
+  "class_counts": {
+    "benign": 24471,
+    "tumour": 9632
+  },
+  "cohort": "VAL2",
+  "elapsed_seconds": 17894.615722344257,
+  "ens": {
+    "FN": 830,
+    "FP": 585,
+    "TN": 23886,
+    "TP": 8802,
+    "accuracy": 0.9585080491452365,
+    "benign_accuracy": 0.976094152261861,
+    "confusion_matrix": [
+      [
+        23886,
+        585
+      ],
+      [
+        830,
+        8802
+      ]
+    ],
+    "exact_threshold_ties": 0,
+    "f1": 0.9256007150743993,
+    "label_order": [
+      "benign",
+      "tumour"
+    ],
+    "precision": 0.9376797698945349,
+    "recall": 0.9138289036544851,
+    "roc_auc": 0.9807505915707941,
+    "sensitivity": 0.9138289036544851,
+    "specificity": 0.976094152261861,
+    "tumour_accuracy": 0.9138289036544851,
+    "undefined_metrics": []
+  },
+  "evaluation_scope": "VAL2 held out from VAL1 training; constrained reimplementation, not exact paper reproduction",
+  "full_cohort": true,
+  "keras": "3.15.1",
+  "manifest_sha256": "7b95ac02798e5971fc2722d3c37e8e7613bc1d020dee9a1a5d49ac939cf746d9",
+  "max_per_class": null,
+  "model2_invoked": 1069,
+  "model2_sha256": "49305a192b3dfbdad7c9cea641f4195ae096389df0655863022c01f0d58a4680",
+  "native": {
+    "FN": 955,
+    "FP": 632,
+    "TN": 23839,
+    "TP": 8677,
+    "accuracy": 0.9534645045890391,
+    "benign_accuracy": 0.9741735115034122,
+    "confusion_matrix": [
+      [
+        23839,
+        632
+      ],
+      [
+        955,
+        8677
+      ]
+    ],
+    "exact_threshold_ties": 0,
+    "f1": 0.916213505094768,
+    "label_order": [
+      "benign",
+      "tumour"
+    ],
+    "precision": 0.9321087119991406,
+    "recall": 0.9008513289036545,
+    "roc_auc": 0.9806298493735415,
+    "sensitivity": 0.9008513289036545,
+    "specificity": 0.9741735115034122,
+    "tumour_accuracy": 0.9008513289036545,
+    "undefined_metrics": []
+  },
+  "native_model_sha256": "433dd48aae800c659d1cba092af2859499bb804d2228ff978a6e9c9602b2adde",
+  "rule": "Use native outside [0.2, 0.8]; within the inclusive band use Model 2; tumour iff p > 0.5",
+  "samples": 34103,
+  "stain_reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1",
+  "tensorflow": "2.21.0",
+  "trigger_fraction": 0.03134621587543618
+}

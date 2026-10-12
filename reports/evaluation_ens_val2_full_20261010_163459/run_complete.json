@@ -1,0 +1,9 @@
+{
+  "artifacts": {
+    "val2_ens_metrics.json": "8ae15cb21db858ba3d5e73f651a813ea057dfb38ae7801eda1f583e6ba19b6d0",
+    "val2_ens_predictions.csv": "cc8c1ce34f23eb19b7818687216d0f5e5b0e23b7f075575d5bda586e59e02bd2"
+  },
+  "completed_at_utc": "2026-10-10T13:33:48.043939+00:00",
+  "samples": 34103,
+  "status": "PASS"
+}
