@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -N ens-eval
+#PBS -l select=1:ncpus=32:ngpus=1:mem=110gb
+#PBS -l walltime=06:00:00
+#PBS -j oe
+# Internal-validation evaluation of the ENS rule (ens_train.run_ensemble): model 1 (epoch-14
+# production .keras + its sidecar, 350 px from the VAL1 ZIPs) + model-2 epoch-14 predictions.
+# VAL1 internal validation only. VAL2 is never touched by any job in jobs/.
+#   -v MODEL1=/path/epoch14.keras,MODEL1_META=/path/metadata.json,MODEL2_RUN=ens_model2_b2
+# Submit:  qsub -P $NSCC_PROJECT -q $GPU_QUEUE -v CODE_DIR=$CODE,MODEL1=...,MODEL1_META=...,MODEL2_RUN=... ens_model_training/jobs/ensemble.pbs
+set -euo pipefail
+source "${CODE_DIR:-${PBS_O_WORKDIR:-$(dirname "$0")/../..}}/ens_model_training/jobs/config.sh"
+activate_env
+
+model2="$RUNS/${MODEL2_RUN:?-v MODEL2_RUN=<run directory under \$RUNS>}"
+[[ -f "$model2/metadata.json" ]] || { echo "$model2 has no epoch-14 export (metadata.json)" >&2; exit 3; }
+out="$RUNS/ens_internal_validation_$(date +%Y%m%d_%H%M%S)"
+python -m ens_model_training.ens_train ensemble --model1 "${MODEL1:?}" --model1-metadata "${MODEL1_META:?}" \
+    --model2 "$model2" --archives "$ARCHIVES" --output "$out" --workers "${NCPUS:-$(nproc)}"
+cat "$out/ens_metrics.json"

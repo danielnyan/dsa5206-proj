@@ -1,0 +1,72 @@
+#!/bin/bash
+#PBS -N ens-train
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=24:00:00
+#PBS -j oe
+# One ens_train.py training session: resume from the newest checkpoint in the run directory, checkpoint every CHECKPOINT_MINUTES at a logical-batch
+# boundary, and stop cleanly STOP_MARGIN_MINUTES before this job's walltime. Submit a chain of these
+# with ens_model_training/jobs/submit_train_chain.sh; each link exits at once when the run is already COMPLETE.
+#   -v BATCH=4           physical batch (default 4 = the frozen recipe); bound into the checkpoint contract
+#   -v RUN_NAME=...      output directory under $RUNS (default ens_model2_b$BATCH)
+set -euo pipefail
+source "${CODE_DIR:-${PBS_O_WORKDIR:-$(dirname "$0")/../..}}/ens_model_training/jobs/config.sh"
+activate_env
+start=$(date +%s)
+
+BATCH="${BATCH:-4}"
+out="$RUNS/${RUN_NAME:-ens_model2_b$BATCH}"
+mkdir -p "$out"
+if [[ ! -f "$out/nscc_run.json" ]]; then
+    # Run-level record. ens_train's metadata.json adds the physical-batch deviation only when the
+    # batch is not 4.
+    python - "$out/nscc_run.json" "$BATCH" "$ENV_DIR/nscc_env_freeze.txt" <<'EOF'
+import importlib.metadata, json, sys
+from pathlib import Path
+import tensorflow as tf
+from ens_model_training import ens_cache
+batch = int(sys.argv[2]); freeze = Path(sys.argv[3])
+json.dump(dict(platform='NSCC ASPIRE 2A (PBS Pro), one GPU per job', physical_batch=batch, effective_batch=100,
+               recipe='frozen model-1 recipe at 500 px' + ('; no physical-batch deviation' if batch == 4 else
+                                                            f'; DEVIATION: physical batch {batch} instead of 4'),
+               start='fresh from ImageNet weights',
+               cache='built on NSCC by ens_model_training/jobs/cache_parts.pbs (ens_cache.build_part); fingerprint in every checkpoint contract',
+               checkpoints='every N minutes at logical-batch boundaries and before PBS walltime',
+               tensorflow=tf.__version__, keras=importlib.metadata.version('keras'), software=ens_cache.software(),
+               environment_freeze=freeze.read_text().splitlines() if freeze.exists() else None, VAL2_accessed=False),
+          open(sys.argv[1], 'w'), indent=1)
+EOF
+fi
+if [[ -f "$out/status.json" ]] && grep -q '"COMPLETE"' "$out/status.json"; then
+    [[ -f "$out/metadata.json" ]] && { echo "Run already COMPLETE: $out"; exit 0; }
+    # run_train skips export when a (possibly truncated) .keras exists; never treat that as done.
+    echo "status COMPLETE but no metadata.json in $out: inspect/remove a partial ens_model2_epoch14.keras by hand" >&2; exit 4
+fi
+
+# One writer per run directory (a second concurrent session would race on checkpoint rotation).
+lock="$out/.writer"
+if [[ -f "$lock" ]] && other=$(cat "$lock") && [[ "$other" != "${PBS_JOBID:-}" ]] && qstat "$other" 2>/dev/null | grep -q " R "; then
+    echo "Job $other is already training into $out" >&2; exit 5
+fi
+echo "${PBS_JOBID:-interactive}" > "$lock"
+
+walltime=$(qstat -f "${PBS_JOBID:-none}" 2>/dev/null | sed -n 's/.*Resource_List.walltime = //p' | head -1)
+if [[ -n "$walltime" ]]; then
+    IFS=: read -r h m s <<< "$walltime"; seconds=$((10#$h * 3600 + 10#$m * 60 + 10#$s))
+else
+    seconds=$(( ${WALLTIME_HOURS:-24} * 3600 ))
+fi
+# Margin covers the last checkpoint (~3.7 GB write + SHA-256 of every tensor) and, at the very end,
+# the portable .keras export and round-trip check.
+stop_at=$(( start + seconds - ${STOP_MARGIN_MINUTES:-30} * 60 ))
+
+session_note "$out" start
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
+set +e
+python -m ens_model_training.ens_train train --cache-roots "$CACHE" --output "$out" \
+    --batch-size "$BATCH" --stop-at "$stop_at" --checkpoint-minutes "${CHECKPOINT_MINUTES:-30}"
+code=$?
+set -e
+session_note "$out" "end_exit_$code"
+rm -f "$lock"
+cat "$out/status.json" 2>/dev/null; echo
+exit $code

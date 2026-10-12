@@ -1,0 +1,79 @@
+#!/bin/bash
+#PBS -P personal-e0775654
+#PBS -N dsa5206-ens-val2
+#PBS -l select=1:ncpus=8:mpiprocs=1:ompthreads=8:ngpus=1
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#PBS -k oed
+
+set -euo pipefail
+
+BASE="/scratch/$USER/DSA5206"
+REPO="$BASE/dsa5206-proj"
+ENV_DIR="${ENV_DIR:-$BASE/venv-ens}"
+ARCHIVES="$BASE/VAL2/archives"
+CHECKPOINTS="$BASE/checkpoints"
+RUNS="$BASE/runs"
+
+module load Python/3.13.1-GCCcore-14.2.0
+if [[ -f "$ENV_DIR/bin/activate" ]]; then
+  source "$ENV_DIR/bin/activate"
+else
+  echo "No venv at $ENV_DIR; using the validated Python module environment: $(command -v python)"
+fi
+SITE_DIRS="$(python -c 'import site; print(" ".join(site.getsitepackages() + [site.getusersitepackages()]))')"
+NVIDIA_LIBS=""
+for SITE_DIR in $SITE_DIRS; do
+  for LIB_DIR in "$SITE_DIR"/nvidia/*/lib; do
+    [[ -d "$LIB_DIR" ]] || continue
+    NVIDIA_LIBS="${NVIDIA_LIBS:+$NVIDIA_LIBS:}$LIB_DIR"
+  done
+done
+if [[ -n "$NVIDIA_LIBS" ]]; then
+  export LD_LIBRARY_PATH="$NVIDIA_LIBS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+export PYTHONPATH="$REPO${PYTHONPATH:+:$PYTHONPATH}"
+export TF_CPP_MIN_LOG_LEVEL=1
+export TF_ENABLE_ONEDNN_OPTS=0
+
+cd "$REPO"
+mkdir -p "$RUNS"
+OUTPUT="$RUNS/ens_val2_$(date +%Y%m%d_%H%M%S)"
+MODEL2_ONLY="${MODEL2_ONLY:-0}"
+if [[ "$MODEL2_ONLY" == "1" ]]; then
+  OUTPUT="$RUNS/model2_only_val2_$(date +%Y%m%d_%H%M%S)"
+fi
+
+nvidia-smi -L
+python - <<'PY'
+import tensorflow as tf
+import keras
+import staintools
+import spams
+
+gpus = tf.config.list_physical_devices("GPU")
+print(f"TensorFlow={tf.__version__} Keras={keras.__version__} GPUs={gpus}", flush=True)
+if not gpus:
+    raise SystemExit("No GPU visible inside the PBS job")
+print(f"staintools={staintools.__file__} spams={spams.__file__}", flush=True)
+PY
+
+ARGS=(
+  --model2-model "$CHECKPOINTS/ens_model2_epoch14.keras"
+  --manifest "$REPO/manifests/VAL2_manifest.csv"
+  --archives "$ARCHIVES"
+  --stain-reference "$REPO/4_WSI_pipeline/WSI_pipeline_v6/images/standard_he_stain_small.jpg"
+  --output "$OUTPUT"
+  --batch-size "${BATCH_SIZE:-2}"
+)
+if [[ "$MODEL2_ONLY" == "1" ]]; then
+  ARGS+=(--model2-only)
+else
+  ARGS+=(--native-model "$CHECKPOINTS/naive model_epoch14.keras")
+fi
+if [[ -n "${MAX_PER_CLASS:-}" ]]; then
+  ARGS+=(--max-per-class "$MAX_PER_CLASS")
+fi
+
+python -u -m ens_model_training.ens_val2 "${ARGS[@]}"
+echo "VAL2 ENS outputs: $OUTPUT"

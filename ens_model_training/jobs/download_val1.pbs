@@ -1,0 +1,27 @@
+#!/bin/bash
+#PBS -N ens-download
+#PBS -l select=1:ncpus=2:mem=8gb
+#PBS -l walltime=12:00:00
+#PBS -j oe
+# Download the two VAL1 Zenodo 3825933 ZIPs (12.36 GB) with HTTP Range resume and MD5 check,
+# reusing ens_cache.download(). VAL2 archives are not in ens_cache.ARCHIVES and are never fetched.
+# Submit:  qsub -P $NSCC_PROJECT -q $CPU_QUEUE -v CODE_DIR=$CODE ens_model_training/jobs/download_val1.pbs
+# If compute nodes have no internet, run the same file on the login node instead:
+#   nohup bash ens_model_training/jobs/download_val1.pbs > download.log 2>&1 &
+set -euo pipefail
+source "${CODE_DIR:-${PBS_O_WORKDIR:-$(dirname "$0")/../..}}/ens_model_training/jobs/config.sh"
+activate_env
+
+if ! curl -sSfI --max-time 30 'https://zenodo.org/records/3825933' > /dev/null; then
+    echo "No route to zenodo.org from $(hostname); run this script on the login node instead." >&2; exit 3
+fi
+mkdir -p "$ARCHIVES"
+python - "$ARCHIVES" <<'EOF'
+import logging, sys
+from ens_model_training import ens_cache as e
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+paths = e.download(sys.argv[1])
+rows = e.f.frozen_rows()
+e.ZipSource(paths).check(rows)  # all 145,819 frozen VAL1 members present
+print({k: str(v) for k, v in paths.items()}, len(rows), 'manifest members present; VAL2 not accessed')
+EOF
