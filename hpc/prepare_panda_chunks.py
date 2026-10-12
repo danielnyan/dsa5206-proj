@@ -376,6 +376,44 @@ def main() -> None:
                     )
                     all_rows[split].append(row)
 
+        # PANDA cross-split content quarantine (deterministic, audited).
+        # Different WSIs can produce the same normalized PNG. Identical pixels
+        # must not appear on both sides of the split, irrespective of label.
+        train_hashes = {r["file_sha256"] for r in all_rows["train"]}
+        validation_hashes = {r["file_sha256"] for r in all_rows["validation"]}
+        cross_split_hashes = train_hashes & validation_hashes
+
+        quarantined = {"train": [], "validation": []}
+        for split in ("train", "validation"):
+            retained = []
+            for row in all_rows[split]:
+                if row["file_sha256"] in cross_split_hashes:
+                    quarantined[split].append({
+                        "sample_id": row["sample_id"],
+                        "file_sha256": row["file_sha256"],
+                        "class_name": row["class_name"],
+                        "source_wsi": row["source_wsi"],
+                        "cache_file": row["cache_file"],
+                    })
+                else:
+                    retained.append(row)
+            all_rows[split] = retained
+
+        quarantine_path = output / "cross_split_content_audit.json"
+        atomic_json(quarantine_path, {
+            "policy": "discard_all_occurrences_of_cross_split_content_from_both_splits",
+            "conflicting_sha256": sorted(cross_split_hashes),
+            "removed_counts": {k: len(v) for k, v in quarantined.items()},
+            "removed_rows": quarantined,
+        })
+        print(
+            "Cross-split duplicate-content quarantine:",
+            len(cross_split_hashes), "unique image hashes;",
+            len(quarantined["train"]), "train rows and",
+            len(quarantined["validation"]), "validation rows removed",
+            flush=True,
+        )
+
         for split in ("train", "validation"):
             all_rows[split].sort(
                 key=lambda row: (
@@ -475,6 +513,9 @@ def main() -> None:
             "global_eligible": first["global_eligible"],
             "merged_retained": sum(len(v) for v in all_rows.values()),
             "full_chunk_coverage": full_cohort,
+            "content_overlap_policy": "drop_all_matching_hashes_from_both_splits",
+            "content_overlap_removed": {k: len(v) for k, v in quarantined.items()},
+            "content_overlap_audit_sha256": sha256_file(quarantine_path),
             "preparation_mode": "direct_verified_chunk_zips",
             "source_chunks_dir": str(Path(args.chunks_dir).resolve()),
         }
