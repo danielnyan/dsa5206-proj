@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#PBS -N epoch14-gp-transfer
+#PBS -l select=1:ncpus=8:ngpus=1:mem=96gb
+#PBS -l walltime=48:00:00
+#PBS -j oe
+# IMPORTANT: Add your own #PBS -P personal-... below the shebang if required.
+set -euo pipefail
+
+: "${PIPELINE_CONFIG:?Use qsub -v PIPELINE_CONFIG=/absolute/path/to/site.env}"
+source "$PIPELINE_CONFIG"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+source "$VENV_DIR/bin/activate"
+cd "$REPO_DIR"
+export PYTHONPATH="$REPO_DIR${PYTHONPATH:+:$PYTHONPATH}"
+export KERAS_HOME="$DATA_ROOT/keras"
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+export TF_CPP_MIN_LOG_LEVEL=2
+
+: "${EPOCH14_MODEL:?Export EPOCH14_MODEL=/absolute/path/to/epoch14.keras in site.env}"
+: "${PREPARED_DIR:?Set the final PANDA PREPARED_DIR in site.env}"
+: "${RUN_ROOT:?Set RUN_ROOT in site.env}"
+
+jobid=${PBS_JOBID:-manual-$$}
+output=${PROBE_OUTPUT_DIR:-"$RUN_ROOT/${jobid}-epoch14-gp-transfer"}
+mkdir -p "$RUN_ROOT"
+
+args=(
+  --prepared "$PREPARED_DIR"
+  --cache "$PREPARED_DIR/cache"
+  --checkpoint "$EPOCH14_MODEL"
+  --output "$output"
+  --batch-size "${PROBE_BATCH_SIZE:-1}"
+  --seed "${PROBE_SEED:-42}"
+  --repeats "${PROBE_REPEATS:-20}"
+  --nn-device "${PROBE_NN_DEVICE:-gpu}"
+)
+if [[ "${PROBE_RESUME:-0}" == 1 ]]; then args+=(--resume); fi
+if [[ "${PROBE_MODEL_SMOKE:-0}" == 1 ]]; then args+=(--model-smoke); fi
+python -u hpc/epoch14_gleason_fewshot.py "${args[@]}"
+echo "Results: $output"
