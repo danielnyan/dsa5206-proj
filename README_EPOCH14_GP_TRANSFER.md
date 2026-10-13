@@ -17,8 +17,10 @@ To run this, edit site.env to point EPOCH14_MODEL towards epoch14.keras.
 ```bash
 cd "$REPO_DIR"
 source "$PIPELINE_CONFIG"  # or specify the full site.env path
-"$VENV_DIR/bin/python" hpc/epoch14_gleason_fewshot.py \
-  --prepared "$PREPARED_DIR" --cache "$PREPARED_DIR/cache" --preflight
+"$VENV_DIR/bin/python" -m hpc.epoch14_gleason_fewshot \
+  --prepared "$PREPARED_DIR" \
+  --cache "$PREPARED_DIR/cache" \
+  --preflight
 ```
 
 This checks full PANDA manifest integrity, image-content leakage, eligible
