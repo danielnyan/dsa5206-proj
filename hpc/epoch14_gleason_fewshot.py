@@ -30,7 +30,7 @@ STAGES = {"F44": ("normal_concat_5", 1008),
           "F11": ("backbone_output_post_relu", 4032)}
 CLASS_NAMES = ("GP3", "GP4", "GP5")
 EXPECTED_CHECKPOINT_SHA256 = "433dd48aae800c659d1cba092af2859499bb804d2228ff978a6e9c9602b2adde"
-PROTOCOL_VERSION = "epoch14-panda-gp-transfer-v1"
+PROTOCOL_VERSION = "epoch14-panda-gp-transfer-v2"
 
 
 def sha(path: Path, block_size=8 * 1024 * 1024) -> str:
@@ -72,8 +72,12 @@ def git_info():
         return {"commit": "unavailable", "status": "unavailable"}
 
 
-def eligible_pure(row):
-    return (row.get("region_role") == "pure"
+def eligible_region(row, split):
+    """Respect the exporter: pure training vs held-out single-GP validation."""
+    expected_roles = {"train": "pure", "validation": "heldout_single_gp"}
+    if split not in expected_roles:
+        raise ValueError(f"Unsupported split: {split}")
+    return (row.get("region_role") == expected_roles[split]
             and str(row.get("region_primary")) == str(row.get("region_secondary"))
             and str(row.get("region_primary")) == str(int(row["label"]) + 3))
 
@@ -98,10 +102,10 @@ def read_population(prepared_dir: Path):
     for split, all_rows in (("train", train_all), ("validation", val_all)):
         pure = []
         for row in all_rows:
-            if eligible_pure(row):
+            if eligible_region(row, split):
                 pure.append(row)
             else:
-                excluded.append({"split": split, "sample_id": row["sample_id"], "reason": "non_pure_region"})
+                excluded.append({"split": split, "sample_id": row["sample_id"], "reason": "ineligible_split_role_or_grade"})
 
         # Within each split, remove exact-byte duplicates and all conflicting-label
         # image contents. Keeping one identical PNG avoids pseudo-replication.
@@ -128,6 +132,9 @@ def read_population(prepared_dir: Path):
     assert_training_isolated(populations["train"], populations["validation"])
     for split, rows in populations.items():
         counter = Counter(r["label"] for r in rows)
+        raw_roles = Counter(r.get("region_role", "") for r in (train_all if split == "train" else val_all))
+        print(f"Eligibility {split}: raw region_role counts={dict(raw_roles)}, "
+              f"retained GP counts={dict(counter)}", flush=True)
         if any(counter[k] == 0 for k in range(3)):
             raise ValueError(f"{split}: no eligible samples in one or more classes: {counter}")
     return prepared, populations, excluded
@@ -615,8 +622,8 @@ def run(args):
         "support_shots": [5, 50], "stages": {k: {"layer": name, "dimension": dim} for k, (name, dim) in STAGES.items()},
         "classification": "frozen GAP embeddings; cosine 1NN / class-mean cosine prototypes",
         "label_use": "1NN bank labels for lookup; prototypes use 5 or 50 labelled train examples per class",
-        "training_cohort": "pure", "validation_cohort": "pure",
-        "excluded_policy": "discard conflicting-label image bytes, deduplicate identical PNGs within each split",
+        "training_cohort": "pure", "validation_cohort": "heldout_single_gp",
+        "excluded_policy": "split-specific eligibility; discard conflicting-label image bytes; deduplicate identical PNGs within each split",
         "full_cohort": True,
         "gp_labels_never_used_to_train_or_modify_backbone": True,
         "code_sha256": sha(Path(__file__)),
