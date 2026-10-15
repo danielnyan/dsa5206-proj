@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#PBS -N epoch14-linear-probe
+#PBS -l select=1:ncpus=8:mem=32gb
+#PBS -l walltime=06:00:00
+#PBS -j oe
+# Add your cluster's #PBS -P personal-... line if required.
+set -euo pipefail
+: "${PIPELINE_CONFIG:?Use qsub -v PIPELINE_CONFIG=/absolute/path/to/site.env}"
+source "$PIPELINE_CONFIG"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+source "$VENV_DIR/bin/activate"
+cd "$REPO_DIR"
+export PYTHONPATH="$REPO_DIR${PYTHONPATH:+:$PYTHONPATH}"
+export OMP_NUM_THREADS=8 OPENBLAS_NUM_THREADS=8 MKL_NUM_THREADS=8 NUMEXPR_NUM_THREADS=8
+: "${PROBE_DIR:?Set PROBE_DIR to completed old GP-probe directory containing features/}"
+: "${RUN_ROOT:?Set RUN_ROOT in site.env}"
+JOB_ID=${PBS_JOBID:-manual-$$}
+OUT=${LINEAR_PROBE_OUTPUT_DIR:-"$RUN_ROOT/${JOB_ID}-epoch14-linear-probe"}
+args=(--source "$PROBE_DIR" --output "$OUT" \
+      --C "${LINEAR_PROBE_C:-100}" --seed "${PROBE_SEED:-42}" \
+      --repeats "${PROBE_REPEATS:-20}" --chunk-size "${LINEAR_PROBE_CHUNK:-2048}")
+python -u -m hpc.epoch14_gleason_linear_probe "${args[@]}"
+echo "RESULTS: $OUT"
