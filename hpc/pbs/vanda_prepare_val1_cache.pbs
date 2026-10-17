@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#PBS -N val1-cache
+#PBS -l select=1:ncpus=8:mem=64gb
+#PBS -l walltime=48:00:00
+#PBS -j oe
+set -euo pipefail
+: "${PIPELINE_CONFIG:?Supply PIPELINE_CONFIG via qsub -v}"
+: "${VAL1_CACHE:?Supply VAL1_CACHE via qsub -v}"
+: "${ZROOT:?Supply ZROOT via qsub -v}"
+source "$PIPELINE_CONFIG"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+cd "$REPO_DIR"
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+extra=()
+if [[ "${CACHE_PREFLIGHT:-0}" == 1 ]]; then extra+=(--preflight-only); fi
+if [[ "${CACHE_VERIFY_ONLY:-0}" == 1 ]]; then extra+=(--verify-only); fi
+"$VENV_DIR/bin/python" -B -u -m hpc.vanda_build_val1_cache \
+  --extracted "$ZROOT/extracted" --output "$VAL1_CACHE" \
+  --workers "${VAL1_CACHE_WORKERS:-4}" "${extra[@]}"
