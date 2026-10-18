@@ -93,6 +93,7 @@ def main(argv=None):
         saved = torch.load(args.resume, map_location='cpu', weights_only=False)
         if saved['contract'] != contract:
             raise ValueError('Checkpoint split/model/batch size/environment differs; use the original configuration')
+        model.train()  # Remove escnn's derived filter buffers to match training-mode checkpoints.
         model.load_state_dict(saved['model'])
         optimizer.load_state_dict(saved['optimizer'])
         scheduler.load_state_dict(saved['scheduler'])
