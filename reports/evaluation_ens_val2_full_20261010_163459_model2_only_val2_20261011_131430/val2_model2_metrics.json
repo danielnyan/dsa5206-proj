@@ -1,0 +1,59 @@
+{
+  "archive_md5": {
+    "benign": "029069ab405a76d42fcdefac32982989",
+    "tumour": "d72b78d364fbfed95d8f0d71d8f2d01e"
+  },
+  "class_counts": {
+    "benign": 24471,
+    "tumour": 9632
+  },
+  "cohort": "VAL2",
+  "elapsed_seconds": 29336.78181402618,
+  "ens": null,
+  "evaluation_mode": "model2_only",
+  "evaluation_scope": "VAL2 held out from VAL1 training; constrained reimplementation, not exact paper reproduction",
+  "full_cohort": true,
+  "keras": "3.15.1",
+  "manifest_sha256": "7b95ac02798e5971fc2722d3c37e8e7613bc1d020dee9a1a5d49ac939cf746d9",
+  "max_per_class": null,
+  "model2": {
+    "FN": 709,
+    "FP": 786,
+    "TN": 23685,
+    "TP": 8923,
+    "accuracy": 0.9561622144679354,
+    "benign_accuracy": 0.9678803481672184,
+    "confusion_matrix": [
+      [
+        23685,
+        786
+      ],
+      [
+        709,
+        8923
+      ]
+    ],
+    "exact_threshold_ties": 0,
+    "f1": 0.9227030660255416,
+    "label_order": [
+      "benign",
+      "tumour"
+    ],
+    "precision": 0.9190441858069832,
+    "recall": 0.926391196013289,
+    "roc_auc": 0.9816304362435379,
+    "sensitivity": 0.926391196013289,
+    "specificity": 0.9678803481672184,
+    "tumour_accuracy": 0.926391196013289,
+    "undefined_metrics": []
+  },
+  "model2_invoked": 34103,
+  "model2_sha256": "49305a192b3dfbdad7c9cea641f4195ae096389df0655863022c01f0d58a4680",
+  "native": null,
+  "native_model_sha256": null,
+  "rule": "Use Model 2 for every patch; tumour iff p > 0.5",
+  "samples": 34103,
+  "stain_reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1",
+  "tensorflow": "2.21.0",
+  "trigger_fraction": 1.0
+}

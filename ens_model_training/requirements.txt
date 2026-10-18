@@ -1,0 +1,5 @@
+# Preprocessing pins for the cache and ensemble jobs, matching requirements-reimplementation-wsl.txt.
+# staintools is installed separately with --no-deps (spams-bin supplies spams).
+spams-bin==2.6.13
+Pillow==10.4.0
+opencv-python==4.11.0.86

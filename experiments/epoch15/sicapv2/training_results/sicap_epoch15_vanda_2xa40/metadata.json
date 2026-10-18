@@ -1,0 +1,8 @@
+{
+  "purpose": "secondary_SICAPv2_epoch15_vanda_2xa40",
+  "completed_epochs": 15,
+  "parent_model_sha256": "433dd48aae800c659d1cba092af2859499bb804d2228ff978a6e9c9602b2adde",
+  "model_sha256": "09c3427f4ef37d3674e5bdc6d098fc1aec02d23e16342e5158cc4bd00e5b6521",
+  "contract_sha256": "20e61144799929d993f059f5bc836ccb7ef073e7958719ae276338143694468a",
+  "VAL2_images_accessed": false
+}

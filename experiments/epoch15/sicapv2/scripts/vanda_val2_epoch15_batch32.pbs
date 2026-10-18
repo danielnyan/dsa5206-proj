@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -N sicap_val2_b32
+#PBS -q auto
+#PBS -l select=1:ncpus=12:mem=96gb:ngpus=1
+#PBS -l walltime=06:00:00
+#PBS -j oe
+
+set -euo pipefail
+
+cd /scratch/e1536052/DSA5206/dsa5206-proj
+
+module load Python/3.11.5-GCCcore-13.2.0
+source /scratch/e1536052/DSA5206/.venv/bin/activate
+
+export CUDA_VISIBLE_DEVICES=0
+export TF_CPP_MIN_LOG_LEVEL=2
+
+BASE=/scratch/e1536052/DSA5206
+
+python -B -u -m modern_pca.vanda_val2_epoch15_batch32 \
+  --model "$BASE/vanda_runs/sicap_epoch15_vanda_2xa40/epoch15.keras" \
+  --checkpoint-manifest "$BASE/vanda_runs/sicap_epoch15_vanda_2xa40/epoch_15_resume/checkpoint.json" \
+  --final-model-metadata "$BASE/vanda_runs/sicap_epoch15_vanda_2xa40/metadata.json" \
+  --manifest manifests/VAL2_manifest.csv \
+  --extracted "$BASE/val2_transfer/extracted" \
+  --stain-reference 4_WSI_pipeline/WSI_pipeline_v6/images/standard_he_stain_small.jpg \
+  --batch-size 32 \
+  --output "$BASE/vanda_runs/val2_epoch15_sicap_b32_${PBS_JOBID%%.*}"

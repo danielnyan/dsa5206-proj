@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "samples": 34103,
+  "model_sha256": "5c1bf2f62c3fdb44a1dba239afa8718ab76a4d6b8b7be8b5195666ef3bc9dea8",
+  "artifacts_sha256": {
+    "metrics.json": "f953d51bdf7fa39964a75ccd9e78341a9961577aca992e3853cc6bb8f0cee020",
+    "predictions.csv": "d1fde013b430d5877c45e2291dc125a21396a03f5c68b46b5d531f630070f287",
+    "confusion_matrix.json": "561ac201ce2febc62978860166c0cc12d37bfac9546d918f06069a92330dab62",
+    "batch_equivalence.json": "bdd9ac6cb44a4ad73621a4344af5b442415237ab8489b8e6760609bd5b87a86b"
+  }
+}

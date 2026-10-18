@@ -1,0 +1,25 @@
+#!/bin/bash
+#PBS -N ens-probe
+#PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+# Short disposable GPU probe (target < 20 GPU-minutes): model 2 at 500 px, real accumulate/Adam
+# updates at the first and deepest stages, physical batch 4 then 2, in separate processes so
+# each peak-memory figure is clean. Synthetic inputs unless PROBE_CACHE=1 (needs all 8 parts).
+# Submit:  qsub -P $NSCC_PROJECT -q $GPU_QUEUE -v CODE_DIR=$CODE ens_model_training/jobs/gpu_probe.pbs
+set -uo pipefail
+source "${CODE_DIR:-${PBS_O_WORKDIR:-$(dirname "$0")/../..}}/ens_model_training/jobs/config.sh"
+activate_env
+
+nvidia-smi
+python -c "import tensorflow as tf; print(tf.__version__, tf.config.list_physical_devices('GPU'), tf.sysconfig.get_build_info().get('cuda_version'))"
+stamp=$(date +%Y%m%d_%H%M%S)
+for batch in ${PROBE_BATCHES:-4 2}; do
+    out="$RUNS/probe_${stamp}_b${batch}"
+    if [[ "${PROBE_CACHE:-0}" == 1 ]]; then
+        python -m ens_model_training.ens_train probe --cache-roots "$CACHE" --output "$out" --batch-size "$batch"
+    else
+        python jobs/gpu_probe.py --synthetic --output "$out" --batch-size "$batch"
+    fi
+    echo "batch $batch exit $?"; cat "$out/probe.json" 2>/dev/null; echo
+done

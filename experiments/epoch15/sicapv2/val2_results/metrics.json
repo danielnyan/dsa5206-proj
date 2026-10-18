@@ -1,0 +1,53 @@
+{
+  "purpose": "vanda_epoch15_SICAPv2_independent_VAL2_binary_evaluation",
+  "model": "/scratch/e1536052/DSA5206/vanda_runs/sicap_epoch15_vanda_2xa40/epoch15.keras",
+  "model_sha256": "09c3427f4ef37d3674e5bdc6d098fc1aec02d23e16342e5158cc4bd00e5b6521",
+  "checkpoint_manifest_sha256": "86e7ea78681f858916adc4fff42207f6d67ef387633ed1eb75425abc0e007424",
+  "final_model_metadata_sha256": "6b56cc473dc220c5d9e344c32eabb2a230d1897794b9fd630963a8e2d3814509",
+  "manifest_sha256": "7b95ac02798e5971fc2722d3c37e8e7613bc1d020dee9a1a5d49ac939cf746d9",
+  "stain_reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1",
+  "samples": 34103,
+  "batch_size": 32,
+  "threshold": "p_tumour > 0.5",
+  "class_order": [
+    "benign",
+    "tumour"
+  ],
+  "metrics": {
+    "TN": 14381,
+    "FP": 10090,
+    "FN": 110,
+    "TP": 9522,
+    "confusion_matrix": [
+      [
+        14381,
+        10090
+      ],
+      [
+        110,
+        9522
+      ]
+    ],
+    "label_order": [
+      "benign",
+      "tumour"
+    ],
+    "accuracy": 0.7009060786441076,
+    "precision": 0.4855190699571691,
+    "recall": 0.9885797342192691,
+    "sensitivity": 0.9885797342192691,
+    "tumour_accuracy": 0.9885797342192691,
+    "specificity": 0.5876752073883372,
+    "benign_accuracy": 0.5876752073883372,
+    "f1": 0.6512105047189167,
+    "roc_auc": 0.9777818362463346,
+    "exact_threshold_ties": 0,
+    "undefined_metrics": []
+  },
+  "training_performed": false,
+  "timing_seconds": {
+    "preprocessing": 3923.2511890199967,
+    "inference": 470.08560390677303,
+    "end_to_end_including_hash_verification": 4659.675036906265
+  }
+}

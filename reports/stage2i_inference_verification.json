@@ -1,0 +1,152 @@
+{
+  "VAL2_image_access_attempts": [],
+  "VAL2_images_accessed": false,
+  "allocator": "default",
+  "artifacts_unchanged": true,
+  "batch_decision": "Conservative batch1 fixed; no alternative batch selected from outcomes; default allocator sufficient in measured inference test",
+  "batch_size": 1,
+  "completed_at_utc": "2026-10-07T15:06:29.643383+00:00",
+  "device": {
+    "build": {
+      "cpu_compiler": "clang 18",
+      "cuda_compute_capabilities": [
+        "sm_60",
+        "sm_70",
+        "sm_80",
+        "sm_89",
+        "compute_90"
+      ],
+      "cuda_version": "12.5.1",
+      "cudnn_version": "9",
+      "is_cuda_build": true,
+      "is_rocm_build": false,
+      "is_tensorrt_build": false
+    },
+    "cuda_visible_devices": "unset",
+    "deterministic_ops": true,
+    "gpu_details": [
+      {
+        "compute_capability": [
+          8,
+          9
+        ],
+        "device_name": "NVIDIA GeForce RTX 4080 Laptop GPU"
+      }
+    ],
+    "keras": "3.15.1",
+    "synchronous_execution": true,
+    "tensor_float_32": false,
+    "tensorflow": "2.20.0",
+    "visible_gpus": [
+      "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+    ]
+  },
+  "export_matches_resume_weights": true,
+  "optimizer_updates": 0,
+  "peak_current_gpu_bytes": {
+    "current": 861226496,
+    "peak": 2136091648
+  },
+  "predictions": [
+    {
+      "ground_truth_code": 0,
+      "p_benign": 0.999830961227417,
+      "p_tumour": 0.00016902206698432565,
+      "predicted_binary_code": 0,
+      "row_index": 10253,
+      "sample_id": "VAL1:benign/norm/norm.56313.jpg"
+    },
+    {
+      "ground_truth_code": 0,
+      "p_benign": 0.9992495179176331,
+      "p_tumour": 0.0007504724198952317,
+      "predicted_binary_code": 0,
+      "row_index": 3200,
+      "sample_id": "VAL1:benign/norm/norm.24608.jpg"
+    },
+    {
+      "ground_truth_code": 0,
+      "p_benign": 1.0,
+      "p_tumour": 4.6160845978970855e-11,
+      "predicted_binary_code": 0,
+      "row_index": 5113,
+      "sample_id": "VAL1:benign/norm/norm.3320.jpg"
+    },
+    {
+      "ground_truth_code": 0,
+      "p_benign": 0.9998995065689087,
+      "p_tumour": 0.00010052307334262878,
+      "predicted_binary_code": 0,
+      "row_index": 4506,
+      "sample_id": "VAL1:benign/norm/norm.30338.jpg"
+    },
+    {
+      "ground_truth_code": 1,
+      "p_benign": 0.002064517932012677,
+      "p_tumour": 0.9979355335235596,
+      "predicted_binary_code": 1,
+      "row_index": 19833,
+      "sample_id": "VAL1:tumour/tu/tum.15600.jpg"
+    },
+    {
+      "ground_truth_code": 1,
+      "p_benign": 0.014857400208711624,
+      "p_tumour": 0.9851425290107727,
+      "predicted_binary_code": 1,
+      "row_index": 26970,
+      "sample_id": "VAL1:tumour/tu/tum.47494.jpg"
+    },
+    {
+      "ground_truth_code": 1,
+      "p_benign": 0.00616541737690568,
+      "p_tumour": 0.9938346147537231,
+      "predicted_binary_code": 1,
+      "row_index": 20301,
+      "sample_id": "VAL1:tumour/tu/tum.17694.jpg"
+    },
+    {
+      "ground_truth_code": 1,
+      "p_benign": 7.183396988352797e-09,
+      "p_tumour": 1.0,
+      "predicted_binary_code": 1,
+      "row_index": 28031,
+      "sample_id": "VAL1:tumour/tu/tum.52323.jpg"
+    }
+  ],
+  "production_or_final_evaluation_started": false,
+  "repeat_max_absolute_difference": 0.0,
+  "sample_ids": [
+    "VAL1:benign/norm/norm.56313.jpg",
+    "VAL1:benign/norm/norm.24608.jpg",
+    "VAL1:benign/norm/norm.3320.jpg",
+    "VAL1:benign/norm/norm.30338.jpg",
+    "VAL1:tumour/tu/tum.15600.jpg",
+    "VAL1:tumour/tu/tum.47494.jpg",
+    "VAL1:tumour/tu/tum.17694.jpg",
+    "VAL1:tumour/tu/tum.52323.jpg"
+  ],
+  "samples": 8,
+  "source": "VAL1 internal validation JPEGs",
+  "status": "PASS",
+  "threshold_crossings": 0,
+  "timing": {
+    "average_inference_ms_per_image": 764.1411115037045,
+    "average_preprocessing_ms_per_image": 117.51974687285838,
+    "end_to_end_images_per_second": 1.1342229730390205,
+    "end_to_end_ms_per_image": 881.6608583765628,
+    "inference_images_per_second": 1.3086588130720567,
+    "inference_seconds": 6.113128892029636,
+    "integrity_seconds": 0.0,
+    "manifest_seconds": 0.0,
+    "metrics_seconds": 0.0,
+    "model_load_seconds": 0.0,
+    "output_seconds": 0.0,
+    "preprocessing_seconds": 0.940157974982867,
+    "reference_setup_seconds": 0.0,
+    "startup_seconds": 0.0,
+    "total_seconds": 7.053286867012503,
+    "warmup_seconds": 0.0
+  },
+  "training_batches": 0,
+  "weights_and_BN_unchanged": true
+}

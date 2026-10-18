@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -N sicap_epoch15
+#PBS -q auto
+#PBS -l select=1:ncpus=12:mem=96gb:ngpus=2
+#PBS -l walltime=01:30:00
+#PBS -j oe
+set -euo pipefail
+cd /scratch/e1536052/DSA5206/dsa5206-proj
+module load Python/3.11.5-GCCcore-13.2.0
+source /scratch/e1536052/DSA5206/.venv/bin/activate
+export PYTHONUNBUFFERED=1
+export TF_ENABLE_ONEDNN_OPTS=0
+export TF_GPU_ALLOCATOR=cuda_malloc_async
+MODE="${MODE:-preflight}"
+case "$MODE" in preflight|train-smoke|train) ;; *) echo 'MODE must be preflight, train-smoke or train' >&2; exit 2;; esac
+BASE=/scratch/e1536052/DSA5206
+OUT=$BASE/vanda_runs/sicap_epoch15_vanda_2xa40
+if [ "$MODE" = preflight ] || [ "$MODE" = train-smoke ]; then
+  OUT=$BASE/vanda_runs/sicap_preflight_${PBS_JOBID%%.*}
+fi
+python -B -u -m modern_pca.vanda_sicapv2_distributed \
+  --mode "$MODE" \
+  --model "$BASE/vanda_runs/nasnet_production_14epoch/epoch14.keras" \
+  --manifest "$BASE/sicap_transfer/audit/selected_train.csv" \
+  --images "$BASE/sicap_transfer/images" \
+  --plan reports/stage2j_epoch15_plan.json \
+  --output "$OUT" \
+  --accept-magnification-deviation --verify-images

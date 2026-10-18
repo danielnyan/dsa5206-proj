@@ -30,5 +30,5 @@ for i in 0 1 2 3; do
   [[ "$observed" -eq "${expected[$i]}" ]] || { echo "COUNT MISMATCH: $name" >&2; exit 1; }
 done
 [[ -f "$extracted/val_dataset_1_norm/norm/norm.0.jpg" ]] || { echo "Unexpected normal ZIP layout" >&2; exit 1; }
-[[ -f "$extracted/val_dataset_1_tu/tu/tu.0.jpg" ]] || { echo "Unexpected tumour ZIP layout" >&2; exit 1; }
+[[ -f "$extracted/val_dataset_1_tu/tu/tum.0.jpg" ]] || { echo "Unexpected tumour ZIP layout" >&2; exit 1; }
 echo 'EXTRACTION AND ARCHIVE AUDIT COMPLETE'

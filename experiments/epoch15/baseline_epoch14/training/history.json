@@ -1,0 +1,650 @@
+{
+  "purpose": "vanda_2xa40_production_epoch14",
+  "history": [
+    {
+      "epoch": 1,
+      "boundary": "normal_conv_1_17",
+      "rate": 1e-05,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.19562949900288684,
+        "elapsed_seconds": 1108.86
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 17845,
+          "FP": 757,
+          "FN": 921,
+          "TP": 9641,
+          "confusion_matrix": [
+            [
+              17845,
+              757
+            ],
+            [
+              921,
+              9641
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9424633109312851,
+          "precision": 0.9271975379880746,
+          "recall": 0.9128006059458436,
+          "sensitivity": 0.9128006059458436,
+          "tumour_accuracy": 0.9128006059458436,
+          "specificity": 0.9593054510267713,
+          "benign_accuracy": 0.9593054510267713,
+          "f1": 0.919942748091603,
+          "roc_auc": 0.983110337613377,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 208.8
+      }
+    },
+    {
+      "epoch": 2,
+      "boundary": "normal_conv_1_17",
+      "rate": 1e-05,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.13125803405443343,
+        "elapsed_seconds": 1171.45
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18160,
+          "FP": 442,
+          "FN": 1024,
+          "TP": 9538,
+          "confusion_matrix": [
+            [
+              18160,
+              442
+            ],
+            [
+              1024,
+              9538
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9497325469757235,
+          "precision": 0.9557114228456913,
+          "recall": 0.9030486650255634,
+          "sensitivity": 0.9030486650255634,
+          "tumour_accuracy": 0.9030486650255634,
+          "specificity": 0.9762391140737555,
+          "benign_accuracy": 0.9762391140737555,
+          "f1": 0.9286340181092396,
+          "roc_auc": 0.9869169444247586,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 209.6
+      }
+    },
+    {
+      "epoch": 3,
+      "boundary": "normal_conv_1_17",
+      "rate": 1e-05,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.10584658272425497,
+        "elapsed_seconds": 952.59
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 17664,
+          "FP": 938,
+          "FN": 543,
+          "TP": 10019,
+          "confusion_matrix": [
+            [
+              17664,
+              938
+            ],
+            [
+              543,
+              10019
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9492182142367303,
+          "precision": 0.9143926257187186,
+          "recall": 0.9485892823328915,
+          "sensitivity": 0.9485892823328915,
+          "tumour_accuracy": 0.9485892823328915,
+          "specificity": 0.9495753144823137,
+          "benign_accuracy": 0.9495753144823137,
+          "f1": 0.9311770993075886,
+          "roc_auc": 0.9884943541019638,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 205.38
+      }
+    },
+    {
+      "epoch": 4,
+      "boundary": "normal_conv_1_17",
+      "rate": 1e-05,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.08564657450749295,
+        "elapsed_seconds": 988.53
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 17722,
+          "FP": 880,
+          "FN": 533,
+          "TP": 10029,
+          "confusion_matrix": [
+            [
+              17722,
+              880
+            ],
+            [
+              533,
+              10029
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9515498559868331,
+          "precision": 0.9193326611055093,
+          "recall": 0.9495360727135013,
+          "sensitivity": 0.9495360727135013,
+          "tumour_accuracy": 0.9495360727135013,
+          "specificity": 0.9526932587893775,
+          "benign_accuracy": 0.9526932587893775,
+          "f1": 0.9341903031996647,
+          "roc_auc": 0.9888937370768103,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 207.66
+      }
+    },
+    {
+      "epoch": 5,
+      "boundary": "normal_conv_1_17",
+      "rate": 1e-05,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.07204788832889614,
+        "elapsed_seconds": 961.68
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18314,
+          "FP": 288,
+          "FN": 1044,
+          "TP": 9518,
+          "confusion_matrix": [
+            [
+              18314,
+              288
+            ],
+            [
+              1044,
+              9518
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9543272527773968,
+          "precision": 0.9706302263920049,
+          "recall": 0.9011550842643439,
+          "sensitivity": 0.9011550842643439,
+          "tumour_accuracy": 0.9011550842643439,
+          "specificity": 0.9845177937856144,
+          "benign_accuracy": 0.9845177937856144,
+          "f1": 0.9346032992930087,
+          "roc_auc": 0.9898573617181653,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 206.12
+      }
+    },
+    {
+      "epoch": 6,
+      "boundary": "normal_conv_1_17",
+      "rate": 1e-05,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.0591020625098051,
+        "elapsed_seconds": 978.43
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18041,
+          "FP": 561,
+          "FN": 658,
+          "TP": 9904,
+          "confusion_matrix": [
+            [
+              18041,
+              561
+            ],
+            [
+              658,
+              9904
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9582018927444795,
+          "precision": 0.9463927376970855,
+          "recall": 0.9377011929558796,
+          "sensitivity": 0.9377011929558796,
+          "tumour_accuracy": 0.9377011929558796,
+          "specificity": 0.9698419524782281,
+          "benign_accuracy": 0.9698419524782281,
+          "f1": 0.9420269177723879,
+          "roc_auc": 0.9903029313896506,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 204.45
+      }
+    },
+    {
+      "epoch": 7,
+      "boundary": "normal_conv_1_17",
+      "rate": 1e-05,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.04933329062519354,
+        "elapsed_seconds": 962.64
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18197,
+          "FP": 405,
+          "FN": 801,
+          "TP": 9761,
+          "confusion_matrix": [
+            [
+              18197,
+              405
+            ],
+            [
+              801,
+              9761
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9586476477849404,
+          "precision": 0.9601613220539051,
+          "recall": 0.9241620905131603,
+          "sensitivity": 0.9241620905131603,
+          "tumour_accuracy": 0.9241620905131603,
+          "specificity": 0.9782281475110203,
+          "benign_accuracy": 0.9782281475110203,
+          "f1": 0.9418178309532999,
+          "roc_auc": 0.9900070886616206,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 204.81
+      }
+    },
+    {
+      "epoch": 8,
+      "boundary": "normal_conv_1_14",
+      "rate": 1e-06,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.03172549233323543,
+        "elapsed_seconds": 1127.46
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18123,
+          "FP": 479,
+          "FN": 652,
+          "TP": 9910,
+          "confusion_matrix": [
+            [
+              18123,
+              479
+            ],
+            [
+              652,
+              9910
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9612193114799067,
+          "precision": 0.9538935412455481,
+          "recall": 0.9382692671842454,
+          "sensitivity": 0.9382692671842454,
+          "tumour_accuracy": 0.9382692671842454,
+          "specificity": 0.9742500806364907,
+          "benign_accuracy": 0.9742500806364907,
+          "f1": 0.9460168965681829,
+          "roc_auc": 0.9906990722105754,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 207.69
+      }
+    },
+    {
+      "epoch": 9,
+      "boundary": "normal_conv_1_11",
+      "rate": 1e-06,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.028172283427429987,
+        "elapsed_seconds": 1345.58
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18143,
+          "FP": 459,
+          "FN": 648,
+          "TP": 9914,
+          "confusion_matrix": [
+            [
+              18143,
+              459
+            ],
+            [
+              648,
+              9914
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.962042243862296,
+          "precision": 0.955750506121662,
+          "recall": 0.9386479833364894,
+          "sensitivity": 0.9386479833364894,
+          "tumour_accuracy": 0.9386479833364894,
+          "specificity": 0.975325233845823,
+          "benign_accuracy": 0.975325233845823,
+          "f1": 0.9471220444232147,
+          "roc_auc": 0.9910352230045081,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 200.67
+      }
+    },
+    {
+      "epoch": 10,
+      "boundary": "normal_conv_1_9",
+      "rate": 1e-06,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.02435539948114649,
+        "elapsed_seconds": 1472.55
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18118,
+          "FP": 484,
+          "FN": 594,
+          "TP": 9968,
+          "confusion_matrix": [
+            [
+              18118,
+              484
+            ],
+            [
+              594,
+              9968
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9630366204910163,
+          "precision": 0.9536930730960582,
+          "recall": 0.9437606513917819,
+          "sensitivity": 0.9437606513917819,
+          "tumour_accuracy": 0.9437606513917819,
+          "specificity": 0.9739812923341576,
+          "benign_accuracy": 0.9739812923341576,
+          "f1": 0.9487008660892738,
+          "roc_auc": 0.9916423455921904,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 222.48
+      }
+    },
+    {
+      "epoch": 11,
+      "boundary": "normal_conv_1_7",
+      "rate": 1e-06,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.01950213606646369,
+        "elapsed_seconds": 1600.09
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18169,
+          "FP": 433,
+          "FN": 617,
+          "TP": 9945,
+          "confusion_matrix": [
+            [
+              18169,
+              433
+            ],
+            [
+              617,
+              9945
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9639967082704705,
+          "precision": 0.9582771246868376,
+          "recall": 0.9415830335163795,
+          "sensitivity": 0.9415830335163795,
+          "tumour_accuracy": 0.9415830335163795,
+          "specificity": 0.9767229330179551,
+          "benign_accuracy": 0.9767229330179551,
+          "f1": 0.9498567335243553,
+          "roc_auc": 0.9919180610083178,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 200.71
+      }
+    },
+    {
+      "epoch": 12,
+      "boundary": "normal_conv_1_5",
+      "rate": 1e-06,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.01662306733479968,
+        "elapsed_seconds": 1802.88
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18137,
+          "FP": 465,
+          "FN": 565,
+          "TP": 9997,
+          "confusion_matrix": [
+            [
+              18137,
+              465
+            ],
+            [
+              565,
+              9997
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9646824852557948,
+          "precision": 0.9555534314662588,
+          "recall": 0.9465063434955501,
+          "sensitivity": 0.9465063434955501,
+          "tumour_accuracy": 0.9465063434955501,
+          "specificity": 0.9750026878830234,
+          "benign_accuracy": 0.9750026878830234,
+          "f1": 0.9510083713850838,
+          "roc_auc": 0.9921763135828374,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 216.08
+      }
+    },
+    {
+      "epoch": 13,
+      "boundary": "normal_conv_1_3",
+      "rate": 1e-06,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.013797228121767183,
+        "elapsed_seconds": 2030.49
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18280,
+          "FP": 322,
+          "FN": 687,
+          "TP": 9875,
+          "confusion_matrix": [
+            [
+              18280,
+              322
+            ],
+            [
+              687,
+              9875
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9654025510903854,
+          "precision": 0.9684220849269393,
+          "recall": 0.9349555008521113,
+          "sensitivity": 0.9349555008521113,
+          "tumour_accuracy": 0.9349555008521113,
+          "specificity": 0.9826900333297495,
+          "benign_accuracy": 0.9826900333297495,
+          "f1": 0.9513945758466208,
+          "roc_auc": 0.9922274500356597,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 205.87
+      }
+    },
+    {
+      "epoch": 14,
+      "boundary": "normal_conv_1_1",
+      "rate": 1e-06,
+      "training": {
+        "samples": 116655,
+        "updates": 1167,
+        "loss": 0.011269625426902127,
+        "elapsed_seconds": 2231.67
+      },
+      "internal_validation": {
+        "samples": 29164,
+        "metrics": {
+          "TN": 18308,
+          "FP": 294,
+          "FN": 688,
+          "TP": 9874,
+          "confusion_matrix": [
+            [
+              18308,
+              294
+            ],
+            [
+              688,
+              9874
+            ]
+          ],
+          "label_order": [
+            "benign",
+            "tumour"
+          ],
+          "accuracy": 0.9663283500205733,
+          "precision": 0.9710857592446892,
+          "recall": 0.9348608218140504,
+          "sensitivity": 0.9348608218140504,
+          "tumour_accuracy": 0.9348608218140504,
+          "specificity": 0.9841952478228148,
+          "benign_accuracy": 0.9841952478228148,
+          "f1": 0.9526290400385914,
+          "roc_auc": 0.9925591066036701,
+          "exact_threshold_ties": 0,
+          "undefined_metrics": []
+        },
+        "elapsed_seconds": 197.24
+      }
+    }
+  ],
+  "completed_epochs": 14
+}

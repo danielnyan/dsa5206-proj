@@ -1,0 +1,6 @@
+{
+  "model_sha256": "433dd48aae800c659d1cba092af2859499bb804d2228ff978a6e9c9602b2adde",
+  "completed_epochs": 14,
+  "purpose": "vanda_2xa40_production_epoch14",
+  "checkpoint": "epoch_14_resume"
+}

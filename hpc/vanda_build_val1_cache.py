@@ -72,7 +72,7 @@ def main():
             'machine': {'python': platform.python_version(),
                         'platform': platform.platform()},
             'dependencies': versions,
-            'preprocessing_provenance': provenance,
+            'provenance': provenance,
             'source_sha256': {
                 'vanda_build_val1_cache.py': file_sha256(__file__),
                 'full_cache.py': file_sha256(cache.__file__),

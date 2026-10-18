@@ -254,7 +254,8 @@ def production(args, train, validation, summary):
     device = r.gpu_setup()
     model, counts = r.build_model()
     meta = r.metadata(summary, "production_epoch14", args.batch_size)
-    meta.update(device=device, stage_trainable_parameters=counts, completed_epochs=0)
+    meta.update(device=device, stage_trainable_parameters=counts, completed_epochs=0,
+                validation_batch_size=args.validation_batch_size)
     r.write_json(args.output / "metadata.json", meta)
     reference = r.normalizers(args.stain_reference)
     epoch, history = 0, []
@@ -279,11 +280,11 @@ def production(args, train, validation, summary):
             training_seconds = time.perf_counter()-start
             scores = []
             progress = Progress(len(validation),args.log_every,30,r.LOG)
-            for offset in range(0,len(validation),args.batch_size):
-                batch = validation[offset:offset+args.batch_size]
+            for offset in range(0,len(validation),args.validation_batch_size):
+                batch = validation[offset:offset+args.validation_batch_size]
                 x = np.stack([r.preprocess_legacy(row,r.image_path(row,args.extracted),reference) for row in batch])
                 scores.extend(model(x,training=False).numpy()[:,1].tolist())
-                progress.update(min(offset+args.batch_size,len(validation)))
+                progress.update(min(offset+args.validation_batch_size,len(validation)))
             history.append(dict(epoch=epoch, boundary=boundary, loss=loss_sum/len(rows), training_seconds=training_seconds,
                                 internal_validation=calculate_binary_metrics([row["ground_truth_code"] for row in validation],scores)))
             r.write_json(args.output / "history.json", dict(epochs=history, selection="none; fixed epoch14"))
@@ -309,6 +310,8 @@ def parse_args(argv=None):
     parser.add_argument("--stain-reference",type=Path,default=r.REFERENCE)
     parser.add_argument("--output",type=Path)
     parser.add_argument("--batch-size",type=int,choices=[1,2,4],default=1)
+    parser.add_argument("--validation-batch-size",type=int,choices=[1,2,4],default=1,
+                        help="Production inference-only validation physical batch (default: 1); independent of training")
     parser.add_argument("--log-every",type=int,default=1000)
     parser.add_argument("--log-level",choices=["INFO","DEBUG"],default="INFO")
     parser.add_argument("--cache",type=Path,help="Verified full VAL1 cache; production only, requires --batch-size 4")
@@ -346,6 +349,8 @@ def main(argv=None):
         return 0
     r.logging_setup(args.output,args.log_level)
     meta = r.metadata(summary,"smoke_disposable" if args.smoke_benchmark else "production_pending",args.batch_size)
+    if args.train_production:
+        meta['validation_batch_size'] = args.validation_batch_size
     if args.smoke_benchmark:
         meta.update(physical_batch=None,physical_batches=[1,2,4])
     r.write_json(args.output / "metadata.json",meta)

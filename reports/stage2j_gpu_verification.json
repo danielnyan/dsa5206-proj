@@ -1,0 +1,66 @@
+{
+  "VAL2_images_accessed": false,
+  "blocked_VAL2_attempts": [],
+  "result": {
+    "allocator": "cuda_malloc_async",
+    "boundary": "normal_conv_1_1",
+    "device": {
+      "build": {
+        "cpu_compiler": "clang 18",
+        "cuda_compute_capabilities": [
+          "sm_60",
+          "sm_70",
+          "sm_80",
+          "sm_89",
+          "compute_90"
+        ],
+        "cuda_version": "12.5.1",
+        "cudnn_version": "9",
+        "is_cuda_build": true,
+        "is_rocm_build": false,
+        "is_tensorrt_build": false
+      },
+      "cuda_visible_devices": "unset",
+      "deterministic_ops": true,
+      "gpu_details": [
+        {
+          "compute_capability": [
+            8,
+            9
+          ],
+          "device_name": "NVIDIA GeForce RTX 4080 Laptop GPU"
+        }
+      ],
+      "keras": "3.15.1",
+      "synchronous_execution": true,
+      "tensor_float_32": false,
+      "tensorflow": "2.20.0",
+      "visible_gpus": [
+        "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+      ]
+    },
+    "effective_batch": 100,
+    "memory_bytes": {
+      "current": 4185936556,
+      "peak": 9972027424
+    },
+    "optimizer_updates": 0,
+    "physical_batch": 4,
+    "probe": "one read-only forward/backward pass with fresh Adam slots and accumulation buffers allocated",
+    "restored_epoch14_weights_exact": true,
+    "samples": [
+      "SICAPv2:16B0006694_Block_Region_1_14_9_xini_15311_yini_126902.jpg",
+      "SICAPv2:18B0006623C_Block_Region_3_2_4_xini_28025_yini_143016.jpg",
+      "SICAPv2:18B0005478E_Block_Region_4_35_3_xini_16728_yini_139378.jpg",
+      "SICAPv2:18B0006623A_Block_Region_14_5_23_xini_50420_yini_45079.jpg"
+    ],
+    "seconds": 4.25275981798768,
+    "status": "PASS",
+    "training_batches": 0,
+    "training_started": false,
+    "validation_batches": 0,
+    "weights_BN_Adam_buffers_unchanged": true
+  },
+  "status": "PASS",
+  "training_started": false
+}

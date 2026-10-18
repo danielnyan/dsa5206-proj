@@ -1,0 +1,18 @@
+{
+  "VAL2_images_accessed": false,
+  "blocked_VAL2_attempts": [],
+  "result": {
+    "focused": {
+      "exit_code": 0,
+      "log": "reports/stage2j_focused_tests.log",
+      "summary": "24 passed in 7.32s"
+    },
+    "full": {
+      "exit_code": 0,
+      "log": "reports/stage2j_full_tests.log",
+      "summary": "303 passed in 60.83s (0:01:00)"
+    }
+  },
+  "status": "PASS",
+  "training_started": false
+}

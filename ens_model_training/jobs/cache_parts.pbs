@@ -1,0 +1,30 @@
+#!/bin/bash
+#PBS -N ens-cache
+#PBS -J 0-7
+#PBS -l select=1:ncpus=32:mem=64gb
+#PBS -l walltime=12:00:00
+#PBS -j oe
+# Build the 8 parts of the 500 px uint8 model-2 cache with ens_cache.build_part (one array task per
+# part; ~13.8 GB each, 109.4 GB total). Requires download_val1.pbs to have finished: tasks only
+# reuse the MD5-verified ZIPs and must not race to download them.
+# Submit:  qsub -P $NSCC_PROJECT -q $CPU_QUEUE -v CODE_DIR=$CODE ens_model_training/jobs/cache_parts.pbs
+# One part only (e.g. a rerun):  qsub ... -J 3-3:1 ...  (PBS Pro needs a range; or use -v PART=3 without -J)
+set -euo pipefail
+source "${CODE_DIR:-${PBS_O_WORKDIR:-$(dirname "$0")/../..}}/ens_model_training/jobs/config.sh"
+activate_env
+
+part="${PART:-${PBS_ARRAY_INDEX:?set PART or submit as an array}}"
+for name in val_dataset_1_norm.zip val_dataset_1_tu.zip; do
+    [[ -f "$ARCHIVES/$name" ]] || { echo "Missing $ARCHIVES/$name: run download_val1.pbs first" >&2; exit 3; }
+done
+out="$CACHE/ens_cache_part_$part"
+if [[ -d "$out" && ! -f "$out/ens_part.json" ]]; then
+    # build_part refuses a nonempty directory; keep (do not delete) the remnant of a killed attempt.
+    mv "$out" "$out.incomplete.$(date +%s)"
+fi
+if [[ -f "$out/ens_part.json" ]]; then
+    echo "Part $part already committed: $out"; exit 0
+fi
+mkdir -p "$CACHE"
+python -m ens_model_training.ens_cache --part "$part" --archives "$ARCHIVES" --output "$out" --workers "${NCPUS:-$(nproc)}"
+python -c "import json,sys; m=json.load(open(sys.argv[1])); print({k: m[k] for k in ('part','samples','bytes','seconds','images_per_second','fingerprint')})" "$out/ens_part.json"

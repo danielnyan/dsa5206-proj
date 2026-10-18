@@ -1,0 +1,41 @@
+{
+  "purpose": "VAL1_internal_validation_original_domain_retention_diagnostic",
+  "limitation": "VAL1 internal validation was monitored during baseline training; not an independent holdout",
+  "model_key": "epoch14",
+  "model_sha256": "433dd48aae800c659d1cba092af2859499bb804d2228ff978a6e9c9602b2adde",
+  "manifest_sha256": "cdcecc2362f175c4aa6163c2f6304071f11624bb1b57f4d0aef9f31e71055069",
+  "cache_manifest_sha256": "29763b50e177c26cdb58ddbfd3ccb0e5b83be593253e745e104b3fcbd740c6d1",
+  "samples": 29164,
+  "batch_size": 32,
+  "threshold": "p_tumour > 0.5",
+  "augmentation": false,
+  "data_source": "verified original VAL1 preprocessed cache",
+  "training_performed": false,
+  "metrics": {
+    "TN": 18308,
+    "FP": 294,
+    "FN": 688,
+    "TP": 9874,
+    "accuracy": 0.9663283500205733,
+    "precision": 0.9710857592446892,
+    "sensitivity": 0.9348608218140504,
+    "specificity": 0.9841952478228148,
+    "f1": 0.9526290400385914,
+    "balanced_accuracy": 0.9595280348184325,
+    "roc_auc": 0.99255910660367,
+    "confusion_matrix": [
+      [
+        18308,
+        294
+      ],
+      [
+        688,
+        9874
+      ]
+    ]
+  },
+  "timing_seconds": {
+    "initialization": 48.56634292611852,
+    "end_to_end": 458.6898550600745
+  }
+}

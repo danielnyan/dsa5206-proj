@@ -50,14 +50,17 @@ def checked_reader(root):
     return reader
 
 
-def batches(reader, split, epoch, start=0, limit=None):
+def batches(reader, split, epoch, start=0, limit=None, *, validation_batch_size=1):
+    if validation_batch_size not in (1, 2, 4):
+        raise ValueError('Validation batch size must be 1, 2 or 4')
     indices = reader.indices(split, epoch if split == 'train' else None)
     if start < 0 or start > len(indices) or (split == 'train' and start % 100):
         raise ValueError('Resume requires a completed logical-batch boundary')
     indices = indices[start:] if limit is None else indices[start:start + limit]
     if not indices:
         return iter(())
-    return c.dataset(reader, indices, batch_size=4, parallel=1, prefetch=2,
+    batch_size = 4 if split == 'train' else validation_batch_size
+    return c.dataset(reader, indices, batch_size=batch_size, parallel=1, prefetch=2,
                      augment=split == 'train', epoch=epoch)
 
 
@@ -303,7 +306,10 @@ def production(args, train, validation_rows, summary):
         raise ValueError('Verified cached production requires physical batch 4')
     model, counts = r.build_model(); cache_sha = r.sha256_file(Path(args.cache) / 'cache.json')
     meta = r.metadata(summary, 'production_epoch14', 4)
-    meta.update(device=device, stage_trainable_parameters=counts, cache_catalog_sha256=cache_sha, completed_epochs=0)
+    meta.update(device=device, stage_trainable_parameters=counts, cache_catalog_sha256=cache_sha, completed_epochs=0,
+                validation_batch_size=args.validation_batch_size)
+    r.LOG.info('Cached production batches: training physical=4 effective=100; validation physical=%d',
+               args.validation_batch_size)
     history = []; epoch = 0; resume = getattr(args, 'resume_cache_checkpoint', None)
     completed = 0
     if resume:
@@ -336,12 +342,14 @@ def production(args, train, validation_rows, summary):
         accumulator = r.Accumulator(model, optimizer)
         for current in range(max(epoch, completed) + 1, end_epoch + 1):
             result = train_batches(accumulator, batches(reader, 'train', current))
-            val = validation(model, batches(reader, 'internal_validation', current))
+            val = validation(model, batches(reader, 'internal_validation', current,
+                                            validation_batch_size=args.validation_batch_size))
             if result['samples'] != f.COUNTS['train'] or len(val['labels']) != f.COUNTS['internal_validation']:
                 raise ValueError('Production epoch sample count mismatch')
             history.append(dict(epoch=current, boundary=boundary, loss=result['loss'],
                                 internal_validation=calculate_binary_metrics(val['labels'], val['scores'])))
-            state = dict(purpose='production', completed_epochs=current, boundary=boundary, rate=rate, history=history)
+            state = dict(purpose='production', completed_epochs=current, boundary=boundary, rate=rate, history=history,
+                         validation_batch_size=args.validation_batch_size)
             save_checkpoint(model, optimizer, accumulator, args.output / f'epoch_{current:02d}_resume', state, cache_sha)
             f.atomic_json(args.output / 'history.json', dict(epochs=history, selection='none; fixed epoch14'))
         epoch = end_epoch

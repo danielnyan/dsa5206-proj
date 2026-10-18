@@ -1,0 +1,109 @@
+{
+  "archive_sha256": "a28aa6a0e3831217bf31575cecfc1846607ace7ff25a4392f07052bbc7355916",
+  "comparison": {
+    "A": "Stage 2I native fixed epoch14 VAL2 result",
+    "B": "fixed epoch14 plus exactly one SICAP epoch15, then VAL2",
+    "caveat": "User-provided approximate descriptive paper values. This is not reproduction of paper post-VAL1; report deterioration as deterioration.",
+    "descriptive_paper_values": {
+      "native_VAL2": {
+        "accuracy": 0.967,
+        "f1": 0.942,
+        "precision": 0.927,
+        "recall": 0.957,
+        "roc_auc": 0.9918
+      },
+      "paper_VAL2_after_VAL1": {
+        "accuracy": 0.974,
+        "f1": 0.953,
+        "precision": 0.951,
+        "recall": 0.955,
+        "roc_auc": 0.9939
+      }
+    },
+    "metrics": [
+      "accuracy",
+      "precision",
+      "recall",
+      "sensitivity",
+      "specificity",
+      "f1",
+      "roc_auc",
+      "TN",
+      "FP",
+      "FN",
+      "TP"
+    ],
+    "probability_analysis": "Per-image unrounded tumour probability delta B-A; crossings at p_tumour >0.5 (equality benign)",
+    "selection": "No tuning, calibration, checkpoint selection, retry for VAL2 improvement or outcome-based sample choice"
+  },
+  "condition": "Explicit acceptance of 10x wider-field secondary domain/magnification deviation",
+  "images_root": "/mnt/d/DSML 2025/Semester 1 (2026)/DSA5206/Project/data/sicapv2_v2/extracted/SICAPv2/images",
+  "manifest_sha256": "52e87a6e814eb64c296493d0637b34872269f63d890b472d1c11d17914cd660d",
+  "preprocessing_failures": 0,
+  "protocol": {
+    "BN": "frozen/inference",
+    "TF32": false,
+    "allocator": "cuda_malloc_async",
+    "amsgrad": false,
+    "beta_1": 0.9,
+    "beta_2": 0.999,
+    "boundary": "normal_conv_1_1",
+    "class_order": [
+      "benign",
+      "tumour"
+    ],
+    "clipping": null,
+    "effective_batch": 100,
+    "epoch_for_flips": 15,
+    "epsilon": 1e-07,
+    "extra_epochs": 1,
+    "final_epoch": 15,
+    "horizontal_flip": 0.5,
+    "learning_rate": 1e-06,
+    "loss": "unweighted sparse categorical crossentropy",
+    "optimizer": "fresh Adam",
+    "order": "SHA256 SICAPv2-epoch15-v1|42|<sample_id>; ties sample_id",
+    "physical_batch": 4,
+    "precision": "float32",
+    "preprocessing": "frozen PIL RGB/LANCZOS350/brightness/Macenko/float32 divided by255",
+    "purpose": "secondary_SICAPv2_epoch15",
+    "reference_sha256": "1d31d575c21dcbcf172957b0783c37fcb07872d3129b3a7b3e86ede25ea0a1c1",
+    "sampling": "each official training sample exactly once; no resampling",
+    "scale": "whole 512px 10x patch resized to350; explicit magnification deviation",
+    "seed": 42,
+    "starting_epoch": 14,
+    "validation": "none; no checkpoint selection",
+    "vertical_flip": 0.5,
+    "weight_decay": null
+  },
+  "samples": 9959,
+  "software": {
+    "Pillow": "10.4.0",
+    "h5py": "3.16.0",
+    "keras": "3.15.1",
+    "numpy": "1.26.4",
+    "opencv-python": "4.11.0.86",
+    "opencv-python-headless": null,
+    "python": "3.11.16",
+    "scikit-learn": "1.5.2",
+    "spams": null,
+    "spams-bin": "2.6.13",
+    "staintools": "2.1.2",
+    "tensorflow": "2.20.0"
+  },
+  "source_sha256": {
+    "modern_pca/cached_training.py": "a9bfaafd350f4b96f58cae6a3a4297e71ff5a440089956bb3379a5e82416351d",
+    "modern_pca/evaluate_paper.py": "e79d883bab30061dce3b68dc493a454c8a5b5f763e75916d2f31485345654c8b",
+    "modern_pca/evaluate_reimplementation.py": "8ce23129b7589fdf4761dbe40412b5f34ebea818c738b65e95dd9e44b911550c",
+    "modern_pca/evaluate_sicapv2.py": "ab8c30d3896c4613cd04fe16566f7f3d474d88d5511e6bff0d53b2f8267fad92",
+    "modern_pca/models.py": "9b52264bd63b2fe71ed9cac46adace1ed0eb4ebebce0c05bfb2f43d55164758f",
+    "modern_pca/reimplementation.py": "851b807fdc6d95f5880a4ccf51e0182087931df1fb4c42fa7a6984369cc46550",
+    "modern_pca/sicapv2.py": "c38443bd6823dbd06717288ba3d174ad0e05a4d3a4693e5b001560544bc3a15d",
+    "modern_pca/stage2i_contract.py": "ebe50dae39c1065e82a5e853cbfb2ea329e9242610f2948f6aa35c632cd94e21",
+    "modern_pca/train_sicapv2.py": "16c0db1f31cd43c0d56a2817ae5f36c199da12173643c8556cdc875ce9460717",
+    "tools/build_validation_manifests.py": "9b9d6e35716138c4cc25a0d3547041d92c09c1dad61bc4ad0e3fe5bd4b2a63cb",
+    "tools/inspect_sicapv2.py": "40d00f2cf4c96e8290913fbba1aed6610dcd5179b73519885267e9baca817156"
+  },
+  "starting_model_sha256": "5cecd53138d74cffc7313521a1c78544096d7e872440b496631a5666534e1e61",
+  "status": "CONDITIONAL GO"
+}

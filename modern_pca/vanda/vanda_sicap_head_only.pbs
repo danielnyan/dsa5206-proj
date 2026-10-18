@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N sicap_head1
+#PBS -q auto
+#PBS -l select=1:ncpus=12:mem=96gb:ngpus=2
+#PBS -l walltime=03:00:00
+#PBS -j oe
+set -euo pipefail
+cd /scratch/e1536052/DSA5206/dsa5206-proj
+module load Python/3.11.5-GCCcore-13.2.0
+source /scratch/e1536052/DSA5206/.venv/bin/activate
+export TF_CPP_MIN_LOG_LEVEL=2
+export TF_ENABLE_ONEDNN_OPTS=0
+export TF_GPU_ALLOCATOR=cuda_malloc_async
+export CUDA_VISIBLE_DEVICES=0,1
+BASE=/scratch/e1536052/DSA5206
+MODE="${MODE:-smoke}"
+case "$MODE" in
+  smoke) OUT="$BASE/vanda_runs/sicap_head_only_smoke_${PBS_JOBID%%.*}" ;;
+  train) OUT="$BASE/vanda_runs/sicap_head_only_epoch15" ;;
+  *) echo 'Invalid MODE (smoke or train)' >&2; exit 2 ;;
+esac
+python -B -u -m modern_pca.vanda_sicap_head_only --mode "$MODE" --output "$OUT"
