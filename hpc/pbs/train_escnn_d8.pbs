@@ -7,7 +7,11 @@
 set -euo pipefail
 
 source "${PIPELINE_CONFIG:?Pass PIPELINE_CONFIG=/absolute/path/to/site.env with qsub -v}"
-if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+if [[ -n "${ESCNN_SITE_SETUP:-}" ]]; then
+    eval "$ESCNN_SITE_SETUP"
+elif [[ -n "${SITE_SETUP:-}" ]]; then
+    eval "$SITE_SETUP"
+fi
 source "${ESCNN_VENV_DIR:-$VENV_DIR}/bin/activate"
 cd "${REPO_DIR:?Set REPO_DIR in site.env}"
 

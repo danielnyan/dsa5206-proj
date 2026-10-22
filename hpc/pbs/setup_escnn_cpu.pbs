@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+#PBS -N escnn-env-cpu
+#PBS -l select=1:ncpus=4:mem=24gb
+#PBS -l walltime=08:00:00
+#PBS -j oe
+# Add #PBS -P personal-... if your cluster requires it.
+set -euo pipefail
+
+source "${PIPELINE_CONFIG:?Pass absolute PIPELINE_CONFIG using qsub -v}"
+if [[ -n "${ESCNN_SITE_SETUP:-}" ]]; then
+  eval "$ESCNN_SITE_SETUP"
+elif [[ -n "${SITE_SETUP:-}" ]]; then
+  eval "$SITE_SETUP"
+fi
+
+cd "${REPO_DIR:?Set REPO_DIR in site.env}"
+: "${WORK_ROOT:?Set WORK_ROOT in site.env}"
+: "${ESCNN_STAGE2G_CACHE:?Set ESCNN_STAGE2G_CACHE in site.env}"
+: "${ESCNN_OUTPUT:?Set ESCNN_OUTPUT in site.env}"
+ESCNN_VENV_DIR="${ESCNN_VENV_DIR:-$WORK_ROOT/escnn-env}"
+
+# Do not mutate the existing Gleason virtual environment.
+[[ "$ESCNN_VENV_DIR" != "$VENV_DIR" ]] || {
+  echo 'ESCNN_VENV_DIR must be different from the Gleason VENV_DIR' >&2; exit 2;
+}
+[[ -f modern_pca/train_group_equivariant.py ]] || { echo 'Wrong repository directory' >&2; exit 2; }
+[[ -f modern_pca/escnn_stage2g.py ]] || { echo 'Missing Stage-2G ESCNN patch' >&2; exit 2; }
+[[ -f requirements-group-equivariant.txt ]] || { echo 'Missing ESCNN requirements' >&2; exit 2; }
+[[ -f "$ESCNN_STAGE2G_CACHE/cache.json" ]] || { echo 'Missing cache.json' >&2; exit 2; }
+[[ -f "$ESCNN_STAGE2G_CACHE/verification.json" ]] || { echo 'Missing verification.json' >&2; exit 2; }
+
+# Require Python 3.11, without guessing an EasyBuild module name.
+PYTHON311="${ESCNN_PYTHON:-$(command -v python3.11 || true)}"
+[[ -n "$PYTHON311" && -x "$PYTHON311" ]] || {
+  echo 'No Python 3.11: set ESCNN_SITE_SETUP and/or ESCNN_PYTHON in site.env' >&2; exit 2;
+}
+"$PYTHON311" -c 'import sys; assert sys.version_info[:2] == (3,11), sys.version'
+
+check_env() {
+  local python="$ESCNN_VENV_DIR/bin/python"
+  [[ -x "$python" ]] || return 1
+  "$python" -m pip check >/dev/null || return 1
+  "$python" - <<'PY'
+import sys
+assert sys.version_info[:2] == (3, 11)
+import torch, torchvision, escnn, numpy, scipy, sklearn, PIL
+from escnn import gspaces
+from modern_pca.escnn_stage2g import PREPROCESSING
+assert gspaces.flipRot2dOnR2(N=8).fibergroup.order() == 16
+assert torch.version.cuda is not None, 'Installed CPU-only torch; GPU job requires CUDA build'
+print('Environment health-check PASS:', sys.version, torch.__version__, escnn.__version__, PREPROCESSING)
+PY
+}
+export PYTHONPATH="$REPO_DIR${PYTHONPATH:+:$PYTHONPATH}"
+
+if check_env; then
+  echo "Existing ESCNN environment is healthy; reusing $ESCNN_VENV_DIR"
+  touch "$ESCNN_VENV_DIR/.escnn-ready"
+  exit 0
+fi
+
+# The interrupted environment is quarantined, NOT deleted. Do not move datasets,
+# checkpoint directories, or the separate Gleason environment.
+if [[ -e "$ESCNN_VENV_DIR" ]]; then
+  backup="${ESCNN_VENV_DIR}.incomplete.${PBS_JOBID:-manual}"
+  [[ ! -e "$backup" ]] || { echo "Backup already exists: $backup" >&2; exit 2; }
+  mv -- "$ESCNN_VENV_DIR" "$backup"
+  echo "Quarantined incomplete environment: $backup"
+fi
+mkdir -p "$(dirname "$ESCNN_VENV_DIR")"
+"$PYTHON311" -m venv "$ESCNN_VENV_DIR"
+PYTHON="$ESCNN_VENV_DIR/bin/python"
+
+pip_extra=()
+if [[ -n "${ESCNN_WHEELHOUSE:-}" ]]; then
+  [[ -d "$ESCNN_WHEELHOUSE" ]] || { echo 'ESCNN_WHEELHOUSE does not exist' >&2; exit 2; }
+  pip_extra+=(--no-index --find-links "$ESCNN_WHEELHOUSE")
+fi
+
+"$PYTHON" -m pip install "${pip_extra[@]}" --upgrade pip setuptools wheel
+# Pin a known-compatible PyTorch/torchvision pairing; obtain CUDA-enabled
+# wheels on Linux. GPU job checks actual driver/runtime compatibility.
+"$PYTHON" -m pip install "${pip_extra[@]}" --prefer-binary \
+  'torch==2.5.1' 'torchvision==0.20.1'
+"$PYTHON" -m pip install "${pip_extra[@]}" --prefer-binary \
+  -r requirements-group-equivariant.txt
+
+check_env
+"$PYTHON" -m pip freeze > "$ESCNN_VENV_DIR/installed-packages.txt"
+touch "$ESCNN_VENV_DIR/.escnn-ready"
+echo "CPU setup PASS: $ESCNN_VENV_DIR"
