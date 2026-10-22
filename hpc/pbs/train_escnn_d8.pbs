@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+#PBS -N escnn-d8-stage2g
+#PBS -l select=1:ncpus=8:ngpus=1:mem=96gb
+#PBS -l walltime=48:00:00
+#PBS -j oe
+# Add the cluster-specific #PBS -P personal-... directive here if required.
+set -euo pipefail
+
+source "${PIPELINE_CONFIG:?Pass PIPELINE_CONFIG=/absolute/path/to/site.env with qsub -v}"
+if [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+source "${ESCNN_VENV_DIR:-$VENV_DIR}/bin/activate"
+cd "${REPO_DIR:?Set REPO_DIR in site.env}"
+
+export PYTHONPATH="$REPO_DIR${PYTHONPATH:+:$PYTHONPATH}"
+export OMP_NUM_THREADS=4
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=4
+
+: "${ESCNN_STAGE2G_CACHE:?Set ESCNN_STAGE2G_CACHE in site.env}"
+: "${ESCNN_OUTPUT:?Set ESCNN_OUTPUT in site.env}"
+# site.env assignments are shell variables until explicitly exported.
+export ESCNN_STAGE2G_CACHE
+[[ -f "$ESCNN_STAGE2G_CACHE/cache.json" ]] || { echo 'Missing cache.json' >&2; exit 1; }
+[[ -f "$ESCNN_STAGE2G_CACHE/verification.json" ]] || { echo 'Missing verification.json' >&2; exit 1; }
+
+python - <<'PY'
+import torch
+import escnn
+assert torch.cuda.is_available(), 'CUDA not available'
+print('GPU:', torch.cuda.get_device_name(0), flush=True)
+print('Torch:', torch.__version__, 'ESCNN:', escnn.__version__, flush=True)
+PY
+
+if [[ "${ESCNN_PREFLIGHT:-0}" == 1 ]]; then
+  # Intended as a separate short PBS job. Checks actual cache schema and
+  # D8 batch-4 forward/backward memory before investing in training.
+  python - <<'PY'
+import os
+import torch
+from modern_pca import reimplementation as r
+from modern_pca.escnn_stage2g import load_stage2g_datasets
+from modern_pca.group_equivariant_model import D8MultiScaleResNetGAP
+
+rows = r.read_manifest('manifests/VAL1_manifest.csv')
+train, val = r.split_val1(rows)
+a, b, catalog = load_stage2g_datasets(
+    os.environ['ESCNN_STAGE2G_CACHE'], train, val
+)
+assert len(a) == 116655 and len(b) == 29164
+x, label = a[0]
+assert x.shape == (3,350,350) and x.dtype == torch.uint8 and label in (0,1)
+print('Stage-2G cache PASS:', catalog, flush=True)
+
+model = D8MultiScaleResNetGAP().cuda().train()
+assert model.gspace.fibergroup.order() == 16
+assert [model.f88_type.size, model.f44_type.size,
+        model.f22_type.size, model.f11_type.size] == [128,256,384,512]
+x = torch.randn(4,3,350,350,device='cuda')
+y = model(x)
+assert y.shape == (4,2)
+y.square().mean().backward()
+torch.cuda.synchronize()
+print('D8 batch-4 forward/backward PASS; peak GiB:',
+      round(torch.cuda.max_memory_allocated()/1024**3, 2), flush=True)
+PY
+  exit 0
+fi
+
+# Do not simultaneously submit two jobs pointing to the same ESCNN_OUTPUT.
+extra=()
+if [[ -f "$ESCNN_OUTPUT/last.pt" ]]; then
+  extra+=(--resume "$ESCNN_OUTPUT/last.pt")
+fi
+
+python -u -m modern_pca.train_group_equivariant \
+  --cache "$ESCNN_STAGE2G_CACHE" \
+  --output "$ESCNN_OUTPUT" \
+  --device cuda \
+  --epochs "${ESCNN_EPOCHS:-20}" \
+  --batch-size 4 \
+  --num-workers 4 \
+  --patience 4 \
+  --min-delta 0 \
+  --checkpoint-every 1000 \
+  "${extra[@]}"
+
+echo "ESCNN training invocation complete. Output: $ESCNN_OUTPUT"
