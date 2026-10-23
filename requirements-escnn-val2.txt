@@ -1,0 +1,7 @@
+# Evaluation-only additions to existing Python 3.11 PyTorch/ESCNN venv.
+# Do NOT reinstall requirements-group-equivariant.txt or touch trained checkpoints.
+# Versions selected for Python 3.11 and NumPy 1.x compatibility.
+staintools==2.1.2
+spams-bin==2.6.14
+opencv-python==4.10.0.84
+matplotlib==3.9.4

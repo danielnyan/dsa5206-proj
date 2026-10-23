@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#PBS -N escnn-d8-val2
+#PBS -l select=1:ncpus=8:ngpus=1:mem=96gb
+#PBS -l walltime=48:00:00
+#PBS -j oe
+# Add #PBS -P personal-... if required.
+set -euo pipefail
+source "${PIPELINE_CONFIG:?Submit using -v PIPELINE_CONFIG=/absolute/path/site.env}"
+if [[ -n "${ESCNN_SITE_SETUP:-}" ]]; then eval "$ESCNN_SITE_SETUP";
+elif [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+cd "${REPO_DIR:?REPO_DIR missing from site.env}"
+: "${WORK_ROOT:?WORK_ROOT missing from site.env}"
+: "${ESCNN_OUTPUT:?ESCNN_OUTPUT missing from site.env}"
+: "${ESCNN_VAL2_EXTRACTED:?ESCNN_VAL2_EXTRACTED missing from site.env}"
+ESCNN_VENV_DIR="${ESCNN_VENV_DIR:-$WORK_ROOT/escnn-env}"
+source "$ESCNN_VENV_DIR/bin/activate"
+export PYTHONPATH="$REPO_DIR${PYTHONPATH:+:$PYTHONPATH}"
+export MPLBACKEND=Agg
+export OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=4
+
+: "${ESCNN_VAL2_OUTPUT:?ESCNN_VAL2_OUTPUT must be passed by submitter}"
+[[ -f "$ESCNN_OUTPUT/best.pt" ]] || { echo 'Missing best.pt' >&2; exit 2; }
+[[ ! -e "$ESCNN_VAL2_OUTPUT" ]] || {
+  echo "Refusing to overwrite existing VAL2 output: $ESCNN_VAL2_OUTPUT" >&2; exit 2;
+}
+mkdir -p "$(dirname "$ESCNN_VAL2_OUTPUT")"
+python - <<'PY'
+import torch, staintools, spams, cv2, escnn
+assert torch.cuda.is_available(), 'CUDA GPU unavailable'
+print('GPU:', torch.cuda.get_device_name(0), flush=True)
+PY
+python -u -m modern_pca.evaluate_group_equivariant \
+  --data "$ESCNN_VAL2_EXTRACTED" \
+  --checkpoint "$ESCNN_OUTPUT/best.pt" \
+  --output "$ESCNN_VAL2_OUTPUT" \
+  --batch-size 4 \
+  --device cuda
+[[ -s "$ESCNN_VAL2_OUTPUT/metrics.json" && -s "$ESCNN_VAL2_OUTPUT/predictions.csv" ]] || {
+  echo 'Evaluator exited but final VAL2 artifacts are missing' >&2; exit 1;
+}
+echo "VAL2 SUCCESS: $ESCNN_VAL2_OUTPUT/metrics.json"

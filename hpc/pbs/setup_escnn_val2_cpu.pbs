@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#PBS -N escnn-val2-deps
+#PBS -l select=1:ncpus=4:mem=24gb
+#PBS -l walltime=06:00:00
+#PBS -j oe
+# Add #PBS -P personal-... if your account requires it.
+set -euo pipefail
+source "${PIPELINE_CONFIG:?Submit using -v PIPELINE_CONFIG=/absolute/path/site.env}"
+if [[ -n "${ESCNN_SITE_SETUP:-}" ]]; then eval "$ESCNN_SITE_SETUP";
+elif [[ -n "${SITE_SETUP:-}" ]]; then eval "$SITE_SETUP"; fi
+cd "${REPO_DIR:?REPO_DIR missing from site.env}"
+: "${WORK_ROOT:?WORK_ROOT missing from site.env}"
+: "${ESCNN_OUTPUT:?ESCNN_OUTPUT missing from site.env}"
+: "${ESCNN_VAL2_EXTRACTED:?Set ESCNN_VAL2_EXTRACTED in site.env}"
+ESCNN_VENV_DIR="${ESCNN_VENV_DIR:-$WORK_ROOT/escnn-env}"
+[[ "$ESCNN_VENV_DIR" != "${VENV_DIR:-}" ]] || { echo 'Refusing to modify Gleason VENV_DIR' >&2; exit 2; }
+PYTHON="$ESCNN_VENV_DIR/bin/python"
+[[ -x "$PYTHON" ]] || { echo "Missing existing ESCNN venv: $PYTHON" >&2; exit 2; }
+[[ -f "$ESCNN_OUTPUT/best.pt" ]] || { echo 'Missing best.pt' >&2; exit 2; }
+[[ -d "$ESCNN_VAL2_EXTRACTED/val_dataset_2_norm" && -d "$ESCNN_VAL2_EXTRACTED/val_dataset_2_tu" ]] || {
+  echo 'VAL2 extracted image directories not found' >&2; exit 2;
+}
+export PYTHONPATH="$REPO_DIR${PYTHONPATH:+:$PYTHONPATH}"
+export MPLBACKEND=Agg
+export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=2
+"$PYTHON" -c 'import sys; assert sys.version_info[:2] == (3,11), sys.version'
+"$PYTHON" - <<'PY'
+import torch, escnn, numpy, scipy, sklearn, PIL
+from escnn import gspaces
+assert gspaces.flipRot2dOnR2(N=8).fibergroup.order() == 16
+print('Existing ESCNN training dependencies PASS', flush=True)
+PY
+
+# Protect existing checkpoint-compatible libraries from pip upgrades/downgrades.
+mkdir -p "$WORK_ROOT/logs/escnn-val2"
+CONSTRAINTS="$WORK_ROOT/logs/escnn-val2/frozen-core-${PBS_JOBID:-manual}.txt"
+"$PYTHON" - "$CONSTRAINTS" <<'PY'
+import importlib.metadata as m
+import sys
+packages = ('numpy','scipy','scikit-learn','Pillow','torch','torchvision','escnn')
+with open(sys.argv[1], 'w', encoding='utf8') as f:
+    for name in packages:
+        f.write(f'{name}=={m.version(name)}\n')
+PY
+cp "$CONSTRAINTS" "$WORK_ROOT/logs/escnn-val2/core-before-${PBS_JOBID:-manual}.txt"
+"$PYTHON" -m pip freeze > "$WORK_ROOT/logs/escnn-val2/pip-before-${PBS_JOBID:-manual}.txt"
+
+# StainTools 2.1.2 is historic; force binary wheels for the compiled additions.
+# pip will fail instead of compiling scipy/SPAMS/OpenCV from source on CPU PBS.
+extra=()
+if [[ -n "${ESCNN_WHEELHOUSE:-}" ]]; then
+  extra+=(--no-index --find-links "$ESCNN_WHEELHOUSE")
+fi
+"$PYTHON" -m pip install "${extra[@]}" --only-binary=:all: \
+  --constraint "$CONSTRAINTS" -r requirements-escnn-val2.txt
+"$PYTHON" -m pip check
+
+# Check exact core versions did not change.
+"$PYTHON" - "$CONSTRAINTS" <<'PY'
+import importlib.metadata as m, sys
+for line in open(sys.argv[1]):
+    name, version = line.strip().split('==',1)
+    if m.version(name) != version:
+        raise SystemExit(f'Core dependency changed: {name} {version} -> {m.version(name)}')
+print('ESCNN core dependencies preserved', flush=True)
+PY
+"$PYTHON" hpc/verify_escnn_val2.py \
+  --data "$ESCNN_VAL2_EXTRACTED" \
+  --checkpoint "$ESCNN_OUTPUT/best.pt" \
+  --last "$ESCNN_OUTPUT/last.pt"
+"$PYTHON" -m pip freeze > "$WORK_ROOT/logs/escnn-val2/pip-after-${PBS_JOBID:-manual}.txt"
+echo 'VAL2 dependency installation and actual Macenko sample preflight PASS' 
