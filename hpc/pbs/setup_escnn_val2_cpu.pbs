@@ -45,14 +45,17 @@ PY
 cp "$CONSTRAINTS" "$WORK_ROOT/logs/escnn-val2/core-before-${PBS_JOBID:-manual}.txt"
 "$PYTHON" -m pip freeze > "$WORK_ROOT/logs/escnn-val2/pip-before-${PBS_JOBID:-manual}.txt"
 
-# StainTools 2.1.2 is historic; force binary wheels for the compiled additions.
-# pip will fail instead of compiling scipy/SPAMS/OpenCV from source on CPU PBS.
+# StainTools 2.1.2 is source-only on PyPI. It MUST NOT be subject to
+# --only-binary=:all:. Install compiled add-ons from wheels first, then
+# install the pure-Python StainTools sdist without replacing core packages.
 extra=()
 if [[ -n "${ESCNN_WHEELHOUSE:-}" ]]; then
   extra+=(--no-index --find-links "$ESCNN_WHEELHOUSE")
 fi
 "$PYTHON" -m pip install "${extra[@]}" --only-binary=:all: \
-  --constraint "$CONSTRAINTS" -r requirements-escnn-val2.txt
+  --constraint "$CONSTRAINTS" \
+  'spams-bin==2.6.14' 'opencv-python==4.10.0.84' 'matplotlib==3.9.4'
+"$PYTHON" -m pip install "${extra[@]}" --no-deps 'staintools==2.1.2'
 "$PYTHON" -m pip check
 
 # Check exact core versions did not change.
